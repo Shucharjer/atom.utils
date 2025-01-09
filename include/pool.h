@@ -7,12 +7,18 @@
 namespace atom::utils {
 
 namespace internal {
+
 const std::align_val_t default_align{ 16 };
 
 struct memory_block {
     std::size_t size;
     void* data;
 };
+
+template <typename SizeTy>
+constexpr bool is_pow_of_two(const SizeTy size) {
+    return size > 0 && (size & (size - 1)) == 0;
+}
 
 } // namespace internal
 
@@ -25,7 +31,7 @@ public:
     using size_type = std::size_t;
 
     class pool {
-        using memory_block = internal::memory_block;
+        using memory_block = UTILS internal::memory_block;
 
         friend class synchronized_pool;
 
@@ -58,7 +64,7 @@ public:
             const size_type count = 1, const std::align_val_t align = std::align_val_t{ 16 }
         ) -> Ty* {
             // TODO: allocate impl
-            return nullptr;
+            return static_cast<Ty*>(operator new(sizeof(Ty) * count, align));
         }
 
         template <typename Ty>
@@ -68,6 +74,7 @@ public:
             const std::align_val_t align = std::align_val_t{ 16 }
         ) {
             // TODO: deallocate impl
+            operator delete(static_cast<void*>(ptr), sizeof(Ty) * count, align);
         }
 
     private:
@@ -103,7 +110,7 @@ public:
     using size_type = std::size_t;
 
     class pool {
-        using memory_block = internal::memory_block;
+        using memory_block = UTILS internal::memory_block;
 
         friend class unsynchronized_pool;
 
@@ -115,14 +122,21 @@ public:
         using size_type = unsynchronized_pool::size_type;
 
         template <typename Ty>
-        auto allocate(const size_type count = 1) -> Ty* {
+        auto allocate(
+            const size_type count = 1, const std::align_val_t align = std::align_val_t{ 16 }
+        ) -> Ty* {
             // TODO: allocate impl
-            return nullptr;
+            return operator new(sizeof(Ty) * count, align);
         }
 
         template <typename Ty>
-        void deallocate(Ty* ptr, const size_type count = 1) {
+        void deallocate(
+            Ty* ptr,
+            const size_type count        = 1,
+            const std::align_val_t align = std::align_val_t{ 16 }
+        ) {
             // TODO: deallocate impl
+            operator delete(ptr, sizeof(Ty) * count, align);
         }
 
     private:

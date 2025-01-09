@@ -1,5 +1,7 @@
 #pragma once
+#include <algorithm>
 #include <ranges>
+#include <type_traits>
 #include "initializer.h"
 #include "type.h"
 #include "type_traits.h"
@@ -247,20 +249,14 @@ public:
         std::ranges::for_each(sink_map_, [](auto& pair) { delete pair.second; });
     }
 
-    dispatcher(dispatcher&& other)
-        : sink_map_(std::move(other.sink_map_)), events_(std::move(other.events_)) {
-        /* clang-tidy tells me:
-         * an exception may be thrown in function 'dispatcher' which should not throw
-         * exceptions. (C/C++bugprone-exception-escape)
-         *
-         * jump to unorded_map and have a look, `unordered_map(unordered_map&& _Right) :
-         * _Mybase(_STD move(_Right)) {}`, it should NOT be marked `noexcept`
-         *
-         * also clang-tidy tells me:
-         * move constructors should be marked noexcept.
-         * (cppcoreguidelines-noexcept-move-operations)
-         */
-    }
+    /**
+     * @brief Move constructor.
+     * std::is_nothrow_move_constructible_v<decltype(sink_map_)> evaluated as false.
+     *
+     * @param other
+     */
+    dispatcher(dispatcher&& that) noexcept(false)
+        : sink_map_(std::move(that.sink_map_)), events_(std::move(that.events_)) {}
 
     dispatcher& operator=(dispatcher&& other) noexcept {
         if (this == &other) {
@@ -281,7 +277,7 @@ public:
     [[nodiscard]] sink<EventType>& sink() {
         using sink_type = ::atom::utils::sink<EventType>;
 
-        utils::default_id_t type_id = utils::type::id<EventType>();
+        utils::default_id_t type_id = utils::type<dispatcher>::id<EventType>();
 
         // 如果没找到创建新的就创建一个
         if (auto iter = sink_map_.find(type_id); iter == sink_map_.cend()) {
@@ -294,7 +290,7 @@ public:
     void trigger(EventType& event) const {
         using sink_type = ::atom::utils::sink<EventType>;
 
-        default_id_t type_id = utils::type::id<EventType>();
+        default_id_t type_id = utils::type<dispatcher>::id<EventType>();
 
         if (auto iter = sink_map_.find(type_id); iter != sink_map_.cend()) {
             static_cast<sink_type*>(iter->second)->trigger(&event);
@@ -312,7 +308,7 @@ public:
         using sink_type    = ::atom::utils::sink<EventType>;
         using decayed_type = std::decay_t<EventType>;
 
-        default_id_t type_id = utils::type::id<std::remove_const_t<decayed_type>>();
+        default_id_t type_id = utils::type<dispatcher>::id<std::remove_const_t<decayed_type>>();
 
         auto ptr = new initializer<std::remove_const_t<decayed_type>, false, lazy>();
         ptr->template init<EventType>(std::forward<EventType>(event));
@@ -324,7 +320,7 @@ public:
     void update() {
         using sink_type = ::atom::utils::sink<EventType>;
 
-        default_id_t type_id = ::atom::utils::type::id<EventType>();
+        default_id_t type_id = ::atom::utils::type<dispatcher>::id<EventType>();
 
         if (auto iter = sink_map_.find(type_id); iter != sink_map_.cend()) {
             auto events =

@@ -14,81 +14,77 @@
  */
 
 #pragma once
-#include <tuple>
-#include "tstring.h"
 
 namespace atom::utils {
 
-    /**
-     * @brief Base of class template field_traits.
-     *
-     */
-    struct basic_field_traits;
+/**
+ * @brief Base of class template field_traits.
+ *
+ */
+struct basic_field_traits;
 
-    /**
-     * @brief Traits of filed.
-     */
-    template <typename = void>
-    struct field_traits;
+/**
+ * @brief Traits of filed.
+ */
+template <typename = void>
+struct field_traits;
 
-    /**
-     * @brief Base of class template function_traits.
-     *
-     */
-    struct basic_function_traits;
+/**
+ * @brief Base of class template function_traits.
+ *
+ */
+struct basic_function_traits;
 
-    /**
-     * @brief Traits of function.
-     */
-    template <typename>
-    struct function_traits;
+/**
+ * @brief Traits of function.
+ */
+template <typename>
+struct function_traits;
 
-    /**
-     * @class basic_constexpr_extend
-     * @brief Extend informations about a type, which could be determined at compile time.
-     *
-     */
-    struct basic_constexpr_extend;
+/**
+ * @class basic_constexpr_extend
+ * @brief Extend informations about a type, which could be determined at compile time.
+ *
+ */
+struct basic_constexpr_extend;
 
-    /**
-     * @brief Extend informations about a type, which could be determined at compile time.
-     */
-    template <typename>
-    struct constexpr_extend;
+/**
+ * @brief Extend informations about a type, which could be determined at compile time.
+ */
+template <UCONCEPTS pure>
+struct constexpr_extend;
 
-    /**
-     * @class extend
-     * @brief Extend informations about a type, which could only be determined at runtime.
-     *
-     */
-    struct extend;
+/**
+ * @class extend
+ * @brief Extend informations about a type, which could only be determined at runtime.
+ *
+ */
+struct extend;
 
-    /**
-     * @brief Base of class template `reflected`.
-     *
-     * This could provide a same base to collect reflected informations to a contain easily.
-     */
-    template <typename BaseConstexprExtend = basic_constexpr_extend>
-    struct basic_reflected;
+/**
+ * @brief Base of class template `reflected`.
+ *
+ * This could provide a same base to collect reflected informations to a contain easily.
+ */
+template <UCONCEPTS pure BaseConstexprExtend = basic_constexpr_extend>
+struct basic_reflected;
 
-    /**
-     * @brief Reflected informations of a type.
-     *
-     * @tparam Ty Reflected type.
-     */
-    template <
-        typename Ty,
-        typename BaseConstexprExtend                 = basic_constexpr_extend,
-        template <typename> typename ConstexprExtend = constexpr_extend>
-    struct reflected;
+/**
+ * @brief Reflected informations of a type.
+ *
+ * @tparam Ty Reflected type.
+ */
+template <
+    UCONCEPTS pure Ty,
+    UCONCEPTS pure BaseConstexprExtend                 = basic_constexpr_extend,
+    template <UCONCEPTS pure> typename ConstexprExtend = constexpr_extend>
+struct reflected;
 
-    class reflection;
-
-    class type;
+class reflection;
 
 } // namespace atom::utils
 
-struct ::atom::utils::basic_field_traits {
+struct UTILS basic_field_traits {
     explicit constexpr basic_field_traits(const char* name) : name_(name) {}
     explicit constexpr basic_field_traits(std::string_view name) : name_(name) {}
     explicit constexpr basic_field_traits(const std::string& name) : name_(name) {}
@@ -113,15 +109,15 @@ private:
 };
 
 template <>
-struct ::atom::utils::field_traits<void> : public atom::utils::basic_field_traits {
+struct UTILS field_traits<void> : public UTILS basic_field_traits {
     using type = void;
 
-    explicit constexpr field_traits() : ::atom::utils::basic_field_traits("void") {}
+    explicit constexpr field_traits() : UTILS basic_field_traits("void") {}
 };
 
 template <typename Ty>
 requires(!std::is_void_v<Ty>)
-struct ::atom::utils::field_traits<Ty*> : public ::atom::utils::basic_field_traits {
+struct UTILS field_traits<Ty*> : public UTILS basic_field_traits {
     using type = Ty;
 
     explicit constexpr field_traits(const char* name, Ty* pointer)
@@ -135,11 +131,11 @@ private:
 };
 
 template <typename Ty, typename Class>
-struct ::atom::utils::field_traits<Ty Class::*> : public ::atom::utils::basic_field_traits {
+struct UTILS field_traits<Ty Class::*> : public UTILS basic_field_traits {
     using type = Ty;
 
-    explicit constexpr field_traits(const char* name, Ty Class::*pointer)
-        : ::atom::utils::basic_field_traits(name), pointer_(pointer) {
+    explicit constexpr field_traits(const char* name, Ty Class::* pointer)
+        : UTILS basic_field_traits(name), pointer_(pointer) {
         // set_name(name_);
     }
 
@@ -149,7 +145,7 @@ struct ::atom::utils::field_traits<Ty Class::*> : public ::atom::utils::basic_fi
     }
 
 private:
-    Ty Class::*pointer_;
+    Ty Class::* pointer_;
 };
 
 struct ::atom::utils::basic_function_traits {
@@ -177,12 +173,11 @@ private:
 };
 
 template <typename Ret, typename... Args>
-struct ::atom::utils::function_traits<Ret (*)(Args...)>
-    : public ::atom::utils::basic_function_traits {
+struct UTILS function_traits<Ret (*)(Args...)> : public UTILS basic_function_traits {
     using func_type = Ret(Args...);
 
     explicit constexpr function_traits(const char* name, Ret (*pointer)(Args...))
-        : ::atom::utils::basic_function_traits(name), pointer_(pointer) {}
+        : UTILS basic_function_traits(name), pointer_(pointer) {}
 
     [[nodiscard]] constexpr std::size_t num_args() const { return sizeof...(Args); }
 
@@ -195,12 +190,11 @@ private:
 };
 
 template <typename Ret, typename Class, typename... Args>
-struct ::atom::utils::function_traits<Ret (Class::*)(Args...)>
-    : public ::atom::utils::basic_function_traits {
+struct UTILS function_traits<Ret (Class::*)(Args...)> : public UTILS basic_function_traits {
     using func_type = Ret(Args...);
 
     explicit constexpr function_traits(const char* name, Ret (Class::*pointer)(Args...))
-        : ::atom::utils::basic_function_traits(name), pointer_(pointer) {}
+        : UTILS basic_function_traits(name), pointer_(pointer) {}
 
     [[nodiscard]] constexpr std::size_t num_args() const { return sizeof...(Args); }
 

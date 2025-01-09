@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <unordered_map>
+#include "utils_macro.h"
 
 namespace atom::utils {
 
@@ -21,7 +22,7 @@ public:
     void from_now() noexcept { start_ = std::chrono::high_resolution_clock::now(); }
 
     [[nodiscard]] auto to_now() const noexcept -> std::chrono::duration<double> {
-        const auto end                     = std::chrono::high_resolution_clock::now();
+        const auto end = std::chrono::high_resolution_clock::now();
         return end - start_;
     }
 
@@ -38,11 +39,11 @@ public:
     timer& operator=(timer&&)      = default;
     ~timer()                       = default;
 
-    auto operator[](const char* timer_name) -> timer_proxy& {
+    auto operator[](const char* timer_name) -> UTILS timer_proxy& {
         auto& timers_ = timers();
 
         if (!timers_.contains(timer_name)) {
-            timers_.emplace(timer_name, timer_proxy());
+            timers_.emplace(timer_name, UTILS timer_proxy());
         }
 
         return timers_[timer_name];
@@ -53,8 +54,8 @@ public:
     }
 
 private:
-    static auto timers() -> std::unordered_map<std::string, timer_proxy>& {
-        static std::unordered_map<std::string, timer_proxy> timers_;
+    static auto timers() -> std::unordered_map<std::string, UTILS timer_proxy>& {
+        static std::unordered_map<std::string, UTILS timer_proxy> timers_;
         return timers_;
     }
 };

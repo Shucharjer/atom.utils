@@ -1,7 +1,7 @@
 #pragma once
-#include <cmath>
 #include <type_traits>
 #include <utility>
+#include "utils_macro.h"
 
 namespace atom::utils {
 
@@ -14,7 +14,7 @@ namespace internal {
  * they have the same type.
  */
 template <typename Ty, bool IsFirst>
-requires(!std::is_void_v<Ty> && !std::is_reference_v<Ty>)
+requires(!std::is_reference_v<Ty>)
 class compressed_element {
 public:
     using self_type       = compressed_element;
@@ -69,6 +69,8 @@ public:
     constexpr compressed_element& operator=(const compressed_element&) noexcept = default;
     constexpr virtual ~compressed_element() noexcept                            = default;
 
+    constexpr compressed_element& operator=(nullptr_t) noexcept { value_ = nullptr; }
+
     constexpr compressed_element(compressed_element&& that) noexcept
         : value_(std::exchange(that.value_, nullptr)) {}
 
@@ -105,15 +107,39 @@ public:
 
     constexpr void get() const noexcept {}
 };
+
+template <typename Ret, typename... Args, bool IsFirst>
+class compressed_element<Ret (*)(Args...), IsFirst> {
+public:
+    using self_type       = compressed_element;
+    using value_type      = Ret (*)(Args...);
+    using reference       = value_type&;
+    using const_reference = const value_type&;
+
+    constexpr compressed_element(value_type value = nullptr) noexcept : value_(value) {}
+    constexpr compressed_element(nullptr_t) noexcept : value_(nullptr) {}
+    constexpr compressed_element(const compressed_element&) noexcept = default;
+    constexpr compressed_element(compressed_element&&) noexcept      = default;
+    constexpr compressed_element& operator=(nullptr_t) noexcept { value_ = nullptr; }
+    constexpr compressed_element& operator=(const compressed_element&) noexcept = default;
+    constexpr compressed_element& operator=(compressed_element&& that) noexcept = default;
+    constexpr virtual ~compressed_element() noexcept                            = default;
+
+    constexpr reference get() noexcept { return value_; }
+    constexpr const_reference get() const noexcept { return value_; }
+
+private:
+    value_type value_;
+};
 } // namespace internal
 
 template <typename First, typename Second>
-class compressed_pair final : private internal::compressed_element<First, true>,
-                              private internal::compressed_element<Second, false> {
+class compressed_pair final : private UTILS internal::compressed_element<First, true>,
+                              private UTILS internal::compressed_element<Second, false> {
 public:
     using self_type   = compressed_pair;
-    using first_base  = internal::compressed_element<First, true>;
-    using second_base = internal::compressed_element<Second, false>;
+    using first_base  = UTILS internal::compressed_element<First, true>;
+    using second_base = UTILS internal::compressed_element<Second, false>;
 
     constexpr compressed_pair(
     ) noexcept(std::is_nothrow_default_constructible_v<first_base> && std::is_nothrow_default_constructible_v<second_base>)
@@ -142,8 +168,8 @@ public:
     }
 
     constexpr ~compressed_pair(
-    ) noexcept(std::is_nothrow_destructible_v<first_base> && std::is_nothrow_destructible_v<second_base>) override =
-        default;
+    ) noexcept(std::is_nothrow_destructible_v<first_base> && std::is_nothrow_destructible_v<second_base>)
+        override = default;
 
     [[nodiscard]] constexpr First& first() noexcept {
         return static_cast<first_base&>(*this).get();

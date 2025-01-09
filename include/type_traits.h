@@ -1,8 +1,8 @@
 #pragma once
 #include <concepts>
 #include <functional>
-#include <tuple>
 #include <type_traits>
+#include "utils_macro.h"
 
 namespace atom::utils {
 
@@ -46,22 +46,28 @@ template <typename... Args, template <typename...> typename Tuple>
 struct is_tuple<Tuple<Args...>> : std::true_type {};
 
 template <typename Ty>
-constexpr bool is_tuple_v = is_tuple<Ty>::value;
+constexpr bool is_tuple_v = UTILS is_tuple<Ty>::value;
 
-template <typename... Args>
-constexpr auto tuple_size_v(const std::tuple<Args...>& tuple) noexcept {
-    return sizeof...(Args);
-}
+template <typename>
+struct tuple_size;
+
+template <typename... Args, template <typename...> typename Tuple>
+struct tuple_size<Tuple<Args...>> {
+    constexpr static std::size_t value = sizeof...(Args);
+};
+
+template <typename Tuple>
+constexpr std::size_t tuple_size_v = tuple_size<std::remove_cvref_t<Tuple>>::value;
 
 template <typename Ty, typename Type>
 using cast_to_type = Type;
 
 template <auto Candidate, typename... Args>
 using is_nothrow_invocable_member_function =
-    std::is_nothrow_invocable<decltype(std::mem_fn(Candidate)), Args...>;
+    ::std::is_nothrow_invocable<decltype(std::mem_fn(Candidate)), Args...>;
 
 template <auto Candidate, typename... Args>
 constexpr bool is_nothrow_invocable_member_function_v =
-    is_nothrow_invocable_member_function<Candidate, Args...>::value;
+    UTILS is_nothrow_invocable_member_function<Candidate, Args...>::value;
 
 } // namespace atom::utils

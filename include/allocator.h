@@ -20,20 +20,34 @@ static bool is_aligned(void* ptr, const std::size_t alignment) {
     return !(addr & (alignment - 1));
 }
 
-constexpr const auto min_align = 8ui64;
+constexpr const auto min_align = 16ui64;
 
 } // namespace internal
 
-template <typename Ty, concepts::memory_pool MemoryPool>
+template <typename Ty>
+struct standard_allocator : public std::allocator<Ty> {
+    using value_type      = Ty;
+    using size_type       = std::size_t;
+    using pointer         = Ty*;
+    using const_pointer   = const Ty&;
+    using reference       = Ty&;
+    using const_reference = const Ty&;
+
+    template <typename T>
+    using rebind_t = standard_allocator<T>;
+};
+
+template <typename Ty, UCONCEPTS memory_pool MemoryPool>
 class allocator;
 
-template <typename Ty, concepts::memory_pool MemoryPool>
+template <typename Ty, UCONCEPTS memory_pool MemoryPool>
 class allocator {
-    template <typename, concepts::memory_pool>
+    template <typename, UCONCEPTS memory_pool>
     friend class allocator;
 
 public:
     using value_type      = Ty;
+    using size_type       = std::size_t;
     using pointer         = Ty*;
     using const_pointer   = const Ty&;
     using reference       = Ty&;
@@ -41,7 +55,7 @@ public:
 
     using shared_type = typename MemoryPool::shared_type;
 
-    template <typename Other, concepts::memory_pool Pool = MemoryPool>
+    template <typename Other, UCONCEPTS memory_pool Pool = MemoryPool>
     using rebind_t = allocator<Other, Pool>;
 
     explicit constexpr allocator(const shared_type& pool
@@ -62,25 +76,27 @@ public:
 
     constexpr ~allocator() = default;
 
-    template <typename Other, concepts::memory_pool Pool = MemoryPool>
+    template <typename Other, UCONCEPTS memory_pool Pool = MemoryPool>
     explicit constexpr allocator(const allocator<Other, Pool>& that
     ) noexcept(std::is_nothrow_copy_constructible_v<shared_type>)
         : pool_(that.pool_) {}
 
-    template <typename Other, concepts::memory_pool Pool = MemoryPool>
+    template <typename Other, UCONCEPTS memory_pool Pool = MemoryPool>
     explicit constexpr allocator(allocator<Other, Pool>&& that
     ) noexcept(std::is_nothrow_move_constructible_v<shared_type>)
         : pool_(std::move(that.pool_)) {}
 
     [[nodiscard]] auto allocate(const size_t count = 1) -> Ty* {
         return pool_->template allocate<Ty>(
-            count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align))
+            count, static_cast<std::align_val_t>(std::min(alignof(Ty), UTILS internal::min_align))
         );
     }
 
     constexpr void deallocate(Ty* const ptr, const size_t count = 1) {
         pool_->template deallocate<Ty>(
-            ptr, count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align))
+            ptr,
+            count,
+            static_cast<std::align_val_t>(std::min(alignof(Ty), UTILS internal::min_align))
         );
     }
 
@@ -92,7 +108,7 @@ private:
     shared_type pool_;
 };
 
-template <typename Ty, std::size_t N, concepts::memory_pool MemoryPool>
+template <typename Ty, std::size_t N, UCONCEPTS memory_pool MemoryPool>
 class allocator<Ty[N], MemoryPool> {
 public:
     using shared_type = typename MemoryPool::shared_type;
@@ -103,7 +119,7 @@ public:
     using reference       = Ty**&;
     using const_reference = Ty** const&;
 
-    template <typename Other, concepts::memory_pool Pool = MemoryPool>
+    template <typename Other, UCONCEPTS memory_pool Pool = MemoryPool>
     using rebind_t = allocator<Other, Pool>;
 
     constexpr allocator() noexcept                            = default;
@@ -113,7 +129,7 @@ public:
     constexpr allocator& operator=(allocator&&) noexcept      = default;
     constexpr ~allocator() noexcept                           = default;
 
-    template <typename Other, concepts::memory_pool Pool = MemoryPool>
+    template <typename Other, UCONCEPTS memory_pool Pool = MemoryPool>
     explicit constexpr allocator(const allocator<Other, Pool>& that
     ) noexcept(std::is_nothrow_copy_constructible_v<Ty>)
         : pool_(that.pool_) {}
@@ -146,10 +162,10 @@ private:
 //     constexpr allocator(const allocator<Other, void>& that) {}
 // };
 
-template <concepts::completed_type Ty, size_t Count = 1>
+template <UCONCEPTS completed_type Ty, size_t Count = 1>
 class builtin_storage_allocator;
 
-template <concepts::completed_type Ty, size_t Count>
+template <UCONCEPTS completed_type Ty, size_t Count>
 class builtin_storage_allocator {
 public:
     using value_type      = Ty;
@@ -164,15 +180,15 @@ public:
     constexpr builtin_storage_allocator() = default;
     constexpr builtin_storage_allocator(const builtin_storage_allocator&) noexcept {}
     constexpr builtin_storage_allocator(builtin_storage_allocator&&) noexcept {}
-    
+
     // NOLINTBEGIN(bugprone-unhandled-self-assignment)
-    
+
     constexpr builtin_storage_allocator& operator=(const builtin_storage_allocator&) noexcept {
         return *this;
     }
-    
+
     // NOLINTEND(bugprone-unhandled-self-assignment)
-    
+
     constexpr builtin_storage_allocator& operator=(builtin_storage_allocator&&) noexcept {
         return *this;
     }

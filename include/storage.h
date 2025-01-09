@@ -1,12 +1,10 @@
 #pragma once
 #include <atomic>
-#include <functional>
-#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
-#include "allocator.h"
 #include "compressed_pair.h"
+#include "concepts.h"
 
 namespace atom::utils {
 
@@ -44,14 +42,14 @@ public:
  * @brief Lazy storage.
  * Initialize on Get, Copy on Write.
  */
-template <typename Ty, typename = allocator<Ty, void>, typename = default_destroyer<Ty>>
+template <typename Ty, UCONCEPTS rebindable_allocator Allocator>
 class unique_storage;
 
 /**
  * @brief Shared lazy storage.
  * Initialize on Get, Copy on Write.
  */
-template <typename Ty, typename = allocator<Ty, void>, typename = default_destroyer<Ty>>
+template <typename Ty, UCONCEPTS rebindable_allocator Allocator>
 class shared_storage;
 
 template <typename Ty>
@@ -64,7 +62,28 @@ struct default_destroyer {
     inline constexpr void operator()(Ty* const ptr) const noexcept { ptr->~Ty(); }
 };
 
-template <typename Ty, typename Allocator, typename Destroyer>
+struct with_allocator_t {};
+struct with_destroyer_t {};
+
+constexpr inline with_allocator_t with_allocator;
+constexpr inline with_destroyer_t with_destroyer;
+
+namespace internal {
+
+template <typename Ty, typename Destroyer>
+constexpr auto wrap_destroyer(Destroyer destroyer) -> void (*)(void*) {
+    static_assert(std::is_invocable_v<Destroyer, Ty*>);
+    if constexpr (std::is_function_v<Destroyer>) {
+        return [&destroyer](void* ptr) { destroyer(static_cast<Ty*>(ptr)); };
+    }
+    else if constexpr (std::is_class_v<Destroyer>) {
+        return [](void* ptr) { Destroyer{}(static_cast<Ty*>(ptr)); };
+    }
+}
+
+} // namespace internal
+
+template <typename Ty, UCONCEPTS rebindable_allocator Allocator>
 class unique_storage : public basic_storage {
     using alty_traits = std::allocator_traits<Allocator>;
 
@@ -73,7 +92,6 @@ public:
 
     using value_type      = Ty;
     using allocator_type  = Allocator;
-    using destroyer_type  = Destroyer;
     using pointer         = typename alty_traits::pointer;
     using const_pointer   = typename alty_traits::const_pointer;
     using reference       = Ty&;
@@ -91,6 +109,10 @@ public:
         const Ty* ptr, const Allocator& allocator = Allocator()
     ) noexcept(std::is_nothrow_default_constructible_v<allocator_type>)
         : pair_(ptr, allocator) {}
+
+    template <typename Destroyer>
+    constexpr explicit unique_storage(const Ty* ptr, with_destroyer_t, Destroyer destroyer)
+        : pair_(ptr, Allocator()), destroyer_(internal::wrap_destroyer(destroyer)) {}
 
     template <typename... Args>
     requires std::is_constructible_v<Ty, Args...>
@@ -167,10 +189,10 @@ public:
 
 private:
     compressed_pair<Ty*, allocator_type> pair_;
-    Destroyer destroyer_;
+    void (*destroyer_)(Ty*);
 };
 
-template <typename Ty, typename Allocator, typename Destroyer>
+template <typename Ty, UCONCEPTS rebindable_allocator Allocator>
 class shared_storage : public basic_storage {
     using alty_traits = std::allocator_traits<Allocator>;
 
@@ -186,48 +208,196 @@ public:
     using reference            = Ty&;
     using const_reference      = const Ty&;
 
-    using destroyer_type = Destroyer;
+    using destroyer_type = void (*)(void*);
 
-    constexpr shared_storage() noexcept
-        : pair_(nullptr, allocator_type{}), control_pair_(nullptr, Destroyer()) {}
+    // default constructor
+    constexpr explicit shared_storage() noexcept
+        : pair_(nullptr, allocator_type{}),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {}
 
-    constexpr explicit shared_storage(const Allocator& allocator) noexcept
-        : pair_(nullptr, allocator), control_pair_(nullptr, Destroyer()) {}
-
-    constexpr explicit shared_storage(const Destroyer& destroyer) noexcept
-        : pair_(nullptr, allocator_type{}), control_pair_(nullptr, destroyer) {}
-
-    constexpr explicit shared_storage(
-        const Allocator& allocator, const Destroyer& destroyer
-    ) noexcept
-        : pair_(nullptr, allocator) {}
-
-    constexpr explicit shared_storage(const Ty* ptr)
+    // with ptr
+    template <typename T>
+    constexpr explicit shared_storage(T* ptr)
         : pair_(ptr, allocator_type{}),
-          control_pair_(count_allocator_type().allocate(), Destroyer()) {}
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+        auto count_allocator = count_allocator_type{};
+        count_type* count    = nullptr;
+        try {
+            count = count_allocator.allocate();
+            ::new (count) count_type(1);
+            control_pair_.first() = std::launder(count);
+        }
+        catch (...) {
+            if (count) {
+                count->~count_type();
+            }
+            throw;
+        }
+    }
 
-    constexpr explicit shared_storage(const Ty* ptr, const Allocator& allocator)
-        : pair_(ptr, allocator), control_pair_(count_allocator_type(allocator), Destroyer()) {}
+    // only allocator
+    constexpr explicit shared_storage(const Allocator& allocator) noexcept
+        : pair_(nullptr, allocator),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {}
 
-    constexpr explicit shared_storage(const Ty* ptr, const Destroyer& destroyer)
-        : pair_(ptr, allocator_type{}), control_pair_(count_allocator_type(), destroyer) {}
+    // destroyer
+    template <typename Destroyer = default_destroyer<Ty>>
+    constexpr explicit shared_storage(with_destroyer_t, Destroyer destroyer) noexcept
+        : pair_(nullptr, allocator_type{}),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(destroyer)) {}
 
-    constexpr explicit shared_storage(
-        const Ty* ptr, const Allocator& allocator, const Destroyer& destroyer
-    )
-        : pair_(ptr, allocator), control_pair_(count_allocator_type(allocator), destroyer) {}
+    // with ptr & allocator
+    template <typename T>
+    constexpr explicit shared_storage(T* ptr, const Allocator& allocator)
+        : pair_(ptr, allocator),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+        auto count_allocator = count_allocator_type{ allocator };
+        count_type* count    = nullptr;
+        try {
+            count = count_allocator.allocate();
+            ::new (count) count_type(1);
+            control_pair_.first() = std::launder(count);
+        }
+        catch (...) {
+            if (count) {
+                count->~count_type();
+                count_allocator.deallocate(count);
+            }
+            throw;
+        }
+    }
 
+    // ptr & destroyer
+    template <typename Destroyer = default_destroyer<Ty>>
+    constexpr explicit shared_storage(const Ty* ptr, with_destroyer_t, Destroyer destroyer)
+        : pair_(ptr, allocator_type{}),
+          control_pair_(
+              count_allocator_type().allocate(), internal::wrap_destroyer<Ty>(destroyer)
+          ) {
+        control_pair_.first()->store(1, std::memory_order_release);
+    }
+
+    // allocator & destroyer
+    template <typename Destroyer = default_destroyer<Ty>>
+    constexpr explicit shared_storage(const Allocator& allocator, Destroyer destroyer) noexcept
+        : pair_(nullptr, allocator),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(destroyer)) {}
+
+    // ptr, allocator & destroyer
+    template <typename T, typename Destroyer = default_destroyer<Ty>>
+    constexpr explicit shared_storage(T* ptr, const Allocator& allocator, Destroyer destroyer)
+        : pair_(ptr, allocator),
+          control_pair_(count_allocator_type(allocator), internal::wrap_destroyer<Ty>(destroyer)) {}
+
+    // arguments
     template <typename... Args>
     requires std::is_constructible_v<Ty, Args...>
     explicit shared_storage(Args&&... args)
-        : pair_(allocator_type().allocate(), allocator_type()),
-          control_pair_(count_allocator_type().allocate(), count_allocator_type()) {
+        : pair_(nullptr, allocator_type{}),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+        Ty* ptr = nullptr;
         try {
-            ::new (pair_.first()) Ty(std::forward<Args>(args)...);
-            pair_.first() = std::launder(pair_.first());
+            ptr = pair_.second().allocate();
+            ::new (ptr) Ty(std::forward<Args>(args)...);
+            pair_.first() = std::launder(ptr);
+
+            count_type* count    = nullptr;
+            auto count_allocator = count_allocator_type{ pair_.second() }.allocate();
+            try {
+                count = count_allocator.allocate();
+                ::new (count) count_type(1);
+                control_pair_.first() = std::launder(count);
+            }
+            catch (...) {
+                if (count) {
+                    count_allocator.deallocate(count);
+                }
+                throw;
+            }
         }
         catch (...) {
-            control_pair_.first() = nullptr;
+            if (ptr) {
+                ptr->~Ty();
+                pair_.second().deallocate(ptr);
+                if (pair_.first()) {
+                    pair_.first() = nullptr;
+                }
+            }
+            throw;
+        }
+    }
+
+    template <typename... Args>
+    requires std::is_constructible_v<Ty, Args...>
+    constexpr explicit shared_storage(Args&&... args, const Allocator& allocator)
+        : pair_(nullptr, allocator),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(default_destroyer<Ty>())) {
+        Ty* ptr = nullptr;
+        try {
+            ptr = pair_.second().allocate();
+            ::new (ptr) Ty(std::forward<Args>(args)...);
+            pair_.first() = std::launder(ptr);
+
+            count_type* count    = nullptr;
+            auto count_allocator = count_allocator_type{ pair_.second() }.allocate();
+            try {
+                count = count_allocator.allocate();
+                ::new (count) count_type(1);
+                control_pair_.first() = std::launder(count);
+            }
+            catch (...) {
+                if (count) {
+                    count_allocator.deallocate(count);
+                }
+                throw;
+            }
+        }
+        catch (...) {
+            if (ptr) {
+                ptr->~Ty();
+                pair_.second().deallocate(ptr);
+                if (pair_.first()) {
+                    pair_.first() = nullptr;
+                }
+            }
+            throw;
+        }
+    }
+
+    template <typename... Args, typename Destroyer = default_destroyer<Ty>>
+    requires std::is_constructible_v<Ty, Args...>
+    constexpr explicit shared_storage(Args&&... args, with_destroyer_t, Destroyer destroyer)
+        : pair_(nullptr, allocator_type{}),
+          control_pair_(nullptr, internal::wrap_destroyer<Ty>(destroyer)) {
+        Ty* ptr = nullptr;
+        try {
+            ptr = pair_.second().allocate();
+            ::new (ptr) Ty(std::forward<Args>(args)...);
+            pair_.first() = std::launder(ptr);
+
+            count_type* count    = nullptr;
+            auto count_allocator = count_allocator_type{ pair_.second() };
+            try {
+                count = count_allocator.allocate();
+                ::new (count) count_type(1);
+                // noexcept
+                control_pair_.first() = std::launder(count);
+            }
+            catch (...) {
+                if (count) {
+                    count_allocator.deallocate(count);
+                    count = nullptr;
+                }
+                throw;
+            }
+        }
+        catch (...) {
+            if (ptr) {
+                pair_.second().deallocate(ptr);
+                if (pair_.first()) {
+                    pair_.first() = nullptr;
+                }
+            }
             throw;
         }
     }
@@ -241,13 +411,13 @@ public:
         : pair_(std::move(that.pair_)), control_pair_(std::move(that.control_pair_)) {}
 
     template <typename T>
-    shared_storage(const shared_storage<T>& that) noexcept
+    shared_storage(const shared_storage<T, Allocator>& that) noexcept
         : pair_(that.pair_), control_pair_(that.control_pair_) {
         inc();
     }
 
     template <typename T>
-    shared_storage(shared_storage<T>&& that) noexcept
+    shared_storage(shared_storage<T, Allocator>&& that) noexcept
         : pair_(std::move(that.pair_)), control_pair_(std::move(that.control_pair_)) {}
 
     shared_storage& operator=(const shared_storage& that) noexcept {
@@ -272,8 +442,7 @@ public:
     }
 
     template <typename T>
-    shared_storage& operator=(const shared_storage<T>& that) noexcept {
-        // this != &that
+    shared_storage& operator=(const shared_storage<T, Allocator>& that) noexcept {
         dec();
         pair_         = that.pair_;
         control_pair_ = that.control_pair_;
@@ -283,7 +452,7 @@ public:
     }
 
     template <typename T>
-    shared_storage& operator=(shared_storage<T>&& that) noexcept {
+    shared_storage& operator=(shared_storage<T, Allocator>&& that) noexcept {
         dec();
         pair_         = std::move(that.pair_);
         control_pair_ = std::move(that.control_pair_);
@@ -319,7 +488,9 @@ public:
                 val_  = std::launder(val_);
                 *val_ = std::forward<Val>(val);
             }
-            count_ = ::new count_type(1);
+            count_ = count_allocator_type{ pair_.second() }.allocate();
+            ::new (count_) count_type(1);
+            count_ = std::launder(count_);
         }
 
         return *this;
@@ -361,15 +532,12 @@ private:
                 control_pair_.first()->compare_exchange_strong(
                     expected, 0, std::memory_order_acq_rel
                 )) {
-                auto& ptr_       = pair_.first();
-                auto& allocator_ = pair_.second();
-                auto& counter_   = control_pair_.first();
-                auto& destroyer_ = control_pair_.second();
-                destroyer_(ptr_);
-                allocator_.deallocate(ptr_);
-                count_allocator_type(allocator_).deallocate(counter_);
-                ptr_     = nullptr;
-                counter_ = nullptr;
+                control_pair_.second()(static_cast<void*>(pair_.first()));
+                pair_.second().deallocate(pair_.first());
+                pair_.first() = nullptr;
+                control_pair_.first()->~count_type();
+                count_allocator_type{ pair_.second() }.deallocate(control_pair_.first());
+                control_pair_.first() = nullptr;
             }
             else {
                 control_pair_.first()->fetch_sub(1, std::memory_order_release);

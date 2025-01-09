@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <memory>
+#include <type_traits>
 #include "./fwd.h"
 
 namespace atom::utils {
@@ -21,6 +22,7 @@ struct type_spreader {
 template <typename Type>
 inline constexpr type_spreader<Type> spread_type{};
 
+template <typename>
 class type final {
 public:
     type() = delete;
@@ -32,12 +34,16 @@ public:
      */
     template <typename Ty>
     static default_id_t id() {
-        static default_id_t type_id = current_id_++;
-        return type_id;
+        return id_<::std::decay_t<std::remove_const_t<Ty>>>();
     }
 
 private:
-    static inline std::atomic<default_id_t> current_id_;
+    template <typename Ty>
+    static default_id_t id_() {
+        static default_id_t type_id = current_id_++;
+        return type_id;
+    }
+    static inline ::std::atomic<default_id_t> current_id_;
 };
 
 class non_type {
@@ -49,7 +55,7 @@ public:
     }
 
 private:
-    static inline std::atomic<default_id_t> type_id_;
+    static inline ::std::atomic<default_id_t> type_id_;
 };
 
 } // namespace atom::utils

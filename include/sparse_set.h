@@ -10,7 +10,7 @@
 namespace atom::utils {
 
 // 因为在这个类型中Ty是整型，所以传递参数的时候没必要使用引用或移动，但是涉及到写回还是可以用一下左值引用的
-template <std::integral Ty, std::size_t PageSize, std::unsigned_integral IndexType>
+template <std::unsigned_integral Ty, std::size_t PageSize, std::unsigned_integral IndexType>
 // Ty must be an integral type
 requires is_positive_integral_v<PageSize>
 class sparse_set {

@@ -7,16 +7,9 @@
 #include <utility>
 #include "concepts.h"
 #include "iterator.h"
+#include "utils_macro.h"
 
-// assure that we have already used c++20 or later
-
-#if _HAS_CXX23 && __cplusplus >= 202302L
-    #ifndef CPP23
-        #define CPP23
-    #else
-        #error "Macro 'CPP23' has been defined for unknown reason."
-    #endif
-#endif
+#define URANGES ::atom::utils::ranges::
 
 namespace atom::utils::ranges {
 
@@ -259,23 +252,22 @@ struct to_class_fn {
     template <std::ranges::input_range Rng, typename... Args>
     [[nodiscard]] constexpr auto operator()(Rng&& range, Args&&... args)
     requires requires {
-        ::atom::utils::ranges::to<Container>(std::forward<Rng>(range), std::forward<Args>(args)...);
+        URANGES to<Container>(std::forward<Rng>(range), std::forward<Args>(args)...);
     }
     {
-        return ::atom::utils::ranges::to<Container>(
-            std::forward<Rng>(range), std::forward<Args>(args)...
-        );
+        return URANGES to<Container>(std::forward<Rng>(range), std::forward<Args>(args)...);
     }
 };
 
-} // namespace
+} // namespace internal
 
 template <typename Container, typename... Args>
 [[nodiscard]] constexpr auto to(Args&&... args) {
 #ifdef CPP23
     return std::ranges::to<Container>(std::forward<Args>(args)...);
 #else
-    return make_closure<internal::to_class_fn<Container>>(std::forward<Args>(args)...);
+    return URANGES make_closure<URANGES internal::to_class_fn<Container>>(std::forward<Args>(args
+    )...);
 #endif
 }
 
@@ -295,13 +287,13 @@ auto to_helper() {
             decltype(Cnt(std::from_range, std::declval<Rng>(), std::declval<Args>()...))*>(nullptr);
     } */
     else if constexpr (requires {
-                           Cnt(std::declval<::atom::utils::phony_input_iterator<Rng>>(),
-                               std::declval<::atom::utils::phony_input_iterator<Rng>>(),
+                           Cnt(std::declval<UTILS phony_input_iterator<Rng>>(),
+                               std::declval<UTILS phony_input_iterator<Rng>>(),
                                std::declval<Args>()...);
                        }) {
         return static_cast<decltype(Cnt(
-            std::declval<::atom::utils::phony_input_iterator<Rng>>(),
-            std::declval<::atom::utils::phony_input_iterator<Rng>>(),
+            std::declval<UTILS phony_input_iterator<Rng>>(),
+            std::declval<UTILS phony_input_iterator<Rng>>(),
             std::declval<Args>()...
         ))*>(nullptr);
     }
@@ -314,18 +306,19 @@ auto to_helper() {
     }
 }
 
-} // namespace
+} // namespace internal
 
 template <
     template <typename...> typename Container,
     std::ranges::input_range Rng,
     typename... Args,
-    typename Deduced = std::remove_pointer_t<decltype(internal::to_helper<Container, Rng, Args...>())>>
+    typename Deduced =
+        std::remove_pointer_t<decltype(URANGES internal::to_helper<Container, Rng, Args...>())>>
 [[nodiscard]] constexpr auto to(Rng&& range, Args&&... args) -> Deduced {
 #ifdef CPP23
     return std::ranges::to<Container>(std::forward<Rng>(range), std::forward<Args>(args)...);
 #else
-    return ::atom::utils::ranges::to<Deduced>(std::forward<Rng>(range), std::forward<Args>(args)...);
+    return URANGES to<Deduced>(std::forward<Rng>(range), std::forward<Args>(args)...);
 #endif
 }
 
@@ -336,13 +329,14 @@ struct to_template_fn {
     template <
         std::ranges::input_range Rng,
         typename... Args,
-        typename Deduced = std::remove_pointer_t<decltype(internal::to_helper<Container, Rng, Args...>())>>
+        typename Deduced =
+            std::remove_pointer_t<decltype(URANGES internal::to_helper<Container, Rng, Args...>())>>
     [[nodiscard]] constexpr auto operator()(Rng&& range, Args&&... args) {
-        return ::atom::utils::ranges::to<Deduced>(std::forward<Rng>(range), std::forward<Args>(args)...);
+        return URANGES to<Deduced>(std::forward<Rng>(range), std::forward<Args>(args)...);
     }
 };
 
-} // namespace
+} // namespace internal
 
 // compiler and analyzer always deduce we are using another override
 // so, changed the function name
@@ -351,12 +345,9 @@ template <template <typename...> typename Container, typename... Args>
 #ifdef CPP23
     return std::ranges::to<Container>(std::forward<Args>(args)...);
 #else
-    return make_closure<internal::to_template_fn<Container>>(std::forward<Args>(args)...);
+    return URANGES make_closure<URANGES internal::to_template_fn<Container>>(std::forward<Args>(args
+    )...);
 #endif
 }
 
 } // namespace atom::utils::ranges
-
-#ifdef CPP23
-    #undef CPP23
-#endif

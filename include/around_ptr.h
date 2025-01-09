@@ -2,7 +2,7 @@
 #include <memory>
 #include "compressed_pair.h"
 #include "signal.h"
-#include "storage.h"
+#include "spin_lock.h"
 
 namespace atom::utils {
 
@@ -10,7 +10,7 @@ template <typename Ty>
 class around_ptr {
 public:
     using value_type    = Ty;
-    using delegate_type = delegate<void(const Ty&)>;
+    using delegate_type = UTILS delegate<void(const Ty&)>;
     class proxy {
         friend class around_ptr;
 
@@ -77,6 +77,51 @@ public:
 private:
     std::shared_ptr<Ty> ptr_;
     compressed_pair<delegate_type, delegate_type> pair_;
+};
+
+template <typename Ty>
+class spin_around_ptr {
+public:
+    using value_type = Ty;
+
+    class proxy {
+        friend class spin_around_ptr;
+
+    public:
+        explicit proxy(const std::shared_ptr<Ty>& ptr, spin_lock& lock) : lock_(&lock), ptr_(ptr) {}
+        proxy(const proxy&)            = delete;
+        proxy& operator=(const proxy&) = delete;
+        proxy(proxy&&)                 = delete;
+        proxy& operator=(proxy&&)      = delete;
+        ~proxy() noexcept {
+            if (lock_) [[likely]] {
+                lock_->unlock();
+            }
+        }
+
+        [[nodiscard]] std::shared_ptr<Ty> operator->() noexcept { return ptr_; }
+        [[nodiscard]] std::shared_ptr<Ty> operator->() const noexcept { return ptr_; }
+
+        Ty& operator*() noexcept { return *ptr_; }
+        const Ty& operator*() const noexcept { return *ptr_; }
+
+    private:
+        spin_lock* lock_;
+        std::shared_ptr<Ty> ptr_;
+    };
+
+    explicit spin_around_ptr(std::shared_ptr<Ty>&& ptr) : ptr_(std::move(ptr)) {}
+    explicit spin_around_ptr(std::unique_ptr<Ty>&& ptr) : ptr_(std::move(ptr)) {}
+
+    proxy operator->() noexcept { return proxy(ptr_, lock_); }
+    proxy operator->() const noexcept { return proxy(ptr_, lock_); }
+
+    proxy operator*() noexcept { return proxy(ptr_, lock_); }
+    proxy operator*() const noexcept { return proxy(ptr_, lock_); }
+
+private:
+    std::shared_ptr<Ty> ptr_;
+    UTILS spin_lock lock_;
 };
 
 } // namespace atom::utils

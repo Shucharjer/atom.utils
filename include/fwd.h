@@ -20,6 +20,7 @@ struct spreader;
 template <typename>
 struct type_spreader;
 
+template <typename = void>
 class type;
 
 } // namespace utils

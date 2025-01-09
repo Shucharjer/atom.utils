@@ -12,10 +12,10 @@
 
 namespace atom::utils {
 // Key是整型，Val的类型不一定是基本类型
-template <std::integral Key, typename Val>
+template <std::unsigned_integral Key, typename Val>
 struct density_node;
 
-template <std::integral Key, typename Val>
+template <std::unsigned_integral Key, typename Val>
 struct density_node {
     using self_type   = density_node;
     using key_type    = Key;
@@ -83,8 +83,7 @@ struct density_node {
     }
 };
 
-template <typename Key, typename Val>
-requires std::is_integral_v<Key>
+template <std::unsigned_integral Key, typename Val>
 struct density_node<Key, Val*> {
     using self_type   = density_node;
     using key_type    = Key;
@@ -131,7 +130,11 @@ struct density_node<Key, Val*> {
     }
 };
 
-template <std::integral Key, typename Val, size_t PageSize, std::unsigned_integral IndexType>
+template <
+    std::unsigned_integral Key,
+    typename Val,
+    size_t PageSize,
+    std::unsigned_integral IndexType>
 // Key must be an integral type
 // make sure PageSize is a positive value
 // IndexType must be an unsigned integral type
@@ -187,12 +190,13 @@ private:
     }
 
 public:
-    using self_type      = sparse_map;
-    using key_type       = Key;
-    using mapped_type    = Val;
-    using value_type     = density_node<Key, Val>;
-    using iterator       = typename std::vector<density_node<Key, Val>>::iterator;
-    using const_iterator = typename std::vector<density_node<key_type, mapped_type>>::const_iterator;
+    using self_type   = sparse_map;
+    using key_type    = Key;
+    using mapped_type = Val;
+    using value_type  = density_node<Key, Val>;
+    using iterator    = typename std::vector<density_node<Key, Val>>::iterator;
+    using const_iterator =
+        typename std::vector<density_node<key_type, mapped_type>>::const_iterator;
 
     sparse_map() : page_count_(1), count_(0), _invalid_node(static_cast<Key>(-1)) {
         sparses_.emplace_back(std::make_unique<std::array<IndexType, PageSize>>());
