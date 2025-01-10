@@ -29,16 +29,6 @@ struct density_node {
     ) noexcept(std::is_nothrow_default_constructible_v<mapped_type>)
         : first{ key_ } {}
 
-    // explicit density_node(
-    //     key_type first, mapped_type& second
-    // ) noexcept(std::is_nothrow_copy_constructible_v<mapped_type>)
-    //     : first(first), second(second) {}
-
-    // explicit density_node(
-    //     key_type first, mapped_type&& second
-    // ) noexcept(std::is_nothrow_move_constructible_v<mapped_type>)
-    //     : first(first), second(std::move(second)) {}
-
     template <typename Mapped>
     explicit density_node(key_type first, Mapped&& second)
         : first(first), second(std::forward<Mapped>(second)) {}
@@ -98,7 +88,7 @@ struct density_node<Key, Val*> {
 
     ~density_node() = default;
 
-    density_node(density_node const& obj) noexcept : first{ obj.first }, second{ obj.second } {}
+    density_node(density_node const& obj) noexcept = default;
     density_node(density_node&& obj) noexcept : first{ obj.first }, second{ obj.second } {
         obj.second = nullptr;
     }
@@ -152,13 +142,14 @@ private:
     // the index of an element could be litter than zero, so we set the type of array element
     // std::size_t
     std::vector<std::unique_ptr<std::array<IndexType, PageSize>>> sparses_;
-    density_node<Key, Val> _invalid_node;
+    density_node<Key, Val> invalid_node_;
 
     IndexType page_count_;
     IndexType count_;
 
-    [[nodiscard]] inline auto contains_(const Key key, const IndexType page, const IndexType offset)
-        const noexcept -> bool {
+    [[nodiscard]] inline auto contains_impl(
+        const Key key, const IndexType page, const IndexType offset
+    ) const noexcept -> bool {
         if (!count_ || page >= page_count_) {
             return false;
         }
@@ -198,7 +189,7 @@ public:
     using const_iterator =
         typename std::vector<density_node<key_type, mapped_type>>::const_iterator;
 
-    sparse_map() : page_count_(1), count_(0), _invalid_node(static_cast<Key>(-1)) {
+    sparse_map() : page_count_(1), count_(0), invalid_node_(static_cast<Key>(-1)) {
         sparses_.emplace_back(std::make_unique<std::array<IndexType, PageSize>>());
     }
 
@@ -271,14 +262,13 @@ public:
      * @tparam Valty
      * @param key
      * @param val
-     * @return requires
      */
     template <typename Valty>
     void emplace(const key_type key, Valty&& val) {
         IndexType page   = page_(key);
         IndexType offset = offset_(key);
 
-        if (contains_(key, page, offset)) {
+        if (contains_impl(key, page, offset)) {
             return;
         }
 
@@ -310,7 +300,7 @@ public:
         IndexType page   = page_(key);
         IndexType offset = offset_(key);
 
-        if (!contains_(key, page, offset)) {
+        if (!contains_impl(key, page, offset)) {
             return;
         }
 
@@ -329,7 +319,7 @@ public:
         IndexType page   = page_(key);
         IndexType offset = offset_(key);
 
-        if (!contains_(key, page, offset)) {
+        if (!contains_impl(key, page, offset)) {
             return;
         }
 
@@ -359,7 +349,7 @@ public:
         IndexType page   = page_(key);
         IndexType offset = offset_(key);
 
-        return contains_(key, page, offset);
+        return contains_impl(key, page, offset);
     }
 
     /**
@@ -406,8 +396,8 @@ public:
         IndexType page   = page_(key);
         IndexType offset = offset_(key);
 
-        if (!contains_(key, page, offset)) {
-            return _invalid_node.second;
+        if (!contains_impl(key, page, offset)) {
+            return invalid_node_.second;
         }
 
         return density_[sparses_[page]->at(offset)].second;
@@ -423,8 +413,8 @@ public:
         IndexType page   = page_(key);
         IndexType offset = offset_(key);
 
-        if (!contains_(key, page, offset)) {
-            return _invalid_node.val;
+        if (!contains_impl(key, page, offset)) {
+            return invalid_node_.val;
         }
 
         return density_[sparses_[page]->at(offset)].val;
@@ -440,7 +430,7 @@ public:
         IndexType page   = page_(key);
         IndexType offset = offset_(key);
 
-        if (!contains_(key, page, offset)) {
+        if (!contains_impl(key, page, offset)) {
             return std::optional<IndexType>();
         }
 
@@ -483,7 +473,7 @@ public:
         auto page   = page_(key);
         auto offset = offset_(key);
 
-        if (!contains_(key, page, offset)) {
+        if (!contains_impl(key, page, offset)) {
             try {
                 density_.push_back(density_node<key_type, mapped_type>(key, mapped_type()));
                 ++count_;

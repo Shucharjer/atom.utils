@@ -40,7 +40,7 @@ public:
     constexpr compressed_element& operator=(compressed_element&&) noexcept = default;
     // clang-format on
 
-    constexpr virtual ~compressed_element() noexcept(std::is_nothrow_destructible_v<Ty>) = default;
+    constexpr ~compressed_element() noexcept(std::is_nothrow_destructible_v<Ty>) = default;
 
     [[nodiscard]] constexpr reference get() noexcept { return value_; }
 
@@ -67,7 +67,7 @@ public:
     explicit constexpr compressed_element(nullptr_t) noexcept : value_(nullptr) {}
     constexpr compressed_element(const compressed_element&) noexcept            = default;
     constexpr compressed_element& operator=(const compressed_element&) noexcept = default;
-    constexpr virtual ~compressed_element() noexcept                            = default;
+    constexpr ~compressed_element() noexcept                                    = default;
 
     constexpr compressed_element& operator=(nullptr_t) noexcept { value_ = nullptr; }
 
@@ -103,7 +103,7 @@ public:
     constexpr compressed_element(compressed_element&&) noexcept            = default;
     constexpr compressed_element& operator=(const compressed_element&)     = default;
     constexpr compressed_element& operator=(compressed_element&&) noexcept = default;
-    constexpr virtual ~compressed_element() noexcept                       = default;
+    constexpr ~compressed_element() noexcept                               = default;
 
     constexpr void get() const noexcept {}
 };
@@ -123,7 +123,7 @@ public:
     constexpr compressed_element& operator=(nullptr_t) noexcept { value_ = nullptr; }
     constexpr compressed_element& operator=(const compressed_element&) noexcept = default;
     constexpr compressed_element& operator=(compressed_element&& that) noexcept = default;
-    constexpr virtual ~compressed_element() noexcept                            = default;
+    constexpr ~compressed_element() noexcept                                    = default;
 
     constexpr reference get() noexcept { return value_; }
     constexpr const_reference get() const noexcept { return value_; }
@@ -168,8 +168,8 @@ public:
     }
 
     constexpr ~compressed_pair(
-    ) noexcept(std::is_nothrow_destructible_v<first_base> && std::is_nothrow_destructible_v<second_base>)
-        override = default;
+    ) noexcept(std::is_nothrow_destructible_v<first_base> && std::is_nothrow_destructible_v<second_base>) =
+        default;
 
     [[nodiscard]] constexpr First& first() noexcept {
         return static_cast<first_base&>(*this).get();
