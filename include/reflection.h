@@ -1,18 +1,3 @@
-/**
- * @file reflection.h
- * @author Shucharjer (2592284636@qq.com)
- * @brief This file contains some declarations and definitions about reflection.
- * @version 0.1
- * @date 2024-12-07
- *
- * This header file only provides an extensible reflection interface.
- * The specific implementation needs to be completed according to the specific situation.
- *
- * @copyright Copyright (c) 2024
- *
- *
- */
-
 #pragma once
 
 namespace atom::utils {

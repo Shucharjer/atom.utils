@@ -6,7 +6,7 @@
 #include <string>
 #include <type_traits>
 #include "allocator.h"
-#include "compressed_pair.h"
+#include "pair.h"
 
 namespace atom::utils {
 
@@ -149,9 +149,11 @@ public:
     basic_string() noexcept(std::is_nothrow_default_constructible_v<allocator_type>)
         : size_(0), length_(0), pair_(nullptr, Allocator()) {}
 
-    explicit basic_string(const Allocator& allocator) : size_(0), length_(0), pair_(nullptr, allocator) {}
+    explicit basic_string(const Allocator& allocator)
+        : size_(0), length_(0), pair_(nullptr, allocator) {}
 
-    explicit basic_string(const char* const string) : size_(0), length_(0), pair_(nullptr, Allocator()) {
+    explicit basic_string(const char* const string)
+        : size_(0), length_(0), pair_(nullptr, Allocator()) {
         allocate_then_copy_from_raw_string(string);
     }
 
@@ -160,7 +162,8 @@ public:
         allocate_then_copy_from_raw_string(string);
     }
 
-    explicit basic_string(const std::string& string) : size_(0), length_(0), pair_(nullptr, Allocator()) {
+    explicit basic_string(const std::string& string)
+        : size_(0), length_(0), pair_(nullptr, Allocator()) {
         allocate_then_copy_from_std_string(string);
     }
 
@@ -169,7 +172,8 @@ public:
         allocate_then_copy_from_std_string(string);
     }
 
-    explicit basic_string(std::string_view string) : size_(0), length_(0), pair_(nullptr, Allocator()) {}
+    explicit basic_string(std::string_view string)
+        : size_(0), length_(0), pair_(nullptr, Allocator()) {}
 
     basic_string(const std::initializer_list<Ch>& list)
         : size_(0), length_(0), pair_(nullptr, Allocator()) {
@@ -292,7 +296,6 @@ public:
 private:
     inline void allocate_then_copy_from_raw_string(const char* string) {
         // TODO:
-
     }
 
     inline void copy_from_raw_string(const char* string) {
