@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <utility>
+#include "type_traits.h"
 #include "utils_macro.h"
 
 namespace atom::utils {
@@ -133,6 +134,12 @@ private:
 };
 } // namespace internal
 
+template <typename, typename>
+class compressed_pair;
+
+template <typename, typename>
+class reversed_compressed_pair;
+
 template <typename First, typename Second>
 class compressed_pair final : private UTILS internal::compressed_element<First, true>,
                               private UTILS internal::compressed_element<Second, false> {
@@ -146,7 +153,7 @@ public:
         : first_base(), second_base() {}
 
     template <typename FirstType, typename SecondType>
-    constexpr compressed_pair(
+    constexpr explicit compressed_pair(
         FirstType&& first, SecondType&& second
     ) noexcept(std::is_nothrow_constructible_v<first_base, FirstType> && std::is_nothrow_constructible_v<second_base, SecondType>)
         : first_base(std::forward<FirstType>(first)),
@@ -185,14 +192,6 @@ public:
 
     [[nodiscard]] constexpr const Second& second() const noexcept {
         return static_cast<const second_base&>(*this).get();
-    }
-
-    [[nodiscard]] constexpr auto to_pair() -> std::pair<First, Second> {
-        return std::make_pair<First&, Second&>(first(), second());
-    }
-
-    [[nodiscard]] constexpr auto to_pair() const -> const std::pair<const First&, const Second&> {
-        return std::make_pair<const First&, const Second&>(first(), second());
     }
 };
 
@@ -235,6 +234,192 @@ template <typename Ty, typename First, typename Second>
     const compressed_pair<First, Second>& pair, const Ty& val
 ) noexcept {
     return !(pair == val);
+}
+
+// compressed_pair<int, char> : first_type -> int, second_type -> char
+// reversed_compressed_pair<char, int> : first_type -> char, second_type -> int
+template <typename First, typename Second>
+class reversed_compressed_pair final : private internal::compressed_element<Second, true>,
+                                       private internal::compressed_element<First, false> {
+public:
+    using self_type   = reversed_compressed_pair;
+    using first_base  = internal::compressed_element<Second, true>;
+    using second_base = internal::compressed_element<First, false>;
+
+    constexpr reversed_compressed_pair(
+    ) noexcept(std::is_nothrow_default_constructible_v<second_base> && std::is_nothrow_default_constructible_v<first_base>)
+        : first_base(), second_base() {}
+
+    template <typename FirstType, typename SecondType>
+    constexpr reversed_compressed_pair(
+        FirstType&& first, SecondType&& second
+    ) noexcept(std::is_nothrow_constructible_v<second_base, SecondType> && std::is_nothrow_constructible_v<first_base, FirstType>)
+        : first_base(std::forward<SecondType>(second)),
+          second_base(std::forward<FirstType>(first)) {}
+
+    constexpr reversed_compressed_pair(const reversed_compressed_pair&)            = default;
+    constexpr reversed_compressed_pair& operator=(const reversed_compressed_pair&) = default;
+
+    constexpr reversed_compressed_pair(reversed_compressed_pair&& that
+    ) noexcept(std::is_nothrow_move_constructible_v<first_base> && std::is_nothrow_move_constructible_v<second_base>)
+        : first_base(std::move(static_cast<first_base&>(that))),
+          second_base(std::move(static_cast<second_base&>(that))) {}
+
+    constexpr reversed_compressed_pair& operator=(reversed_compressed_pair&& that
+    ) noexcept(std::is_nothrow_move_assignable_v<first_base> && std::is_nothrow_move_assignable_v<second_base>) {
+        first()  = std::move(that.first());
+        second() = std::move(that.second());
+        return *this;
+    }
+
+    constexpr ~reversed_compressed_pair(
+    ) noexcept(std::is_nothrow_destructible_v<first_base> && std::is_nothrow_destructible_v<second_base>) =
+        default;
+
+    [[nodiscard]] constexpr First& first() noexcept {
+        return static_cast<second_base&>(*this).get();
+    }
+
+    [[nodiscard]] constexpr const First& first() const noexcept {
+        return static_cast<const second_base&>(*this).get();
+    }
+
+    [[nodiscard]] constexpr Second& second() noexcept {
+        return static_cast<first_base&>(*this).get();
+    }
+
+    [[nodiscard]] constexpr const Second& second() const noexcept {
+        return static_cast<const first_base&>(*this).get();
+    }
+};
+
+template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
+constexpr bool operator==(
+    const reversed_compressed_pair<LFirst, LSecond>& lhs,
+    const reversed_compressed_pair<RFirst, RSecond>& rhs
+) {
+    if constexpr (std::is_same_v<LFirst, RFirst> && std::is_same_v<LFirst, RFirst>) {
+        return lhs.first() == rhs.first();
+    }
+    else {
+        return false;
+    }
+}
+
+template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
+constexpr bool operator!=(
+    const reversed_compressed_pair<LFirst, LSecond>& lhs,
+    const reversed_compressed_pair<RFirst, RSecond>& rhs
+) {
+    return !(lhs == rhs);
+}
+
+template <typename Ty, typename First, typename Second>
+constexpr bool operator==(const Ty& lhs, const reversed_compressed_pair<First, Second>& rhs) {
+    if constexpr (std::is_convertible_v<Ty, First>) {
+        return lhs == rhs.first();
+    }
+    else if constexpr (std::is_convertible_v<Ty, Second>) {
+        return lhs == rhs.second();
+    }
+    else {
+        return false;
+    }
+}
+
+template <typename Ty, typename First, typename Second>
+constexpr bool operator!=(const Ty& lhs, const reversed_compressed_pair<First, Second>& rhs) {
+    return !(lhs == rhs);
+}
+
+template <typename First, typename Second>
+struct reversed_pair {
+    using first_type  = Second;
+    using second_type = First;
+
+    first_type second;
+    second_type first;
+};
+
+template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
+constexpr bool operator==(
+    const reversed_pair<LFirst, LSecond>& lhs, const reversed_pair<RFirst, RSecond>& rhs
+) {
+    if constexpr (std::is_same_v<LFirst, RFirst> && std::is_same_v<LSecond, RSecond>) {
+        return lhs.second == rhs.second && lhs.first == rhs.first;
+    }
+    else {
+        return false;
+    }
+}
+
+template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
+constexpr bool operator!=(
+    const reversed_pair<LFirst, LSecond>& lhs, const reversed_pair<RFirst, RSecond>& rhs
+) {
+    return !(lhs == rhs);
+}
+
+template <typename Ty, typename First, typename Second>
+constexpr bool operator==(const Ty& lhs, const reversed_pair<First, Second>& rhs) {
+    if constexpr (std::is_convertible_v<Ty, First>) {
+        return rhs.first == lhs;
+    }
+    else if constexpr (std::is_convertible_v<Ty, Second>) {
+        return rhs.second == lhs;
+    }
+    else {
+        return false;
+    }
+}
+
+template <typename Ty, typename First, typename Second>
+constexpr bool operator!=(const Ty& lhs, const reversed_pair<First, Second>& rhs) {
+    return !(lhs == rhs);
+}
+
+template <typename>
+struct reversed_result;
+
+template <typename First, typename Second>
+struct reversed_result<compressed_pair<First, Second>> {
+    using type = reversed_compressed_pair<Second, First>;
+};
+
+template <typename First, typename Second>
+struct reversed_result<reversed_compressed_pair<First, Second>> {
+    using type = compressed_pair<Second, First>;
+};
+
+template <typename First, typename Second>
+struct reversed_result<std::pair<First, Second>> {
+    using type = reversed_pair<Second, First>;
+};
+
+template <typename First, typename Second>
+struct reversed_result<reversed_pair<Second, First>> {
+    using type = std::pair<Second, First>;
+};
+
+template <typename Pair>
+using reversed_result_t = typename reversed_result<Pair>::type;
+
+template <typename Pair>
+concept reversible_pair = requires { reversed_result<Pair>::type; };
+
+/**
+ * @brief Get the reversed pair.
+ *
+ * @tparam Pair The pair type. This tparam could be deduced automaticly.
+ * @param pair The pair need to reverse.
+ * @return Reversed pair.
+ */
+template <typename Pair>
+requires reversible_pair<std::remove_cv_t<Pair>>
+constexpr auto& reverse(Pair& pair) noexcept {
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<UTILS same_cv_t<reversed_result<std::remove_cv_t<Pair>>, Pair>&>(pair);
+    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
 } // namespace atom::utils
