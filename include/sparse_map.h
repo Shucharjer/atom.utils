@@ -272,18 +272,30 @@ public:
             return;
         }
 
-        try {
-            density_.emplace_back(key, std::forward<Valty>(val));
+        density_.emplace_back(key, std::forward<Valty>(val));
 
-            try {
-                check_page_count_(page);
-                sparses_[page]->at(offset) = count_++;
-            }
-            catch (...) {
-                density_.pop_back();
-            }
+        try {
+            check_page_count_(page);
+            sparses_[page]->at(offset) = count_++;
         }
         catch (...) {
+            density_.pop_back();
+        }
+    }
+
+    template <typename Valty>
+    void emplace_without_check(const key_type key, Valty&& val) {
+        IndexType page   = page_(key);
+        IndexType offset = offset_(key);
+
+        density_.emplace_back(key, std::forward<Valty>(val));
+
+        try {
+            check_page_count_(page);
+            sparses_[page]->at(offset) = count_++;
+        }
+        catch (...) {
+            density_.pop_back();
         }
     }
 

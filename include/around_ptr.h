@@ -88,7 +88,9 @@ public:
         friend class spin_around_ptr;
 
     public:
-        explicit proxy(const std::shared_ptr<Ty>& ptr, spin_lock& lock) : lock_(&lock), ptr_(ptr) {}
+        explicit proxy(const std::shared_ptr<Ty>& ptr, spin_lock& lock) : lock_(&lock), ptr_(ptr) {
+            lock_->lock();
+        }
         proxy(const proxy&)            = delete;
         proxy& operator=(const proxy&) = delete;
         proxy(proxy&&)                 = delete;

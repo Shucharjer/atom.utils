@@ -9,11 +9,15 @@
 
 namespace atom::utils {
 
-// 因为在这个类型中Ty是整型，所以传递参数的时候没必要使用引用或移动，但是涉及到写回还是可以用一下左值引用的
 template <std::unsigned_integral Ty, std::size_t PageSize, std::unsigned_integral IndexType>
-// Ty must be an integral type
 requires is_positive_integral_v<PageSize>
 class sparse_set {
+public:
+    using self_type      = sparse_set;
+    using value_type     = Ty;
+    using iterator       = typename std::vector<value_type>::iterator;
+    using const_iterator = typename std::vector<value_type>::const_iterator;
+
 private:
     [[nodiscard]] constexpr static auto page_(const Ty key) noexcept -> IndexType {
         return key / PageSize;
@@ -61,11 +65,6 @@ private:
     }
 
 public:
-    using self_type      = sparse_set;
-    using value_type     = Ty;
-    using iterator       = typename std::vector<value_type>::iterator;
-    using const_iterator = typename std::vector<value_type>::const_iterator;
-
     sparse_set() : page_count_(1), count_(0) {
         sparses_.emplace_back(std::make_unique<std::array<IndexType, PageSize>>());
     }

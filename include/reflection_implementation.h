@@ -490,9 +490,10 @@ concept resource = requires {
 
 } // namespace atom::ecs::concepts
 
-#if __has_include(<nlohmann/json.hpp>)
+// Serialization
 
-namespace nlohmann {}
+#if __has_include(<nlohmann/json.hpp>)
+    #include <nlohmann/json.hpp>
 
 namespace internal::reflection {
 

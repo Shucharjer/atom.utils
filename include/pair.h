@@ -405,7 +405,7 @@ template <typename Pair>
 using reversed_result_t = typename reversed_result<Pair>::type;
 
 template <typename Pair>
-concept reversible_pair = requires { reversed_result<Pair>::type; };
+concept reversible_pair = requires { typename reversed_result<Pair>::type; };
 
 /**
  * @brief Get the reversed pair.
@@ -416,9 +416,10 @@ concept reversible_pair = requires { reversed_result<Pair>::type; };
  */
 template <typename Pair>
 requires reversible_pair<std::remove_cv_t<Pair>>
-constexpr auto& reverse(Pair& pair) noexcept {
+constexpr decltype(auto) reverse(Pair& pair) noexcept {
+    using result_type = typename UTILS same_cv_t<reversed_result_t<std::remove_cv_t<Pair>>, Pair>;
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-    return reinterpret_cast<UTILS same_cv_t<reversed_result<std::remove_cv_t<Pair>>, Pair>&>(pair);
+    return reinterpret_cast<result_type&>(pair);
     // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
