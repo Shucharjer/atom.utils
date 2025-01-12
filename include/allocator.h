@@ -34,15 +34,15 @@ struct basic_allocator {
     basic_allocator& operator=(basic_allocator&&) noexcept      = default;
     virtual ~basic_allocator()                                  = default;
 
-    [[nodiscard]] virtual auto alloc(std::size_t count = 1) -> void* { return nullptr; }
+    [[nodiscard]] virtual auto alloc(const std::size_t count = 1) -> void* { return nullptr; }
 
-    virtual auto dealloc(void* ptr, std::size_t count = 1) noexcept -> void {}
+    virtual auto dealloc(void* ptr, const std::size_t count = 1) noexcept -> void {}
 
     virtual auto destroy(void* ptr) const -> void {}
 };
 
 template <typename Ty>
-struct standard_allocator : public basic_allocator, public std::allocator<Ty> {
+struct standard_allocator final : public basic_allocator {
     using value_type      = Ty;
     using size_type       = typename basic_allocator::size_type;
     using pointer         = Ty*;
@@ -53,22 +53,37 @@ struct standard_allocator : public basic_allocator, public std::allocator<Ty> {
     template <typename T>
     using rebind_t = standard_allocator<T>;
 
-    template <typename T>
-    constexpr standard_allocator(const standard_allocator<T>& that) noexcept {}
+    standard_allocator() noexcept = default;
+    standard_allocator(const standard_allocator&) noexcept = default;
+    standard_allocator(standard_allocator&&) noexcept = default;
+    standard_allocator& operator=(const standard_allocator&) noexcept = default;
+    standard_allocator& operator=(standard_allocator&&) noexcept = default;
+    ~standard_allocator() noexcept override = default;
 
     template <typename T>
-    constexpr standard_allocator(standard_allocator<T>&& that) noexcept {}
+    constexpr explicit standard_allocator(const standard_allocator<T>&) noexcept {}
 
-    [[nodiscard]] auto alloc(const size_type count = 1) const noexcept -> void* override {
+    template <typename T>
+    constexpr explicit standard_allocator(standard_allocator<T>&&) noexcept {}
+
+    [[nodiscard]] auto alloc(const size_type count = 1) noexcept -> void* override {
         return static_cast<void*>(allocate(count));
     }
 
-    auto dealloc(void* ptr, const size_type count = 1) const noexcept -> void override {
+    auto dealloc(void* ptr, const size_type count = 1) noexcept -> void override {
         deallocate(static_cast<Ty*>(ptr), count);
     }
 
     auto destroy(void* ptr) const noexcept(std::is_nothrow_destructible_v<Ty>) -> void override {
         static_cast<Ty*>(ptr)->~Ty();
+    }
+
+    [[nodiscard]] Ty* allocate(const size_type count = 1) {
+        return std::allocator<Ty>{}.allocate(count);
+    }
+
+    void deallocate(Ty* ptr, const size_type count = 1) noexcept {
+        std::allocator<Ty>{}.deallocate(ptr, count);
     }
 };
 
@@ -76,7 +91,7 @@ template <typename Ty, UCONCEPTS memory_pool MemoryPool>
 class allocator;
 
 template <typename Ty, UCONCEPTS memory_pool MemoryPool>
-class allocator : public basic_allocator {
+class allocator final : public basic_allocator {
     template <typename, UCONCEPTS memory_pool>
     friend class allocator;
 
@@ -168,8 +183,24 @@ private:
     shared_type pool_;
 };
 
+template <typename Ty, UCONCEPTS memory_pool MemoryPool>
+class allocator<Ty[], MemoryPool> final : public basic_allocator{
+public:
+    using shared_type = typename MemoryPool::shared_type;
+
+    using value_type = Ty*;
+    using pointer = Ty**;
+    using const_pointer = const Ty**;
+    using reference = Ty*&;
+    using const_reference = const Ty*&;
+
+    template <typename Other, UCONCEPTS memory_pool Pool = MemoryPool>
+    using rebind_t = allocator<Other, Pool>;
+    
+};
+
 template <typename Ty, std::size_t N, UCONCEPTS memory_pool MemoryPool>
-class allocator<Ty[N], MemoryPool> : public basic_allocator {
+class allocator<Ty[N], MemoryPool> final : public basic_allocator {
 public:
     using shared_type = typename MemoryPool::shared_type;
 
@@ -208,17 +239,15 @@ public:
         );
     }
 
-    [[nodiscard]] auto alloc(const size_type count = 1) noexcept -> void* override {
+    [[nodiscard]] auto alloc(const size_type count = 1) -> void* override {
         return static_cast<Ty**>(allocate(count));
     }
 
-    auto dealloc(Ty** ptr, const size_type count = 1) noexcept -> void override {
-        deallocate(ptr, count);
+    auto dealloc(void** ptr, const size_type count = 1) noexcept -> void override {
+        deallocate(static_cast<Ty**>(ptr), count);
     }
 
-    auto destroy(Ty** ptr) const noexcept(std::is_nothrow_destructible_v<Ty>) -> void override {
-        static_assert(false);
-    }
+    auto destroy(Ty** ptr) const noexcept -> void override {}
 
 private:
     shared_type pool_;
@@ -238,7 +267,7 @@ template <UCONCEPTS completed_type Ty, size_t Count = 1>
 class builtin_storage_allocator;
 
 template <UCONCEPTS completed_type Ty, size_t Count>
-class builtin_storage_allocator : public basic_allocator {
+class builtin_storage_allocator final : public basic_allocator {
 public:
     using value_type      = Ty;
     using pointer         = Ty*;
@@ -250,8 +279,8 @@ public:
     using rebind_t = builtin_storage_allocator<Other, Count_>;
 
     constexpr builtin_storage_allocator() = default;
-    constexpr builtin_storage_allocator(const builtin_storage_allocator&) noexcept {}
-    constexpr builtin_storage_allocator(builtin_storage_allocator&&) noexcept {}
+    constexpr builtin_storage_allocator(const builtin_storage_allocator&) noexcept : storage_() {}
+    constexpr builtin_storage_allocator(builtin_storage_allocator&&) noexcept : storage_() {}
 
     // NOLINTBEGIN(bugprone-unhandled-self-assignment)
 
@@ -264,10 +293,10 @@ public:
     constexpr builtin_storage_allocator& operator=(builtin_storage_allocator&&) noexcept {
         return *this;
     }
-    constexpr ~builtin_storage_allocator() noexcept = default;
+    constexpr ~builtin_storage_allocator() noexcept override  = default;
 
     template <typename Other>
-    explicit constexpr builtin_storage_allocator(const builtin_storage_allocator<Other>& that) {}
+    constexpr explicit builtin_storage_allocator(const builtin_storage_allocator<Other>&) noexcept : storage_() {}
 
     constexpr auto allocate() const noexcept -> Ty* { return static_cast<Ty*>(&storage_); }
 
@@ -285,7 +314,21 @@ public:
     }
 
 private:
-    std::aligned_storage_t<sizeof(Ty), alignof(Ty)> storage_[Count];
+    alignas(Ty) std::byte storage_[sizeof(Ty) * Count];
+};
+
+template <typename>
+struct rebind_allocator;
+
+template <template <typename...> typename Allocator, typename Ty, typename... Others>
+struct rebind_allocator<Allocator<Ty, Others...>> {
+    template <typename Another>
+    struct to {
+        using type = Allocator<Another, Others...>;
+    };
+
+    template <typename Other>
+    using to_t = typename to<Other>::type;
 };
 
 } // namespace atom::utils
