@@ -34,8 +34,7 @@ class memory_pool {
         /**
          * @brief Construct a new basic pool object
          *
-         * @param block_size Size of each memory block
-         * @param initial_capacity Initial capacity of this pool
+         * @param params Parameters contains the block size and initial capacity of this pool.
          */
         basic_pool(const basic_pool_params& params = kDefaultBasicPoolParams)
             : block_size_(params.block_size), data_(params.initial_capacity, nullptr) {
