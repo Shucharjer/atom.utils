@@ -106,4 +106,12 @@ struct same_cv<To, const volatile From> {
 template <typename To, typename From>
 using same_cv_t = typename same_cv<To, From>::type;
 
+template <typename Ty, typename... Others>
+struct first_of {
+    using type = Ty;
+};
+
+template <typename... Args>
+using first_of_t = typename first_of<Args...>::type;
+
 } // namespace atom::utils
