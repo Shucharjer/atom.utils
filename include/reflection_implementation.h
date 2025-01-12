@@ -101,6 +101,7 @@ public:
     constexpr basic_reflected& operator=(basic_reflected&& obj) noexcept {
         name_ = obj.name_;
         hash_ = obj.hash_;
+        return *this;
     }
 
     constexpr virtual ~basic_reflected() = default;
@@ -175,7 +176,7 @@ public:
         // so, ...
         std::string string = name.data();
 
-        if (auto found = string.find_last_of(' ');
+        if (const auto found = string.find_last_of(' ');
             found != std::string::npos && found < string.length()) {
             string = string.substr(found + 1);
         }
@@ -183,26 +184,26 @@ public:
         return std::hash<std::string_view>()(string);
     }
 
-    static auto get(std::size_t hash) -> const type_pair* {
-        auto& mutex_            = get_mutex();
-        auto& registered_types_ = get_registered();
-        std::shared_lock<std::shared_mutex> slock(mutex_);
-        return registered_types_.contains(hash) ? &registered_types_.at(hash) : nullptr;
+    static auto get(const std::size_t hash) -> const type_pair* {
+        auto& mutex                  = get_mutex();
+        const auto& registered_types = get_registered();
+        std::shared_lock<std::shared_mutex> slock(mutex);
+        return registered_types.contains(hash) ? &registered_types.at(hash) : nullptr;
     }
 
-    static auto get_by_name(std::string_view name) -> const type_pair* {
-        auto hash_ = hash(name);
+    static auto get_by_name(const std::string_view name) -> const type_pair* {
+        const auto hash_v = hash(name);
 
-        auto& mutex_            = get_mutex();
-        auto& registered_types_ = get_registered();
-        std::shared_lock<std::shared_mutex> slock(mutex_);
-        return registered_types_.contains(hash_) ? &registered_types_.at(hash_) : nullptr;
+        auto& mutex                  = get_mutex();
+        const auto& registered_types = get_registered();
+        std::shared_lock<std::shared_mutex> slock(mutex);
+        return registered_types.contains(hash_v) ? &registered_types.at(hash_v) : nullptr;
     }
 
     template <typename Ty>
     static auto is_registered() noexcept -> bool {
-        auto reflected_ = reflected<Ty>();
-        return is_registered(reflected_.name());
+        const auto reflected = UTILS reflected<Ty>();
+        return is_registered(reflected.name());
     }
 
     static auto is_registered(std::string_view name) -> bool {
