@@ -6,7 +6,6 @@
 #include "concepts.h"
 #include "pair.h"
 
-
 namespace atom::utils {
 
 template <typename Ty>
@@ -35,7 +34,7 @@ public:
 
     constexpr virtual explicit operator bool() const noexcept { return false; }
 
-    constexpr virtual auto raw() noexcept -> void* { return nullptr; };
+    constexpr virtual auto raw() noexcept -> void* { return nullptr; }
     [[nodiscard]] constexpr virtual auto raw() const noexcept -> const void* { return nullptr; }
 };
 
@@ -69,6 +68,10 @@ struct with_destroyer_t {};
 constexpr inline with_allocator_t with_allocator;
 constexpr inline with_destroyer_t with_destroyer;
 
+struct construct_at_once_t {};
+
+constexpr inline construct_at_once_t construct_at_once;
+
 namespace internal {
 
 template <typename Ty, typename Destroyer>
@@ -79,6 +82,10 @@ constexpr auto wrap_destroyer(Destroyer destroyer) -> void (*)(void*) {
     }
     else if constexpr (std::is_class_v<Destroyer>) {
         return [](void* ptr) { Destroyer{}(static_cast<Ty*>(ptr)); };
+    }
+    else {
+        static_assert(false);
+        return nullptr;
     }
 }
 
@@ -104,27 +111,58 @@ public:
     constexpr explicit unique_storage(
         const Allocator& allocator = Allocator()
     ) noexcept(std::is_nothrow_default_constructible_v<allocator_type>)
-        : pair_(nullptr, allocator) {}
+        : pair_(nullptr, allocator),
+          destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {}
 
     constexpr explicit unique_storage(
         const Ty* ptr, const Allocator& allocator = Allocator()
     ) noexcept(std::is_nothrow_default_constructible_v<allocator_type>)
-        : pair_(ptr, allocator) {}
+        : pair_(ptr, allocator), destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+    }
 
     template <typename Destroyer>
     constexpr explicit unique_storage(const Ty* ptr, with_destroyer_t, Destroyer destroyer)
-        : pair_(ptr, Allocator()), destroyer_(internal::wrap_destroyer(destroyer)) {}
+        : pair_(ptr, Allocator()), destroyer_(internal::wrap_destroyer<Ty>(destroyer)) {}
+
+    constexpr explicit unique_storage(construct_at_once_t, const Allocator& allocator = Allocator{})
+        : pair_(nullptr, allocator),
+          destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+        Ty* ptr = nullptr;
+        try {
+            ptr = pair_.second().allocate(1);
+            ::new (ptr) Ty();
+            pair_.first() = std::launder(ptr);
+        }
+        catch (...) {
+            if (ptr) {
+                pair_.second().deallocate(ptr, 1);
+            }
+            throw;
+        }
+    }
 
     template <typename... Args>
-    requires std::is_constructible_v<Ty, Args...>
-    explicit unique_storage(Args&&... args, const Allocator& allocator = Allocator())
-        : pair_(allocator.allocate(), allocator) {
-        ::new (pair_.first()) Ty(std::forward<Args>(args)...);
+    explicit unique_storage(Args&&... args, const Allocator& allocator = Allocator{})
+        : pair_(nullptr, allocator),
+          destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+        Ty* ptr = nullptr;
+        try {
+            ptr = pair_.second().allocate(1);
+            ::new (ptr) Ty(std::forward<Args>(args)...);
+            pair_.first() = std::launder(ptr);
+        }
+        catch (...) {
+            if (ptr) {
+                pair_.second().deallocate(ptr, 1);
+            }
+            throw;
+        }
     }
 
     unique_storage(const unique_storage& that) = delete;
 
-    constexpr unique_storage(unique_storage&& that) noexcept : pair_(std::move(that.pair_)) {}
+    constexpr unique_storage(unique_storage&& that) noexcept
+        : pair_(std::move(that.pair_)), destroyer_(that.destroyer_) {}
 
     unique_storage& operator=(const unique_storage& that) = delete;
 
@@ -139,7 +177,7 @@ public:
     constexpr ~unique_storage() noexcept(std::is_nothrow_destructible_v<Ty>) override {
         if (pair_.first()) {
             internal::destroy(pair_.first(), destroyer_);
-            pair_.second().deallocate();
+            pair_.second().deallocate(pair_.first(), 1);
         }
     }
 
@@ -190,11 +228,11 @@ public:
 
 private:
     compressed_pair<Ty*, allocator_type> pair_;
-    void (*destroyer_)(Ty*);
+    void (*destroyer_)(void*);
 };
 
 template <typename Ty, UCONCEPTS rebindable_allocator Allocator>
-class shared_storage : public basic_storage {
+class shared_storage final : public basic_storage {
     using alty_traits = std::allocator_traits<Allocator>;
 
 public:
@@ -412,13 +450,13 @@ public:
         : pair_(std::move(that.pair_)), control_pair_(std::move(that.control_pair_)) {}
 
     template <typename T>
-    shared_storage(const shared_storage<T, Allocator>& that) noexcept
+    explicit shared_storage(const shared_storage<T, Allocator>& that) noexcept
         : pair_(that.pair_), control_pair_(that.control_pair_) {
         inc();
     }
 
     template <typename T>
-    shared_storage(shared_storage<T, Allocator>&& that) noexcept
+    explicit shared_storage(shared_storage<T, Allocator>&& that) noexcept
         : pair_(std::move(that.pair_)), control_pair_(std::move(that.control_pair_)) {}
 
     shared_storage& operator=(const shared_storage& that) noexcept {
