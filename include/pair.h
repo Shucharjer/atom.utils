@@ -8,7 +8,7 @@ namespace atom::utils {
 
 namespace internal {
 /**
- * @brief Element container in copressed_pair
+ * @brief Element container in compressed_pair
  *
  * @tparam Ty Element type
  * @tparam IsFirst Is the first type? A placeholder that could verify the two elements if
@@ -70,7 +70,10 @@ public:
     constexpr compressed_element& operator=(const compressed_element&) noexcept = default;
     constexpr ~compressed_element() noexcept                                    = default;
 
-    constexpr compressed_element& operator=(nullptr_t) noexcept { value_ = nullptr; }
+    constexpr compressed_element& operator=(nullptr_t) noexcept {
+        value_ = nullptr;
+        return *this;
+    }
 
     constexpr compressed_element(compressed_element&& that) noexcept
         : value_(std::exchange(that.value_, nullptr)) {}
@@ -117,11 +120,15 @@ public:
     using reference       = value_type&;
     using const_reference = const value_type&;
 
-    constexpr compressed_element(value_type value = nullptr) noexcept : value_(value) {}
-    constexpr compressed_element(nullptr_t) noexcept : value_(nullptr) {}
+    constexpr explicit compressed_element(const value_type value = nullptr) noexcept
+        : value_(value) {}
+    constexpr explicit compressed_element(nullptr_t) noexcept : value_(nullptr) {}
     constexpr compressed_element(const compressed_element&) noexcept = default;
     constexpr compressed_element(compressed_element&&) noexcept      = default;
-    constexpr compressed_element& operator=(nullptr_t) noexcept { value_ = nullptr; }
+    constexpr compressed_element& operator=(nullptr_t) noexcept {
+        value_ = nullptr;
+        return *this;
+    }
     constexpr compressed_element& operator=(const compressed_element&) noexcept = default;
     constexpr compressed_element& operator=(compressed_element&& that) noexcept = default;
     constexpr ~compressed_element() noexcept                                    = default;
@@ -139,6 +146,10 @@ class compressed_pair;
 
 template <typename, typename>
 class reversed_compressed_pair;
+
+struct placeholder_t {};
+
+constexpr inline placeholder_t placeholder{};
 
 template <typename First, typename Second>
 class compressed_pair final : private UTILS internal::compressed_element<First, true>,
@@ -158,6 +169,18 @@ public:
     ) noexcept(std::is_nothrow_constructible_v<first_base, FirstType> && std::is_nothrow_constructible_v<second_base, SecondType>)
         : first_base(std::forward<FirstType>(first)),
           second_base(std::forward<SecondType>(second)) {}
+
+    template <typename Ty>
+    constexpr explicit compressed_pair(
+        Ty&& val, placeholder_t
+    ) noexcept(std::is_nothrow_constructible_v<first_base, Ty> && std::is_nothrow_default_constructible_v<second_base>)
+        : first_base(std::forward<Ty>(val)), second_base() {}
+
+    template <typename Ty>
+    constexpr explicit compressed_pair(
+        placeholder_t, Ty&& val
+    ) noexcept(std::is_nothrow_default_constructible_v<first_base> && std::is_nothrow_constructible_v<second_base, Ty>)
+        : first_base(), second_base(std::forward<Ty>(val)) {}
 
     constexpr compressed_pair(const compressed_pair&)            = default;
     constexpr compressed_pair& operator=(const compressed_pair&) = default;
@@ -251,11 +274,23 @@ public:
         : first_base(), second_base() {}
 
     template <typename FirstType, typename SecondType>
-    constexpr reversed_compressed_pair(
+    constexpr explicit reversed_compressed_pair(
         FirstType&& first, SecondType&& second
     ) noexcept(std::is_nothrow_constructible_v<second_base, SecondType> && std::is_nothrow_constructible_v<first_base, FirstType>)
         : first_base(std::forward<SecondType>(second)),
           second_base(std::forward<FirstType>(first)) {}
+
+    template <typename Ty>
+    constexpr explicit reversed_compressed_pair(
+        Ty&& val, placeholder_t
+    ) noexcept(std::is_nothrow_constructible_v<first_base, Ty> && std::is_nothrow_default_constructible_v<second_base>)
+        : first_base(std::forward<Ty>(val)), second_base() {}
+
+    template <typename Ty>
+    constexpr explicit reversed_compressed_pair(
+        placeholder_t, Ty&& val
+    ) noexcept(std::is_nothrow_default_constructible_v<first_base> && std::is_nothrow_constructible_v<second_base, Ty>)
+        : first_base(), second_base(std::forward<Ty>(val)) {}
 
     constexpr reversed_compressed_pair(const reversed_compressed_pair&)            = default;
     constexpr reversed_compressed_pair& operator=(const reversed_compressed_pair&) = default;
@@ -410,7 +445,7 @@ concept reversible_pair = requires { typename reversed_result<Pair>::type; };
 /**
  * @brief Get the reversed pair.
  *
- * @tparam Pair The pair type. This tparam could be deduced automaticly.
+ * @tparam Pair The pair type. This tparam could be deduced automatically.
  * @param pair The pair need to reverse.
  * @return Reversed pair.
  */
