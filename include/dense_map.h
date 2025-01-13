@@ -6,7 +6,7 @@
 #include "storage.h"
 #include "threads.h"
 
-namespace atom {
+namespace atom::utils {
 
 constexpr std::size_t k_default_page_size = 32;
 
@@ -35,8 +35,9 @@ public:
     using reference       = value_type&;
     using const_reference = const value_type&;
 
-    using iterator       = typename std::vector<value_type>::iterator;
-    using const_iterator = typename std::vector<value_type>::const_iterator;
+    using iterator = typename std::vector<value_type, allocator_t<value_type>>::iterator;
+    using const_iterator =
+        typename std::vector<value_type, allocator_t<value_type>>::const_iterator;
 
 private:
     using array_t            = std::array<size_type, PageSize>;
@@ -156,7 +157,7 @@ public:
         auto offset = offset_of(key);
 
         shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
-        if (contains_impl(page, offset)) {
+        if (contains_impl(key, page, offset)) {
             keeper.run_away();
             erase_without_check_impl(page, offset);
         }
@@ -171,7 +172,7 @@ public:
     auto contains(const key_type key) -> bool {
         auto page   = page_of(key);
         auto offset = offset_of(key);
-        return contains_impl(page, offset);
+        return contains_impl(key, page, offset);
     }
 
     [[nodiscard]] auto find(const key_type key) noexcept -> iterator {
@@ -179,12 +180,12 @@ public:
         auto offset = offset_of(key);
 
         shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
-        if (contains_impl(page, offset)) {
-            return alloc_n_dense_.begin() + alloc_n_dense_[sparse_[page]->at(offset)] -
-                   alloc_n_dense_.front();
+        if (contains_impl(key, page, offset)) {
+            return alloc_n_dense_.second().begin() + alloc_n_dense_[sparse_[page]->at(offset)] -
+                   alloc_n_dense_.second().front();
         }
         else {
-            return alloc_n_dense_.end();
+            return alloc_n_dense_.second().end();
         }
     }
 
@@ -192,12 +193,13 @@ public:
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
-        if (contains_impl(page, offset)) {
-            return alloc_n_dense_.cbegin() + alloc_n_dense_[sparse_[page]->at(offset)] -
-                   alloc_n_dense_.front();
+        if (contains_impl(key, page, offset)) {
+            return alloc_n_dense_.second().cbegin() +
+                   alloc_n_dense_.second()[sparse_[page]->at(offset)] -
+                   alloc_n_dense_.second().front();
         }
         else {
-            return alloc_n_dense_.cend();
+            return alloc_n_dense_.second().cend();
         }
     }
 
@@ -208,32 +210,48 @@ public:
     void clear() noexcept {
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         sparse_.clear();
-        alloc_n_dense_.clear();
+        alloc_n_dense_.second().clear();
     }
 
-    auto front() -> mapped_type& { return alloc_n_dense_.front(); }
-    [[nodiscard]] auto front() const -> const mapped_type& { return alloc_n_dense_.front(); }
+    auto front() -> mapped_type& { return alloc_n_dense_.second().front(); }
+    [[nodiscard]] auto front() const -> const mapped_type& {
+        return alloc_n_dense_.second().front();
+    }
 
-    auto back() -> mapped_type& { return alloc_n_dense_.back(); }
-    [[nodiscard]] auto back() const -> const mapped_type& { return alloc_n_dense_.back(); }
+    auto back() -> mapped_type& { return alloc_n_dense_.second().back(); }
+    [[nodiscard]] auto back() const -> const mapped_type& { return alloc_n_dense_.second().back(); }
 
-    auto begin() noexcept -> iterator { return alloc_n_dense_.begin(); }
-    [[nodiscard]] auto begin() const noexcept -> const_iterator { return alloc_n_dense_.cbegin(); }
-    [[nodiscard]] auto cbegin() const noexcept -> const_iterator { return alloc_n_dense_.cbegin(); }
+    auto begin() noexcept -> iterator { return alloc_n_dense_.second().begin(); }
+    [[nodiscard]] auto begin() const noexcept -> const_iterator {
+        return alloc_n_dense_.second().cbegin();
+    }
+    [[nodiscard]] auto cbegin() const noexcept -> const_iterator {
+        return alloc_n_dense_.second().cbegin();
+    }
 
-    auto end() noexcept -> iterator { return alloc_n_dense_.end(); }
-    [[nodiscard]] auto end() const noexcept -> const_iterator { return alloc_n_dense_.cend(); }
-    [[nodiscard]] auto cend() const noexcept -> const_iterator { return alloc_n_dense_.cend(); }
+    auto end() noexcept -> iterator { return alloc_n_dense_.second().end(); }
+    [[nodiscard]] auto end() const noexcept -> const_iterator {
+        return alloc_n_dense_.second().cend();
+    }
+    [[nodiscard]] auto cend() const noexcept -> const_iterator {
+        return alloc_n_dense_.second().cend();
+    }
 
-    auto rbegin() noexcept -> iterator { return alloc_n_dense_.rbegin(); }
-    [[nodiscard]] auto rbegin() const noexcept -> const_iterator { return alloc_n_dense_.rbegin(); }
+    auto rbegin() noexcept -> iterator { return alloc_n_dense_.second().rbegin(); }
+    [[nodiscard]] auto rbegin() const noexcept -> const_iterator {
+        return alloc_n_dense_.second().rbegin();
+    }
     [[nodiscard]] auto crbegin() const noexcept -> const_iterator {
-        return alloc_n_dense_.crbegin();
+        return alloc_n_dense_.second().crbegin();
     }
 
-    auto rend() noexcept -> iterator { return alloc_n_dense_.rend(); }
-    [[nodiscard]] auto rend() const noexcept -> const_iterator { return alloc_n_dense_.rend(); }
-    [[nodiscard]] auto crend() const noexcept -> const_iterator { return alloc_n_dense_.crend(); }
+    auto rend() noexcept -> iterator { return alloc_n_dense_.second().rend(); }
+    [[nodiscard]] auto rend() const noexcept -> const_iterator {
+        return alloc_n_dense_.second().rend();
+    }
+    [[nodiscard]] auto crend() const noexcept -> const_iterator {
+        return alloc_n_dense_.second().crend();
+    }
 
 private:
     static size_type page_of(const key_type key) noexcept { return key / PageSize; }
@@ -259,14 +277,13 @@ private:
             sparse_.pop_back();
         }
     }
-    [[nodiscard]] auto contains_impl(const size_type page, const size_type offset) const noexcept
-        -> bool {
-        // clang-format off
-               // if exist this page?
-                                       // weather the index could be 0?
-                                                       // index equals to 0?       key equals to 0?
-        return sparse_.size() > page ? page | offset ? sparse_[page]->at(offset) : alloc_n_dense_.second()[0].first() == 0 : false;
-        // clang-format on
+    [[nodiscard]] auto contains_impl(
+        const key_type key, const size_type page, const size_type offset
+    ) const noexcept -> bool {
+        auto& dense = alloc_n_dense_.second();
+        return dense.size() && sparse_.size() > page
+                   ? sparse_[page]->at(offset) ? true : dense[sparse_[page]->at(offset)] == key
+                   : false;
     }
     auto erase_without_check_impl(const size_type page, const size_type offset) {
         auto& dense = alloc_n_dense_.second();
@@ -285,4 +302,4 @@ private:
     std::shared_mutex dense_mutex_;
     std::shared_mutex sparse_mutex_;
 };
-} // namespace atom
+} // namespace atom::utils
