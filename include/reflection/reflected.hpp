@@ -88,6 +88,39 @@ private:
     }
 };
 
+namespace internal {
+template <UTILS tstring_v Name, std::size_t Index, typename Tuple>
+constexpr void find_traits(const Tuple& tuple, std::size_t& result) {
+    if (std::get<Index>(tuple).name() == Name.val) {
+        result = Index;
+    }
+}
+
+template <UTILS tstring_v Name, typename Tuple, std::size_t... Is>
+constexpr void find_traits(const Tuple& tuple, std::size_t& result, std::index_sequence<Is...>) {
+    (find_traits<Name, Is>(tuple, result), ...);
+}
+} // namespace internal
+
+template <UTILS tstring_v Name, typename Tuple>
+consteval std::size_t index_of(const Tuple& tuple) {
+    auto index_sequence = std::make_index_sequence<UTILS tuple_size_v<Tuple>>();
+    std::size_t result  = UTILS tuple_size_v<Tuple>;
+    internal::find_traits<Name>(tuple, result, index_sequence);
+    return result;
+}
+
+// Sadly, this is not supported.
+// We could only do this:
+// constexpr auto index = index_of<"field name">(tuple);
+// auto& traits = std::get<index>(tuple);
+// template <UTILS tstring_v Name, typename Tuple>
+// constexpr auto traits_of(const Tuple& tuple) {
+//     constexpr std::size_t index = index_of<Name>(tuple);
+//     static_assert(index < tuple_size_v<Tuple>, "This tuple doesn't have so many elements.");
+//     return std::get<index>(tuple);
+// }
+
 } // namespace atom::utils
 
 #if __has_include(<nlohmann/json.hpp>)
