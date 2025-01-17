@@ -13,12 +13,7 @@ endif()
 
 include_directories(include)
 
-file(GLOB SRC_FILES
-    "include/*.h"
-    "include/*/*.h"
-)
-
-add_library(Utils INTERFACE ${SRC_FILES})
+add_library(Utils INTERFACE)
 add_library(Atom::Utils ALIAS Utils)
 
 set_target_properties(Utils PROPERTIES LINKER_LANGUAGE CXX)
@@ -28,7 +23,7 @@ target_include_directories(Utils INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_sources(Utils PUBLIC
+target_sources(Utils INTERFACE
     # the fellow line is a template    
     # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>
 )
