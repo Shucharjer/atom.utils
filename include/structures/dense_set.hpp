@@ -7,6 +7,7 @@
 #include "memory/allocator.hpp"
 #include "structures.hpp"
 
+namespace atom::utils {
 template <std::unsigned_integral Ty, UCONCEPTS rebindable_allocator Alloc, std::size_t PageSize>
 class dense_set {
     template <typename Target>
@@ -37,3 +38,17 @@ private:
     std::shared_mutex dense_mutex_;
     std::shared_mutex sparse_mutex_;
 };
+
+template <std::unsigned_integral Ty, std::size_t PageSize = k_default_page_size>
+using sync_dense_set = dense_set<Ty, sync_allocator<Ty>, PageSize>;
+
+template <std::unsigned_integral Ty>
+using sync_dense_set_allocator = sync_allocator<Ty>;
+
+template <std::unsigned_integral Ty, std::size_t PageSize = k_default_page_size>
+using unsync_dense_set = dense_set<Ty, unsync_allocator<Ty>, PageSize>;
+
+template <std::unsigned_integral Ty>
+using unsync_dense_set_allocator = unsync_allocator<Ty>;
+
+} // namespace atom::utils
