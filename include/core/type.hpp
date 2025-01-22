@@ -34,7 +34,7 @@ public:
      */
     template <typename Ty>
     static default_id_t id() {
-        return id_<::std::decay_t<std::remove_const_t<Ty>>>();
+        return id_<std::remove_cvref_t<Ty>>();
     }
 
 private:
