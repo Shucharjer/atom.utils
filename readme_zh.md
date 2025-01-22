@@ -121,6 +121,21 @@ auto& traits2 = std::get<index_of<"member2">(tuple)>(tuple);
 char value2 = traits1.get(a);
 ```
 
+也支持了`nlohmann-json`的序列化与反序列化
+
+```c++
+// 序列化
+nlohmann::json json = a;
+std::cout << json.dump(4) << '\n';
+
+// 更改member1的值，期待它在反序列化之后变回之前的值
+a.member1 = 90;
+
+// 反序列化
+a = json;
+std::cout << a.member1 << '\n';
+```
+
 ### 内存
 
 提供了分配器、内存池和存储器
