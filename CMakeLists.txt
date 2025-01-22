@@ -68,6 +68,7 @@ if(BUILD_DOCS)
             set(doxygen-awesome-css_INCLUDE_DIR ${doxygen-awesome-css_SOURCE_DIR})
         endif()
 
+        set(DOXY_SOURCE_DIRECTORY ${Utils_SOURCE_DIR})
         set(DOXY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
         set(DOXY_CSS_DIRECTORY ${doxygen-awesome-css_INCLUDE_DIR})
 
@@ -76,7 +77,7 @@ if(BUILD_DOCS)
         add_custom_target(
             documents
             COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxy.cfg
-            WORKING_DIRECTORY ${UTILS_SOURCE_DIR}
+            WORKING_DIRECTORY ${Utils_SOURCE_DIR}
             VERBATIM
         )
     else()
