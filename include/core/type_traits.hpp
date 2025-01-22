@@ -106,12 +106,89 @@ struct same_cv<To, const volatile From> {
 template <typename To, typename From>
 using same_cv_t = typename same_cv<To, From>::type;
 
-template <typename Ty, typename... Others>
+template <typename...>
 struct first_of {
+    using type = void;
+};
+
+template <typename Ty, typename... Others>
+struct first_of<Ty, Others...> {
     using type = Ty;
 };
 
 template <typename... Args>
 using first_of_t = typename first_of<Args...>::type;
+
+template <std::size_t, typename... Args>
+struct type_of;
+
+namespace internal {
+template <std::size_t, typename...>
+struct type_of_impl;
+
+template <typename Ty, typename... Others>
+struct type_of_impl<0U, Ty, Others...> {
+    using type = Ty;
+};
+
+template <std::size_t Index, typename Ty, typename... Others>
+struct type_of_impl<Index, Ty, Others...> {
+    using type = typename type_of_impl<Index - 1, Others...>::type;
+};
+
+} // namespace internal
+
+template <std::size_t Index, typename... Args>
+struct type_of {
+    using type = typename internal::type_of_impl<Index, Args...>::type;
+};
+
+template <std::size_t Index, typename... Args>
+using type_of_t = typename type_of<Index, Args...>::type;
+
+template <typename... Args>
+struct last_of {
+    using type = typename type_of<sizeof...(Args) - 1, Args...>::type;
+};
+
+template <typename... Args>
+using last_of_t = typename last_of<Args...>::type;
+
+template <typename>
+struct first_of_tparams {
+    using type = void;
+};
+
+template <typename... Args, template <typename...> typename Template>
+struct first_of_tparams<Template<Args...>> {
+    using type = typename first_of<Args...>::type;
+};
+
+template <typename Template>
+using first_of_tparams_t = typename first_of_tparams<Template>::type;
+
+template <std::size_t, typename>
+struct type_of_tparams {
+    using type = void;
+};
+
+template <std::size_t Index, typename... Args, template <typename...> typename Template>
+struct type_of_tparams<Index, Template<Args...>> {
+    using type = typename type_of<Index, Args...>::type;
+};
+
+template <std::size_t Index, typename Template>
+using type_of_tparams_t = typename type_of_tparams<Index, Template>::type;
+
+template <typename>
+struct last_of_tparams;
+
+template <typename... Args, template <typename...> typename Template>
+struct last_of_tparams<Template<Args...>> {
+    using type = typename last_of<Args...>::type;
+};
+
+template <typename Template>
+using last_of_tparams_t = typename last_of_tparams<Template>::type;
 
 } // namespace atom::utils
