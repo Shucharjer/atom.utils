@@ -35,6 +35,11 @@ concept rebindable = requires { typename Allocator::template rebind_t<RebindType
 } // namespace internal
 
 // concept: rebindable_allocator
+/**
+ * @brief Allocators could be initialized with allocators of other types.
+ *
+ * @tparam Ty
+ */
 template <typename Ty>
 concept rebindable_allocator = UCONCEPTS allocator<Ty> && requires() {
     UCONCEPTS internal::rebindable<Ty, int>;
