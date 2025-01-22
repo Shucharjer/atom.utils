@@ -80,28 +80,28 @@ public:
 
     ~dense_map() noexcept = default;
 
-    auto at(const key_type key) -> mapped_type& {
+    auto at(const key_type key) -> Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
         return alloc_n_dense_.second()[sparse_[page]->at(offset)].second();
     }
 
-    [[nodiscard]] auto at(const key_type key) const -> const mapped_type& {
+    [[nodiscard]] auto at(const key_type key) const -> const Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
         return alloc_n_dense_.second()[sparse_[page]->at(offset)].second();
     }
 
-    auto operator[](const key_type key) -> mapped_type& {
+    auto operator[](const key_type key) -> Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
         return alloc_n_dense_.second()[sparse_[page]->at(offset)].second();
     }
 
-    auto operator[](const key_type key) const -> const mapped_type& {
+    auto operator[](const key_type key) const -> const Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
@@ -303,4 +303,11 @@ private:
     std::shared_mutex dense_mutex_;
     std::shared_mutex sparse_mutex_;
 };
+
+template <std::unsigned_integral Key, typename Val, std::size_t PageSize = k_default_page_size>
+using sync_dense_map = dense_map<Key, Val, sync_allocator<compressed_pair<Key, Val>>, PageSize>;
+
+template <std::unsigned_integral Key, typename Val, std::size_t PageSize = k_default_page_size>
+using unsync_dense_map = dense_map<Key, Val, unsync_allocator<compressed_pair<Key, Val>>, PageSize>;
+
 } // namespace atom::utils
