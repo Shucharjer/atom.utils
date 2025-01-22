@@ -95,18 +95,15 @@ constexpr void find_traits(const Tuple& tuple, std::size_t& result) {
         result = Index;
     }
 }
-
-template <UTILS tstring_v Name, typename Tuple, std::size_t... Is>
-constexpr void find_traits(const Tuple& tuple, std::size_t& result, std::index_sequence<Is...>) {
-    (find_traits<Name, Is>(tuple, result), ...);
-}
 } // namespace internal
 
 template <UTILS tstring_v Name, typename Tuple>
 consteval std::size_t index_of(const Tuple& tuple) {
     auto index_sequence = std::make_index_sequence<UTILS tuple_size_v<Tuple>>();
     std::size_t result  = UTILS tuple_size_v<Tuple>;
-    internal::find_traits<Name>(tuple, result, index_sequence);
+    []<std::size_t... Is>(const Tuple& tuple, std::size_t& result, std::index_sequence<Is...>) {
+        (internal::find_traits<Name, Is>(tuple, result), ...);
+    }(tuple, result, index_sequence);
     return result;
 }
 
@@ -114,6 +111,7 @@ consteval std::size_t index_of(const Tuple& tuple) {
 // We could only do this:
 // constexpr auto index = index_of<"field name">(tuple);
 // auto& traits = std::get<index>(tuple);
+//
 // template <UTILS tstring_v Name, typename Tuple>
 // constexpr auto traits_of(const Tuple& tuple) {
 //     constexpr std::size_t index = index_of<Name>(tuple);
