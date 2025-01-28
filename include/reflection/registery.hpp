@@ -3,7 +3,7 @@
 #include <ranges>
 #include <shared_mutex>
 #include <unordered_map>
-#include <utility>
+#include "core.hpp"
 #include "reflection/field_traits.hpp"
 #include "reflection/function_traits.hpp"
 #include "reflection/hash.hpp"
@@ -23,40 +23,58 @@ private:
 public:
     registry() = delete;
 
+    static default_id_t identity(const size_t hash) {
+        static std::unordered_map<size_t, default_id_t> map;
+        if (!map.contains(hash)) {
+            map[hash] = next_id();
+        }
+
+        return map.at(hash);
+    }
+
     template <typename Ty>
     static void enroll() {
-        using pure_t = typename std::remove_cvref_t<Ty>;
-        auto hash    = UTILS hash<pure_t>();
+        using pure_t     = typename std::remove_cvref_t<Ty>;
+        const auto hash  = UTILS hash<pure_t>();
+        const auto ident = identity(hash);
 
         auto& registered = self_type::registered();
         auto& mutex      = self_type::mutex();
         std::shared_lock<std::shared_mutex> shared_lock{ mutex };
-        if (!registered.contains(hash)) [[likely]] {
+        if (!registered.contains(ident)) [[likely]] {
             shared_lock.unlock();
             std::unique_lock<std::shared_mutex> unique_lock{ mutex };
             registered.emplace(
-                hash,
-                std::make_pair(
-                    next_id(),
-                    std::make_shared<reflected<pure_t, BasicConstexprExtend, ConstexprExtend>>()
-                )
+                ident, std::make_shared<reflected<pure_t, BasicConstexprExtend, ConstexprExtend>>()
             );
+            unique_lock.unlock();
+            shared_lock.lock();
+        }
+    }
+
+    static auto find(default_id_t ident) {
+        auto& registered = self_type::registered();
+        auto& mutex      = self_type::mutex();
+        std::shared_lock<std::shared_mutex> shared_lock{ mutex };
+        if (auto iter = registered.find(ident); iter != registered.cend()) [[likely]] {
+            return iter->second;
+        }
+        else [[unlikely]] {
+            // Remember some basic classes were not registered automatically, like uint32_t (usually
+            // aka unsigned int). You could see these in reflection/macros.hpp
+            //
+            // Notice: Please make sure you have already registered the type you want to reflect
+            // when calling this.
+            throw std::runtime_error("Unregistered type!");
         }
     }
 
     template <typename Ty>
     static auto find() {
-        auto hash = UTILS hash<Ty>();
-
-        auto& registered = self_type::registered();
-        auto& mutex      = self_type::mutex();
-        std::shared_lock<std::shared_mutex> shared_lock{ mutex };
-        if (registered.contains(hash)) [[likely]] {
-            return registered.at(hash);
-        }
-        else [[unlikely]] {
-            throw std::runtime_error("Unregistered type!");
-        }
+        using pure_t     = std::remove_cvref_t<Ty>;
+        const auto hash  = UTILS hash<pure_t>();
+        const auto ident = identity(hash);
+        return find(ident);
     }
 
     static auto all() {
@@ -66,11 +84,9 @@ public:
 
 protected:
     static auto registered() -> std::unordered_map<
-        std::size_t,
-        std::pair<
-            default_id_t,
-            std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>>>>& {
-        static std::unordered_map<std::size_t, std::pair<default_id_t, pointer>> registered;
+        default_id_t,
+        std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>>>& {
+        static std::unordered_map<default_id_t, pointer> registered;
         return registered;
     }
 
