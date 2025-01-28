@@ -15,7 +15,7 @@
         using type = type_name;                                                                    \
         constexpr reflected()                                                                      \
             : ::atom::utils::basic_reflected<BaseConstexprExtend>(                                 \
-                  #type_name, ::atom::utils::hash<#type_name>()                                    \
+                  #type_name, ::atom::utils::hash<type_name>()                                     \
               ) {}                                                                                 \
         //
 
