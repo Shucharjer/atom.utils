@@ -5,7 +5,6 @@
 #include "concepts/mempool.hpp"
 #include "concepts/type.hpp"
 #include "core.hpp"
-#include "core/type_traits.hpp"
 #include "memory.hpp"
 
 namespace atom::utils {
@@ -18,7 +17,9 @@ namespace internal {
 #endif
 
 static bool is_aligned(void* ptr, const std::size_t alignment) {
-    const uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    const auto addr = reinterpret_cast<uintptr_t>(ptr);
+    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
     return !(addr & (alignment - 1));
 }
 
@@ -65,8 +66,10 @@ struct standard_allocator final : public basic_allocator {
     template <typename T>
     constexpr explicit standard_allocator(const standard_allocator<T>&) noexcept {}
 
+    // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
     template <typename T>
     constexpr explicit standard_allocator(standard_allocator<T>&&) noexcept {}
+    // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
     [[nodiscard]] auto alloc(const size_type count = 1) noexcept -> void* override {
         return static_cast<void*>(allocate(count));
@@ -137,10 +140,12 @@ public:
     ) noexcept(std::is_nothrow_copy_constructible_v<shared_type>)
         : pool_(that.pool_) {}
 
+    // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
     template <typename Other, UCONCEPTS mempool Pool = MemoryPool>
     explicit constexpr allocator(allocator<Other, Pool>&& that
     ) noexcept(std::is_nothrow_move_constructible_v<shared_type>)
         : pool_(std::move(that.pool_)) {}
+    // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
     [[nodiscard]] auto allocate(const size_t count = 1) -> Ty* {
         return pool_->template allocate<Ty>(
@@ -189,8 +194,10 @@ private:
     shared_type pool_;
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
 template <typename Ty, UCONCEPTS mempool MemoryPool>
 class allocator<Ty[], MemoryPool> final : public basic_allocator {
+    // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
 public:
     using shared_type = typename MemoryPool::shared_type;
 
@@ -204,8 +211,10 @@ public:
     using rebind_t = allocator<Other, Pool>;
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
 template <typename Ty, std::size_t N, UCONCEPTS mempool MemoryPool>
 class allocator<Ty[N], MemoryPool> final : public basic_allocator {
+    // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
 public:
     using shared_type = typename MemoryPool::shared_type;
 
@@ -273,7 +282,7 @@ public:
     template <typename Other, size_t Count_ = 1>
     using rebind_t = builtin_storage_allocator<Other, Count_>;
 
-    constexpr builtin_storage_allocator() = default;
+    constexpr builtin_storage_allocator() noexcept : storage_() {};
     constexpr builtin_storage_allocator(const builtin_storage_allocator&) noexcept : storage_() {}
     constexpr builtin_storage_allocator(builtin_storage_allocator&&) noexcept : storage_() {}
 
@@ -294,9 +303,13 @@ public:
     constexpr explicit builtin_storage_allocator(const builtin_storage_allocator<Other>&) noexcept
         : storage_() {}
 
-    constexpr auto allocate() const noexcept -> Ty* { return static_cast<Ty*>(&storage_); }
+    constexpr auto allocate(const size_type count = 1) const noexcept -> Ty* {
+        // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+        return const_cast<Ty*>(reinterpret_cast<const Ty*>(&storage_));
+        // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+    }
 
-    constexpr void deallocate() const noexcept {}
+    constexpr void deallocate(Ty* ptr, const size_type count = 1) const noexcept {}
 
     [[nodiscard]] constexpr auto alloc(const size_type count = 1) noexcept -> void* override {
         return static_cast<void*>(storage_);
@@ -310,7 +323,11 @@ public:
     }
 
 private:
+    // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+    // NOLINTBEGIN(modernize-avoid-c-arrays)
     alignas(Ty) std::byte storage_[sizeof(Ty) * Count];
+    // NOLINTEND(modernize-avoid-c-arrays)
+    // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
 };
 
 template <typename>
