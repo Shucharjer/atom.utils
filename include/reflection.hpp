@@ -66,5 +66,8 @@ template <
     template <UCONCEPTS pure> typename ConstexprExtend = constexpr_extend>
 struct reflected;
 
-class reflection;
+template <typename BasicConstexprExtend, template <typename> typename ConstexprExtend>
+class registry;
+
+using basic_registry = registry<basic_constexpr_extend, constexpr_extend>;
 } // namespace atom::utils
