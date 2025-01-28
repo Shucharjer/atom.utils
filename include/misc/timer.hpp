@@ -53,6 +53,11 @@ public:
         return timers()[timer_name];
     }
 
+    void destroy(const char* timer_name) noexcept {
+        auto& timers_ = timers();
+        timers_.erase(timer_name);
+    }
+
 private:
     static auto timers() -> std::unordered_map<std::string, UTILS timer_proxy>& {
         static std::unordered_map<std::string, UTILS timer_proxy> timers_;
