@@ -117,9 +117,9 @@ public:
         try {
             check_page(page);
 
-            sparse_[page]->at(offset) = alloc_n_dense_.size();
+            sparse_[page]->at(offset) = alloc_n_dense_.second().size();
             try {
-                alloc_n_dense_.emplace_back(key, std::forward<ValTy>(val));
+                alloc_n_dense_.second().emplace_back(key, std::forward<ValTy>(val));
             }
             catch (...) {
                 sparse_[page]->at(offset) = 0;
