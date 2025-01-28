@@ -1,4 +1,6 @@
 #pragma once
+#include <concepts>
+#include <tuple>
 #include "core.hpp"
 #include "core/pipline_result.hpp"
 
