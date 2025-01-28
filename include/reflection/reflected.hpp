@@ -152,6 +152,10 @@ constexpr void
 
 } // namespace internal::reflection
 
+/**
+ * @brief Store an instance's information into a `nlohmann::json` object.
+ *
+ */
 template <typename Ty>
 constexpr void to_json(nlohmann::json& json, const Ty& obj) {
     using pure_t       = std::remove_cvref_t<Ty>;
@@ -161,6 +165,10 @@ constexpr void to_json(nlohmann::json& json, const Ty& obj) {
     );
 }
 
+/**
+ * @brief Restore an instance's information from a `nlohmann::json` object.
+ *
+ */
 template <typename Ty>
 constexpr void from_json(const nlohmann::json& json, Ty& obj) {
     using pure_t       = std::remove_cvref_t<Ty>;
