@@ -4,6 +4,7 @@
 
 namespace atom::utils::concepts {
 
+/*! @cond TURN_OFF_DOXYGEN*/
 namespace internal {
 
 template <typename Shared, typename Type>
@@ -19,8 +20,16 @@ concept can_deallocate = requires(Shared& pool, Type* ptr, std::size_t count) {
 // clang-format on
 
 } // namespace internal
+/*! @endcond */
 
 // concept: memory_pool
+/**
+ * @brief Memory pool
+ *
+ * A memory pool can allocate memory blocks with different sizes.
+ * And for the security, we requires it has its definition of `shared_type`, like `shared_ptr` or
+ * something.
+ */
 template <typename Ty>
 concept mempool = requires(Ty pool, std::size_t count) {
     // shared_type.
