@@ -6,6 +6,7 @@
 #include "memory/pool.hpp"
 #include "structures.hpp"
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace atom::utils {
 
 template <typename Key, typename Val, typename Pr = std::less<Key>>
@@ -31,3 +32,4 @@ using unsync_unordered_map =
     ::std::unordered_map<Key, Val, Hasher, Keyeq, unsync_allocator<std::pair<const Key, Val>>>;
 
 } // namespace atom::utils
+/*! @endcond */

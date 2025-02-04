@@ -6,6 +6,7 @@
 #include "memory/pool.hpp"
 #include "structures.hpp"
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace atom::utils {
 
 template <typename Ty, typename Pr = std::less<Ty>>
@@ -21,3 +22,4 @@ template <typename Ty, typename Hasher = std::hash<Ty>, typename Keyeq = std::eq
 using unsync_unordered_set = ::std::unordered_set<Ty, Hasher, Keyeq, unsync_allocator<const Ty>>;
 
 } // namespace atom::utils
+/*! @endcond */

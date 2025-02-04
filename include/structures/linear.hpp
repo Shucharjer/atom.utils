@@ -6,6 +6,7 @@
 #include <vector>
 #include "structures.hpp"
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace atom::utils {
 
 template <typename Ty>
@@ -57,3 +58,4 @@ template <typename Ty, typename Container = unsync_deque<Ty>>
 using unsync_stack = std::stack<Ty, Container>;
 
 } // namespace atom::utils
+/*! @endcond */
