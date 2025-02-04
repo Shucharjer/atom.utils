@@ -1,18 +1,29 @@
 #pragma once
+#include <algorithm>
+#include <ranges>
+#include "concepts/allocator.hpp"
+#include "core.hpp"
+#include "core/pair.hpp"
+#include "memory.hpp"
+#include "memory/allocator.hpp"
+#include "memory/storage.hpp"
 #include "signal.hpp"
 #include "signal/delegate.hpp"
 #include "signal/sink.hpp"
 
 namespace atom::utils {
 
-template <typename Allocator>
+template <concepts::rebindable_allocator Allocator>
 class dispatcher final {
+    template <typename Target>
+    using allocator_t = typename rebind_allocator<Allocator>::template to<Target>::type;
+
 public:
     using self_type = dispatcher;
 
     dispatcher() = default;
 
-    virtual ~dispatcher() {
+    ~dispatcher() {
         std::ranges::for_each(sink_map_, [](auto& pair) { delete pair.second; });
     }
 
@@ -44,9 +55,8 @@ public:
     [[nodiscard]] sink<EventType>& sink() {
         using sink_type = ::atom::utils::sink<EventType>;
 
-        utils::default_id_t type_id = utils::type<dispatcher>::id<EventType>();
+        utils::default_id_t type_id = utils::type<dispatcher>::template id<EventType>();
 
-        // 如果没找到创建新的就创建一个
         if (auto iter = sink_map_.find(type_id); iter == sink_map_.cend()) {
             sink_map_.emplace(type_id, ::new sink_type());
         }
@@ -57,7 +67,7 @@ public:
     void trigger(EventType& event) const {
         using sink_type = ::atom::utils::sink<EventType>;
 
-        default_id_t type_id = utils::type<dispatcher>::id<EventType>();
+        default_id_t type_id = utils::type<dispatcher>::template id<EventType>();
 
         if (auto iter = sink_map_.find(type_id); iter != sink_map_.cend()) {
             static_cast<sink_type*>(iter->second)->trigger(&event);
@@ -75,19 +85,20 @@ public:
         using sink_type    = ::atom::utils::sink<EventType>;
         using decayed_type = std::decay_t<EventType>;
 
-        default_id_t type_id = utils::type<dispatcher>::id<std::remove_const_t<decayed_type>>();
+        default_id_t type_id =
+            utils::type<dispatcher>::template id<std::remove_const_t<decayed_type>>();
 
-        auto ptr = new initializer<std::remove_const_t<decayed_type>, false, lazy>();
-        ptr->template init<EventType>(std::forward<EventType>(event));
+        // auto ptr = new initializer<std::remove_const_t<decayed_type>, false, lazy>();
+        // ptr->template init<EventType>(std::forward<EventType>(event));
 
-        events_.emplace_back(type_id, ptr);
+        // events_.emplace_back(type_id, ptr);
     }
 
     template <typename EventType>
     void update() {
         using sink_type = ::atom::utils::sink<EventType>;
 
-        default_id_t type_id = ::atom::utils::type<dispatcher>::id<EventType>();
+        default_id_t type_id = ::atom::utils::type<dispatcher>::template id<EventType>();
 
         if (auto iter = sink_map_.find(type_id); iter != sink_map_.cend()) {
             auto events =
@@ -125,9 +136,12 @@ private:
         basic_sink*,
         std::hash<default_id_t>,
         std::equal_to<default_id_t>,
-        Allocator>
+        allocator_t<std::pair<const default_id_t, basic_sink*>>>
         sink_map_;
-    std::list<UTILS compressed_pair<default_id_t, basic_storage*>> events_;
+    std::list<
+        compressed_pair<default_id_t, basic_storage*>,
+        allocator_t<compressed_pair<default_id_t, basic_storage*>>>
+        events_;
 };
 
 } // namespace atom::utils
