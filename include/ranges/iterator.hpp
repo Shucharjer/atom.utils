@@ -4,6 +4,12 @@
 
 namespace atom::utils {
 
+/**
+ * @brief Phony input iterator, for lazy construction with ranges.
+ *
+ * Can not really iterate.
+ * @tparam Rng
+ */
 template <std::ranges::input_range Rng>
 struct phony_input_iterator {
     using iterator_category = std::input_iterator_tag;
