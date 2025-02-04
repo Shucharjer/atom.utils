@@ -106,6 +106,24 @@ struct same_cv<To, const volatile From> {
 template <typename To, typename From>
 using same_cv_t = typename same_cv<To, From>::type;
 
+template <typename To, typename From>
+struct same_reference {
+    using type = To;
+};
+
+template <typename To, typename From>
+struct same_reference<To, From&> {
+    using type = To&;
+};
+
+template <typename To, typename From>
+struct same_reference<To, From&&> {
+    using type = To&&;
+};
+
+template <typename To, typename From>
+using same_reference_t = typename same_reference<To, From>::type;
+
 template <typename...>
 struct first_of {
     using type = void;
