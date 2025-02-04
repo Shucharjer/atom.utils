@@ -1,20 +1,25 @@
 #pragma once
+#include <algorithm>
+#include <barrier>
 #include <functional>
+#include <future>
+#include <memory>
 #include <mutex>
 #include <queue>
-#include <ranges>
+#include <stdexcept>
 #include <thread>
+#include <type_traits>
 
 namespace atom::utils {
 
-class thread_pool {
+class thread_pool final {
 public:
-    thread_pool(const std::size_t num_threads) {
+    thread_pool(const std::size_t num_threads = std::thread::hardware_concurrency()) {
         for (auto i = 0; i < num_threads; ++i) {
             threads_.emplace_back([this]() {
                 while (true) {
                     std::unique_lock<std::mutex> lock(mutex_);
-                    condition_.wait(lock, [this]() { return !tasks_.empty(); });
+                    condvar_.wait(lock, [this]() { return stop_ || !tasks_.empty(); });
 
                     if (stop_ && tasks_.empty()) {
                         return;
@@ -41,32 +46,49 @@ public:
             stop_ = true;
         }
 
-        condition_.notify_all();
-        auto join = [](auto& thread) { thread.join(); };
-        std::ranges::for_each(threads_, join);
+        condvar_.notify_all();
+
+        // jthread
     }
 
+    /**
+     * @brief Add a new task to the queue.
+     *
+     * @tparam Callable The type of the task, could be deduced.
+     * @tparam Args Argument types, could be deduced.
+     * @param callable The task.
+     * @param args Arguments for finish the task.
+     * @return Future.
+     */
     template <typename Callable, typename... Args>
-    void new_task(Callable&& callable, Args&&... args) {
-        std::function<void()> task =
-            std::bind(std::forward<Callable>(callable), std::forward<Args>(args)...);
+    auto enqueue(Callable&& callable, Args&&... args)
+        -> std::future<std::invoke_result_t<Callable, Args...>> {
+        using return_type = std::invoke_result_t<Callable, Args...>;
+
+        if (stop_) [[unlikely]] {
+            throw std::runtime_error("enqueue on stopped thread pool");
+        }
+
+        auto task = std::make_shared<std::packaged_task<return_type()>>(
+            std::bind(std::forward<Callable>(callable), std::forward<Args>(args)...)
+        );
+
+        std::future<return_type> future = task->get_future();
+
         {
             std::unique_lock<std::mutex> lock(mutex_);
-            tasks_.emplace(std::move(task));
+            tasks_.emplace([task]() { (*task)(); });
         }
-        condition_.notify_one();
-    }
+        condvar_.notify_one();
 
-    [[nodiscard]] bool no_task() const noexcept {
-        // TODO:
-        return true;
+        return future;
     }
 
 private:
-    bool stop_ = false;
-    std::vector<std::thread> threads_;
+    std::atomic<bool> stop_{ false };
+    std::vector<std::jthread> threads_;
     std::mutex mutex_;
-    std::condition_variable condition_;
+    std::condition_variable condvar_;
     std::queue<std::function<void()>> tasks_;
 };
 
