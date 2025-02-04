@@ -14,28 +14,48 @@ public:
     using function_type = Ret(void const*, Args...);
     using type          = Ret(Args...);
 
-    delegate() noexcept : context_(nullptr), function_(nullptr) {}
-    delegate(const delegate& other) noexcept = default;
-    delegate(delegate&& other) noexcept      = default;
-    virtual ~delegate()                      = default;
+    constexpr delegate() noexcept : context_(nullptr), function_(nullptr) {}
+    constexpr delegate(const delegate& other) noexcept = default;
+    constexpr delegate(delegate&& other) noexcept      = default;
+    constexpr virtual ~delegate()                      = default;
 
+    /**
+     * @brief Construct a new delegate object for a non-member function.
+     *
+     * @tparam Candidate The function address or lambda expression.
+     * @param spreader Spread the non-type argument by `atom::utils::spread_arg<Candidate>`.
+     */
     template <auto Candidate>
     explicit delegate(utils::spreader<Candidate> spreader) noexcept : context_(nullptr) {
         bind<Candidate>();
     }
 
+    /**
+     * @brief Construct a new delegate object for a member function.
+     *
+     * @tparam Candidate The function address or lambda expression.
+     * @tparam Type Instance type.
+     * @param spreader Spread the non-type argument by `atom::utils::spread_arg<Candidate>`.
+     * @param instance The object whose member function would be called.
+     */
     template <auto Candidate, typename Type>
     explicit delegate(utils::spreader<Candidate> spreader, Type& instance) noexcept
         : context_(nullptr) {
         bind<Candidate>(instance);
     }
 
+    /**
+     * @brief Construct a new delegate object for function address and payload.
+     *
+     * @param function Function address.
+     * @param payload The instance. It can be nullptr when the function is non-member function.
+     */
     explicit delegate(function_type* function, void const* payload) : context_(nullptr) {
         bind(function, payload);
     }
 
     /**
-     * @brief
+     * @brief Bind a callable to this delegate.
      *
      * @tparam Candidate
      */
@@ -53,7 +73,7 @@ public:
     }
 
     /**
-     * @brief
+     * @brief Bind a callable to this delegate.
      *
      * @tparam Candidate
      * @tparam Type
@@ -94,15 +114,15 @@ public:
      */
     Ret operator()(Args... args) const { return function_(context_, std::forward<Args>(args)...); }
 
+    /**
+     * @brief Get the status of this delegate.
+     *
+     * @return true This delegate has already bind.
+     * @return false This delegate has not bind yet.
+     */
     operator bool() const noexcept { return function_; }
 
-    delegate& operator=(const delegate& other) noexcept {
-        // type of `function_` and `context_` are pointer
-        // do not check self assignment
-        function_ = other.function_;
-        context_  = other.context_;
-        return *this;
-    }
+    delegate& operator=(const delegate& other) noexcept = default;
 
     delegate& operator=(delegate&& other) noexcept {
         // copy pointer, no check
