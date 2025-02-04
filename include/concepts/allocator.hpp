@@ -5,6 +5,13 @@
 namespace atom::utils::concepts {
 
 // concept: allocator
+
+/**
+ * @brief Normal allocator.
+ * It could allocate a space to store an instance with type of 'Ty'.
+ *
+ * @tparam Ty
+ */
 template <typename Ty>
 concept allocator = requires(Ty alloc) {
     typename Ty::value_type;
@@ -17,6 +24,7 @@ concept allocator = requires(Ty alloc) {
     );
 };
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 template <typename>
 struct rebind;
@@ -33,12 +41,12 @@ using rebind_t = typename rebind<Allocator>::template type<Ty>;
 template <typename Allocator, typename RebindType>
 concept rebindable = requires { typename Allocator::template rebind_t<RebindType>; };
 } // namespace internal
+/*! @endcond */
 
 // concept: rebindable_allocator
 /**
  * @brief Allocators could be initialized with allocators of other types.
  *
- * @tparam Ty
  */
 template <typename Ty>
 concept rebindable_allocator = UCONCEPTS allocator<Ty> && requires() {
