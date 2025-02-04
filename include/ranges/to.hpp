@@ -10,6 +10,10 @@ namespace atom::utils::ranges {
 
 // NOLINTBEGIN(cppcoreguidelines-require-return-statement)
 
+/**
+ * @brief Construct a container from a range and arguments.
+ *
+ */
 template <typename Container, std::ranges::input_range Rng, typename... Args>
 requires(!std::ranges::view<Container>)
 [[nodiscard]] constexpr Container to(Rng&& range, Args&&... args) {
@@ -104,6 +108,7 @@ requires(!std::ranges::view<Container>)
 
 // NOLINTEND(cppcoreguidelines-require-return-statement)
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
 template <typename Container>
@@ -119,7 +124,12 @@ struct to_class_fn {
 };
 
 } // namespace internal
+/*! @endcond */
 
+/**
+ * @brief Construct a container from a range.
+ *
+ */
 template <typename Container, typename... Args>
 [[nodiscard]] constexpr auto to(Args&&... args) {
 #ifdef CPP23
@@ -130,6 +140,7 @@ template <typename Container, typename... Args>
 #endif
 }
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
 // just for decltype
@@ -166,13 +177,29 @@ auto to_helper() {
 }
 
 } // namespace internal
+/*! @endcond */
 
+/**
+ * @brief Construct a container from a range.
+ *
+ */
+
+/**
+ * @brief Construct a container from a range.
+ *
+ * @tparam Container The container need to construct.
+ * @tparam Rng The range.
+ * @tparam Args Other arguments.
+ * @param range
+ * @param args
+ * @return Deduced In most times, it could be deduced to as a completed type.
+ */
 template <
     template <typename...> typename Container,
     std::ranges::input_range Rng,
     typename... Args,
-    typename Deduced =
-        std::remove_pointer_t<decltype(URANGES internal::to_helper<Container, Rng, Args...>())>>
+    typename Deduced = std::remove_pointer_t<
+        decltype(::atom::utils::ranges::internal::to_helper<Container, Rng, Args...>())>>
 [[nodiscard]] constexpr auto to(Rng&& range, Args&&... args) -> Deduced {
 #ifdef CPP23
     return std::ranges::to<Container>(std::forward<Rng>(range), std::forward<Args>(args)...);
@@ -181,6 +208,7 @@ template <
 #endif
 }
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 
 template <template <typename...> typename Container>
@@ -196,11 +224,12 @@ struct to_template_fn {
 };
 
 } // namespace internal
+/*! @endcond */
 
-// compiler and analyzer always deduce we are using another override
+// compiler and analyzer always deduce we are using another override.
 // so, changed the function name
 template <template <typename...> typename Container, typename... Args>
-[[nodiscard]] constexpr auto to_closure(Args&&... args) {
+[[nodiscard]] constexpr auto to(Args&&... args) {
 #ifdef CPP23
     return std::ranges::to<Container>(std::forward<Args>(args)...);
 #else
