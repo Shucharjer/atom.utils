@@ -384,9 +384,9 @@ AUTOLINK_SUPPORT       = YES
 # definitions whose arguments contain STL classes (e.g. func(std::string);
 # versus func(std::string) {}). This also make the inheritance and collaboration
 # diagrams that involve STL classes more complete and accurate.
-# The default value is: NO.
+# The default value is: YES.
 
-BUILTIN_STL_SUPPORT    = NO
+BUILTIN_STL_SUPPORT    = YES
 
 # If you use Microsoft's C++/CLI language, you should set this option to YES to
 # enable parsing support.
@@ -2559,10 +2559,10 @@ CLASS_GRAPH            = YES
 # when COLLABORATION_GRAPH is set to NO, can be accomplished by means of the
 # command \collaborationgraph. Disabling a collaboration graph can be
 # accomplished by means of the command \hidecollaborationgraph.
-# The default value is: YES.
+# The default value is: NO.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-COLLABORATION_GRAPH    = YES
+COLLABORATION_GRAPH    = NO
 
 # If the GROUP_GRAPHS tag is set to YES then doxygen will generate a graph for
 # groups, showing the direct groups dependencies. Explicit enabling a group
@@ -2570,18 +2570,18 @@ COLLABORATION_GRAPH    = YES
 # of the command \groupgraph. Disabling a directory graph can be accomplished by
 # means of the command \hidegroupgraph. See also the chapter Grouping in the
 # manual.
-# The default value is: YES.
+# The default value is: NO.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-GROUP_GRAPHS           = YES
+GROUP_GRAPHS           = NO
 
 # If the UML_LOOK tag is set to YES, doxygen will generate inheritance and
 # collaboration diagrams in a style similar to the OMG's Unified Modeling
 # Language.
-# The default value is: Yes.
+# The default value is: NO.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-UML_LOOK               = YES
+UML_LOOK               = NO
 
 # If the UML_LOOK tag is enabled, the fields and methods are shown inside the
 # class node. If there are many fields or methods and many nodes the graph may
