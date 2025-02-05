@@ -1,10 +1,16 @@
 #pragma once
+#include <algorithm>
+#include <functional>
+#include <type_traits>
+#include "core.hpp"
+#include "core/type.hpp"
 #include "signal.hpp"
 #include "signal/delegate.hpp"
 
 namespace atom::utils {
 
 class basic_sink {
+    template <concepts::rebindable_allocator>
     friend class dispatcher;
 
 public:
@@ -21,6 +27,7 @@ public:
 
 template <typename EventType, typename Allocator>
 class sink final : public basic_sink {
+    template <typename>
     friend class dispatcher;
 
     using default_id_t = utils::default_id_t;
@@ -31,6 +38,27 @@ public:
     using delegate_type = delegate<void(EventType&)>;
 
     sink() = default;
+
+    template <typename Al>
+    requires std::is_constructible_v<
+        std::unordered_map<
+            default_id_t,
+            delegate_type,
+            std::hash<default_id_t>,
+            std::equal_to<default_id_t>,
+            Allocator>,
+        Al>
+    sink(Al&& allocator) : delegates_(std::forward<Al>(allocator)) {}
+
+    sink(const sink& that) : delegates_(that.delegates_) {}
+
+    sink(sink&& that) noexcept : delegates_(std::move(that.delegates_)) {}
+
+    sink& operator=(const sink& that) { delegates_ = that.delegates_; }
+
+    sink& operator=(sink&& that) noexcept { delegates_ = std::move(that.delegates_); }
+
+    ~sink() = default;
 
     template <auto Candidate>
     void connect() {
