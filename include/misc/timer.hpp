@@ -39,7 +39,7 @@ public:
     timer& operator=(timer&&)      = default;
     ~timer()                       = default;
 
-    auto operator[](const char* timer_name) -> UTILS timer_proxy& {
+    auto operator[](const char* timer_name) -> ::atom::utils::timer_proxy& {
         auto& timers_ = timers();
 
         if (!timers_.contains(timer_name)) {
@@ -49,17 +49,22 @@ public:
         return timers_[timer_name];
     }
 
-    auto operator[](const char* timer_name) const -> const timer_proxy& {
+    auto operator[](const char* timer_name) const -> const ::atom::utils::timer_proxy& {
         return timers()[timer_name];
     }
 
+    /**
+     * @brief Destroy a timer.
+     *
+     * @param name The name of the timer to destroy.
+     */
     void destroy(const char* timer_name) noexcept {
         auto& timers_ = timers();
         timers_.erase(timer_name);
     }
 
 private:
-    static auto timers() -> std::unordered_map<std::string, UTILS timer_proxy>& {
+    static auto timers() -> std::unordered_map<std::string, ::atom::utils::timer_proxy>& {
         static std::unordered_map<std::string, UTILS timer_proxy> timers_;
         return timers_;
     }
