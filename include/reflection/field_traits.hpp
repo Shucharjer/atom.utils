@@ -54,7 +54,7 @@ struct field_traits<Ty Class::*> : public ::atom::utils::basic_field_traits {
     using type = Ty;
 
     explicit constexpr field_traits(const char* name, Ty Class::* pointer)
-        : UTILS basic_field_traits(name), pointer_(pointer) {
+        : ::atom::utils::basic_field_traits(name), pointer_(pointer) {
         // set_name(name_);
     }
 

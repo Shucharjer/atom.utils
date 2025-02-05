@@ -28,11 +28,11 @@ private:
 };
 
 template <typename Ret, typename... Args>
-struct function_traits<Ret (*)(Args...)> : public basic_function_traits {
+struct function_traits<Ret (*)(Args...)> : public ::atom::utils::basic_function_traits {
     using func_type = Ret(Args...);
 
     explicit constexpr function_traits(const char* name, Ret (*pointer)(Args...))
-        : UTILS basic_function_traits(name), pointer_(pointer) {}
+        : ::atom::utils::basic_function_traits(name), pointer_(pointer) {}
 
     [[nodiscard]] constexpr std::size_t num_args() const { return sizeof...(Args); }
 
@@ -45,11 +45,11 @@ private:
 };
 
 template <typename Ret, typename Class, typename... Args>
-struct function_traits<Ret (Class::*)(Args...)> : public basic_function_traits {
+struct function_traits<Ret (Class::*)(Args...)> : public ::atom::utils::basic_function_traits {
     using func_type = Ret(Args...);
 
     explicit constexpr function_traits(const char* name, Ret (Class::*pointer)(Args...))
-        : UTILS basic_function_traits(name), pointer_(pointer) {}
+        : ::atom::utils::basic_function_traits(name), pointer_(pointer) {}
 
     [[nodiscard]] constexpr std::size_t num_args() const { return sizeof...(Args); }
 
