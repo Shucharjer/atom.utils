@@ -6,6 +6,7 @@
 
 namespace atom::utils {
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 /**
  * @brief Element container in compressed_pair
@@ -23,14 +24,19 @@ public:
     using reference       = Ty&;
     using const_reference = const Ty&;
 
+    /**
+     * @brief Default constructor.
+     *
+     */
     template <typename = std::void_t<>>
     requires std::is_default_constructible_v<Ty>
     constexpr compressed_element() noexcept(std::is_nothrow_default_constructible_v<Ty>) {}
 
-    template <typename T>
-    requires(!std::is_same_v<T, self_type>)
-    explicit constexpr compressed_element(T&& val) noexcept(std::is_nothrow_constructible_v<Ty, T>)
-        : value_(std::forward<T>(val)) {}
+    template <typename... Args>
+    requires std::is_constructible_v<Ty, Args...>
+    explicit constexpr compressed_element(Args&&... args
+    ) noexcept(std::is_nothrow_constructible_v<Ty, Args...>)
+        : value_(std::forward<Args>(args)...) {}
 
     // clang-format off
     constexpr compressed_element(const compressed_element&) 
@@ -43,8 +49,16 @@ public:
 
     constexpr ~compressed_element() noexcept(std::is_nothrow_destructible_v<Ty>) = default;
 
+    /**
+     * @brief Get the value of this element.
+     *
+     */
     [[nodiscard]] constexpr reference value() noexcept { return value_; }
 
+    /**
+     * @brief Get the value of this element.
+     *
+     */
     [[nodiscard]] constexpr const_reference value() const noexcept { return value_; }
 
 private:
@@ -85,8 +99,16 @@ public:
         return *this;
     }
 
+    /**
+     * @brief Get the value of this element.
+     *
+     */
     [[nodiscard]] constexpr reference value() noexcept { return value_; }
 
+    /**
+     * @brief Get the value of this element.
+     *
+     */
     [[nodiscard]] constexpr auto& value() const noexcept { return value_; }
 
 private:
@@ -111,6 +133,10 @@ public:
     constexpr compressed_element& operator=(compressed_element&&) noexcept = default;
     constexpr ~compressed_element() noexcept                               = default;
 
+    /**
+     * @brief You may made something wrong.
+     *
+     */
     constexpr void value() const noexcept {}
 };
 
@@ -135,13 +161,23 @@ public:
     constexpr compressed_element& operator=(compressed_element&& that) noexcept = default;
     constexpr ~compressed_element() noexcept                                    = default;
 
+    /**
+     * @brief Get the value of this element.
+     *
+     */
     constexpr reference value() noexcept { return value_; }
+
+    /**
+     * @brief Get the value of this element.
+     *
+     */
     constexpr const_reference value() const noexcept { return value_; }
 
 private:
     value_type value_;
 };
 } // namespace internal
+/*! @endcond */
 
 template <typename, typename>
 class compressed_pair;
@@ -149,22 +185,35 @@ class compressed_pair;
 template <typename, typename>
 class reversed_compressed_pair;
 
-struct placeholder_t {};
-
-constexpr inline placeholder_t placeholder{};
-
+/**
+ * @brief Compressed pair. It supports structured binding.
+ *
+ * EBCO.
+ * @tparam First The first element type.
+ * @tparam Second The second element type.
+ */
 template <typename First, typename Second>
-class compressed_pair final : private UTILS internal::compressed_element<First, true>,
-                              private UTILS internal::compressed_element<Second, false> {
+class compressed_pair final : private ::atom::utils::internal::compressed_element<First, true>,
+                              private ::atom::utils::internal::compressed_element<Second, false> {
 public:
     using self_type   = compressed_pair;
-    using first_base  = UTILS internal::compressed_element<First, true>;
-    using second_base = UTILS internal::compressed_element<Second, false>;
+    using first_base  = ::atom::utils::internal::compressed_element<First, true>;
+    using second_base = ::atom::utils::internal::compressed_element<Second, false>;
 
+    /**
+     * @brief Default constructor.
+     *
+     */
     constexpr compressed_pair(
     ) noexcept(std::is_nothrow_default_constructible_v<first_base> && std::is_nothrow_default_constructible_v<second_base>)
         : first_base(), second_base() {}
 
+    /**
+     * @brief Construct each.
+     *
+     * @tparam FirstType
+     * @tparam SecondType
+     */
     template <typename FirstType, typename SecondType>
     constexpr explicit compressed_pair(
         FirstType&& first, SecondType&& second
@@ -172,12 +221,20 @@ public:
         : first_base(std::forward<FirstType>(first)),
           second_base(std::forward<SecondType>(second)) {}
 
+    /**
+     * @brief Construct the second defaultly.
+     *
+     */
     template <typename Ty>
     constexpr explicit compressed_pair(
         Ty&& val, placeholder_t
     ) noexcept(std::is_nothrow_constructible_v<first_base, Ty> && std::is_nothrow_default_constructible_v<second_base>)
         : first_base(std::forward<Ty>(val)), second_base() {}
 
+    /**
+     * @brief Construct the first defaultly.
+     *
+     */
     template <typename Ty>
     constexpr explicit compressed_pair(
         placeholder_t, Ty&& val
@@ -222,7 +279,7 @@ public:
 
 // if it returns true, two `compressed_pair`s must have the same tparams.
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
-[[nodiscard]] constexpr bool operator==(
+[[nodiscard]] constexpr inline bool operator==(
     const compressed_pair<LFirst, LSecond>& lhs, const compressed_pair<RFirst, RSecond>& rhs
 ) noexcept {
     if constexpr (std::is_same_v<LFirst, RFirst> && std::is_same_v<LSecond, RSecond>) {
@@ -234,14 +291,14 @@ template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
 }
 
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
-[[nodiscard]] constexpr bool operator!=(
+[[nodiscard]] constexpr inline bool operator!=(
     const compressed_pair<LFirst, LSecond>& lhs, const compressed_pair<RFirst, RSecond>& rhs
 ) noexcept {
     return !(lhs == rhs);
 }
 
 template <typename Ty, typename First, typename Second>
-[[nodiscard]] constexpr bool operator==(
+[[nodiscard]] constexpr inline bool operator==(
     const compressed_pair<First, Second>& pair, const Ty& val
 ) noexcept {
     if constexpr (std::is_convertible_v<Ty, First>) {
@@ -256,17 +313,24 @@ template <typename Ty, typename First, typename Second>
 }
 
 template <typename Ty, typename First, typename Second>
-[[nodiscard]] constexpr bool operator!=(
+[[nodiscard]] constexpr inline bool operator!=(
     const compressed_pair<First, Second>& pair, const Ty& val
 ) noexcept {
     return !(pair == val);
 }
 
-// compressed_pair<int, char> : first_type -> int, second_type -> char
-// reversed_compressed_pair<char, int> : first_type -> char, second_type -> int
+/**
+ * @brief Reversed version of `compressed_pair`.
+ *
+ * The storage layout of data inside it is consistent with `compressed_pair`, just the opposite in
+ * logic.
+ * @tparam First The first type.
+ * @tparam Second The second type.
+ */
 template <typename First, typename Second>
-class reversed_compressed_pair final : private internal::compressed_element<Second, true>,
-                                       private internal::compressed_element<First, false> {
+class reversed_compressed_pair final
+    : private ::atom::utils::internal::compressed_element<Second, true>,
+      private ::atom::utils::internal::compressed_element<First, false> {
 public:
     using self_type   = reversed_compressed_pair;
     using first_base  = internal::compressed_element<Second, true>;
@@ -333,7 +397,7 @@ public:
 
 // if it returns true, two `reversed_compressed_pair`s must have the same tparams.
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
-constexpr bool operator==(
+constexpr inline bool operator==(
     const reversed_compressed_pair<LFirst, LSecond>& lhs,
     const reversed_compressed_pair<RFirst, RSecond>& rhs
 ) {
@@ -346,7 +410,7 @@ constexpr bool operator==(
 }
 
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
-constexpr bool operator!=(
+constexpr inline bool operator!=(
     const reversed_compressed_pair<LFirst, LSecond>& lhs,
     const reversed_compressed_pair<RFirst, RSecond>& rhs
 ) {
@@ -354,7 +418,9 @@ constexpr bool operator!=(
 }
 
 template <typename Ty, typename First, typename Second>
-constexpr bool operator==(const Ty& lhs, const reversed_compressed_pair<First, Second>& rhs) {
+constexpr inline bool operator==(
+    const Ty& lhs, const reversed_compressed_pair<First, Second>& rhs
+) {
     if constexpr (std::is_convertible_v<Ty, First>) {
         return lhs == rhs.first();
     }
@@ -367,7 +433,9 @@ constexpr bool operator==(const Ty& lhs, const reversed_compressed_pair<First, S
 }
 
 template <typename Ty, typename First, typename Second>
-constexpr bool operator!=(const Ty& lhs, const reversed_compressed_pair<First, Second>& rhs) {
+constexpr inline bool operator!=(
+    const Ty& lhs, const reversed_compressed_pair<First, Second>& rhs
+) {
     return !(lhs == rhs);
 }
 
@@ -381,7 +449,7 @@ struct reversed_pair {
 };
 
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
-constexpr bool operator==(
+constexpr inline bool operator==(
     const reversed_pair<LFirst, LSecond>& lhs, const reversed_pair<RFirst, RSecond>& rhs
 ) {
     if constexpr (std::is_same_v<LFirst, RFirst> && std::is_same_v<LSecond, RSecond>) {
@@ -393,14 +461,14 @@ constexpr bool operator==(
 }
 
 template <typename LFirst, typename LSecond, typename RFirst, typename RSecond>
-constexpr bool operator!=(
+constexpr inline bool operator!=(
     const reversed_pair<LFirst, LSecond>& lhs, const reversed_pair<RFirst, RSecond>& rhs
 ) {
     return !(lhs == rhs);
 }
 
 template <typename Ty, typename First, typename Second>
-constexpr bool operator==(const Ty& lhs, const reversed_pair<First, Second>& rhs) {
+constexpr inline bool operator==(const Ty& lhs, const reversed_pair<First, Second>& rhs) {
     if constexpr (std::is_convertible_v<Ty, First>) {
         return rhs.first == lhs;
     }
@@ -413,9 +481,124 @@ constexpr bool operator==(const Ty& lhs, const reversed_pair<First, Second>& rhs
 }
 
 template <typename Ty, typename First, typename Second>
-constexpr bool operator!=(const Ty& lhs, const reversed_pair<First, Second>& rhs) {
+constexpr inline bool operator!=(const Ty& lhs, const reversed_pair<First, Second>& rhs) {
     return !(lhs == rhs);
 }
+
+template <typename First, typename Second, template <typename, typename> typename Pair = std::pair>
+struct pair_wrapper {
+public:
+    using value_type = Pair<First, Second>;
+
+    template <typename... Args>
+    requires std::is_constructible_v<value_type, Args...>
+    pair_wrapper(Args&&... args) noexcept(std::is_nothrow_constructible_v<value_type, Args...>)
+        : pair_(std::forward<Args>(args)...) {}
+
+    pair_wrapper(const pair_wrapper& that
+    ) noexcept(std::is_nothrow_copy_constructible_v<value_type>)
+        : pair_(that.pair_) {}
+
+    pair_wrapper(pair_wrapper&& that) noexcept(std::is_nothrow_move_constructible_v<value_type>)
+        : pair_(std::move(that.pair_)) {}
+
+    pair_wrapper& operator=(const pair_wrapper& that
+    ) noexcept(std::is_nothrow_copy_assignable_v<value_type>) {
+        if (this != &that) [[likely]] {
+            pair_ = that.pair_;
+        }
+        return *this;
+    }
+
+    pair_wrapper& operator=(pair_wrapper&& that
+    ) noexcept(std::is_nothrow_move_assignable_v<value_type>) {
+        if (this != &that) [[likely]] {
+            pair_ = that.pair_;
+        }
+        return *this;
+    }
+
+    ~pair_wrapper() noexcept(std::is_nothrow_destructible_v<value_type>) = default;
+
+    constexpr First& first() noexcept {
+        if constexpr (requires { pair_.first; }) {
+            return pair_.first;
+        }
+        else if constexpr (requires { pair_.first(); }) {
+            return pair_.first();
+        }
+        else {
+            static_assert(false, "No valid way to get the first value.");
+        }
+    }
+
+    constexpr const First& first() const noexcept {
+        if constexpr (requires { pair_.first; }) {
+            return pair_.first;
+        }
+        else if constexpr (requires { pair_.first(); }) {
+            return pair_.first();
+        }
+        else {
+            static_assert(false, "No valid way to get the first value.");
+        }
+    }
+
+    constexpr Second& second() noexcept {
+        if constexpr (requires { pair_.second; }) {
+            return pair_.second;
+        }
+        else if constexpr (requires { pair_.second(); }) {
+            return pair_.second();
+        }
+        else {
+            static_assert(false, "No valid way to get the second value.");
+        }
+    }
+
+    constexpr const Second& second() const noexcept {
+        if constexpr (requires { pair_.second; }) {
+            return pair_.second;
+        }
+        else if constexpr (requires { pair_.second(); }) {
+            return pair_.second();
+        }
+        else {
+            static_assert(false, "No valid way to get the second value.");
+        }
+    }
+
+    constexpr bool operator==(const pair_wrapper& that) const noexcept {
+        return pair_ == that.pair_;
+    }
+
+    template <typename Ty>
+    constexpr bool operator==(const Ty& that) const noexcept {
+        if constexpr (requires { pair_ == that; }) {
+            return pair_ == that;
+        }
+        else {
+            return false;
+        }
+    }
+
+    constexpr bool operator!=(const pair_wrapper& that) const noexcept {
+        return pair_ != that.pair_;
+    }
+
+    template <typename Ty>
+    constexpr bool operator!=(const Ty& that) const noexcept {
+        if constexpr (requires { pair_ != that; }) {
+            return pair_ != that;
+        }
+        else {
+            return false;
+        }
+    }
+
+private:
+    Pair<First, Second> pair_;
+};
 
 template <typename>
 struct reversed_result;
@@ -438,6 +621,11 @@ struct reversed_result<std::pair<First, Second>> {
 template <typename First, typename Second>
 struct reversed_result<reversed_pair<Second, First>> {
     using type = std::pair<Second, First>;
+};
+
+template <typename First, typename Second, template <typename, typename> typename Pair>
+struct reversed_result<pair_wrapper<First, Second, Pair>> {
+    using type = pair_wrapper<Second, First, Pair>;
 };
 
 template <typename Pair>
@@ -546,8 +734,39 @@ constexpr const auto& get(const ::atom::utils::reversed_compressed_pair<First, S
     }
 }
 
+template <
+    size_t Index,
+    typename First,
+    typename Second,
+    template <typename, typename> typename Pair>
+constexpr inline auto get(pair_wrapper<First, Second, Pair>& pair) noexcept {
+    static_assert(Index < 2, "Index out of range");
+    if constexpr (Index) {
+        return pair.second();
+    }
+    else {
+        return pair.first();
+    }
+}
+
+template <
+    size_t Index,
+    typename First,
+    typename Second,
+    template <typename, typename> typename Pair>
+constexpr inline auto get(const pair_wrapper<First, Second, Pair>& pair) noexcept {
+    static_assert(Index < 2, "Index out of range");
+    if constexpr (Index) {
+        return pair.second();
+    }
+    else {
+        return pair.first();
+    }
+}
+
 } // namespace atom::utils
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace std {
 
 template <typename First, typename Second>
@@ -556,6 +775,10 @@ struct tuple_size<::atom::utils::compressed_pair<First, Second>>
 
 template <typename First, typename Second>
 struct tuple_size<::atom::utils::reversed_compressed_pair<First, Second>>
+    : std::integral_constant<size_t, 2> {};
+
+template <typename First, typename Second, template <typename, typename> typename Pair>
+struct tuple_size<::atom::utils::pair_wrapper<First, Second, Pair>>
     : std::integral_constant<size_t, 2> {};
 
 template <size_t Index, typename First, typename Second>
@@ -570,4 +793,15 @@ struct tuple_element<Index, ::atom::utils::reversed_compressed_pair<First, Secon
     using type = std::conditional_t<(Index == 0), First, Second>;
 };
 
+template <
+    size_t Index,
+    typename First,
+    typename Second,
+    template <typename, typename> typename Pair>
+struct tuple_element<Index, ::atom::utils::pair_wrapper<First, Second, Pair>> {
+    static_assert(Index < 2);
+    using type = std::conditional_t<(Index == 0), First, Second>;
+};
+
 } // namespace std
+/*! @endcond */
