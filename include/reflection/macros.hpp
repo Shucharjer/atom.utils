@@ -8,14 +8,14 @@
 
 #define BEGIN_TYPE(type_name)                                                                      \
     template <                                                                                     \
-        UCONCEPTS pure BaseConstexprExtend,                                                        \
-        template <UCONCEPTS pure> typename ConstexprExtend>                                        \
+        ::atom::utils::concepts::pure BaseConstexprExtend,                                         \
+        template <::atom::utils::concepts::pure> typename ConstexprExtend>                         \
     struct ::atom::utils::reflected<type_name, BaseConstexprExtend, ConstexprExtend>               \
         : public ::atom::utils::basic_reflected<BaseConstexprExtend> {                             \
         using type = type_name;                                                                    \
         constexpr reflected()                                                                      \
             : ::atom::utils::basic_reflected<BaseConstexprExtend>(                                 \
-                  #type_name, ::atom::utils::hash<type_name>()                                     \
+                  #type_name, ::atom::utils::hash<type>()                                          \
               ) {}                                                                                 \
         //
 
@@ -45,10 +45,28 @@ public:                                                                         
 
 #define REGISTER(type_name, register_name)                                                         \
     namespace _internal::type_registers {                                                          \
-    static inline ::atom::utils::type_register<                                                    \
+    static inline const ::atom::utils::type_register<                                              \
         type_name,                                                                                 \
         ::atom::utils::basic_constexpr_extend,                                                     \
         ::atom::utils::constexpr_extend>(register_name);                                           \
+    }                                                                                              \
+    //
+
+// example:
+// REFLECT(dummy_t, FIELD(field1), FIELD(field2), ...)
+#define REFLECT(type_name, ...)                                                                    \
+    constexpr auto reflect(const type_name*) {                                                     \
+        using type = type_name;                                                                    \
+        return std::make_tuple(#type_name, std::make_tuple(__VA_ARGS__));                          \
+    }                                                                                              \
+    //
+
+// example:
+// EXPOSE(dummy_t, FUNC(func1), FUNC(func2), ...)
+#define EXPOSE(type_name, ...)                                                                     \
+    constexpr auto expose(const type_name*) {                                                      \
+        using type = type_name;                                                                    \
+        return std::make_tuple(__VA_ARGS__);                                                       \
     }                                                                                              \
     //
 
@@ -93,6 +111,16 @@ FUNCS()
 END_TYPE()
 
 BEGIN_TYPE(int32_t)
+FIELDS()
+FUNCS()
+END_TYPE()
+
+BEGIN_TYPE(uint64_t)
+FIELDS()
+FUNCS()
+END_TYPE()
+
+BEGIN_TYPE(int64_t)
 FIELDS()
 FUNCS()
 END_TYPE()
