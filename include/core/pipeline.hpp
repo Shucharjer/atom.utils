@@ -87,7 +87,7 @@ template <std::ranges::range Rng, typename Closure>
 requires std::derived_from<
     std::remove_cvref_t<Closure>,
     atom::utils::pipeline_base<std::remove_cvref_t<Closure>>>
-[[nodiscard]] constexpr auto operator|(Rng&& range, Closure&& closure) noexcept(
+[[nodiscard]] constexpr inline auto operator|(Rng&& range, Closure&& closure) noexcept(
     noexcept(std::forward<Closure>(closure)(std::forward<Rng>(range)))
 ) {
     return std::forward<Closure>(closure)(std::forward<Rng>(range));
@@ -114,38 +114,48 @@ constexpr bool is_pipeline_result_t = is_pipeline_result<Result>::value;
  */
 template <std::ranges::range Rng, typename Result>
 requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
-[[nodiscard]] constexpr auto operator|(Rng&& range, Result&& result) noexcept(
+[[nodiscard]] constexpr inline auto operator|(Rng&& range, Result&& result) noexcept(
     noexcept(std::forward<Result>(result)(std::forward<Rng>(range)))
 ) {
     return std::forward<Result>(result)(std::forward<Rng>(range));
 }
 
+// clang-format off
 /**
  * @brief Construct a pipeline result
- * from two closure.
+ * from two closures.
  */
 template <typename Closure, typename Another>
-requires std::derived_from<
-             std::remove_cvref_t<Closure>,
-             ::atom::utils::pipeline_base<std::remove_cvref_t<Closure>>> ||
-         std::derived_from<
-             std::remove_cvref_t<Another>,
-             ::atom::utils::pipeline_base<std::remove_cvref_t<Another>>>
-[[nodiscard]] constexpr auto operator|(
+requires std::derived_from<std::remove_cvref_t<Closure>,
+            ::atom::utils::pipeline_base<std::remove_cvref_t<Closure>>> ||
+         std::derived_from<std::remove_cvref_t<Another>,
+            ::atom::utils::pipeline_base<std::remove_cvref_t<Another>>>
+[[nodiscard]] constexpr inline auto operator|(
     Closure&& closure, Another&& another
-) noexcept(std::
-               is_nothrow_constructible_v<
-                   atom::utils::pipeline_result<Closure, Another>,
-                   Closure,
-                   Another>) {
+) noexcept(std::is_nothrow_constructible_v<
+            atom::utils::pipeline_result<Closure, Another>,
+            Closure,
+            Another>) {
     return UTILS pipeline_result<Closure, Another>(
         std::forward<Closure>(closure), std::forward<Another>(another)
     );
 }
+// clang-format on
 
+// clang-format off
+/**
+ * @brief Construct a pipeline_result
+ * from a pipeline_result and a closure.
+ */
 template <typename Result, typename Closure>
 requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
-[[nodiscard]] constexpr auto operator|(Result&& closure, Closure&& another) {
+[[nodiscard]] constexpr inline auto operator|(
+    Result&& closure, Closure&& another
+) noexcept(std::is_nothrow_constructible_v<
+            ::atom::utils::pipeline_result<Result, Closure>,
+            Result,
+            Closure>) {
+    // clang-format on
     return UTILS pipeline_result<Result, Closure>(
         std::forward<Result>(closure), std::forward<Closure>(another)
     );
