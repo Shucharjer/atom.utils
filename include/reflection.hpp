@@ -37,7 +37,7 @@ struct basic_constexpr_extend;
 /**
  * @brief Extend informations about a type, which could be determined at compile time.
  */
-template <UCONCEPTS pure>
+template <::atom::utils::concepts::pure>
 struct constexpr_extend;
 
 /**
@@ -52,7 +52,7 @@ struct extend;
  *
  * This could provide a same base to collect reflected informations to a contain easily.
  */
-template <UCONCEPTS pure BaseConstexprExtend = basic_constexpr_extend>
+template <::atom::utils::concepts::pure BaseConstexprExtend = basic_constexpr_extend>
 struct basic_reflected;
 
 /**
@@ -61,9 +61,9 @@ struct basic_reflected;
  * @tparam Ty Reflected type.
  */
 template <
-    UCONCEPTS pure Ty,
-    UCONCEPTS pure BaseConstexprExtend                 = basic_constexpr_extend,
-    template <UCONCEPTS pure> typename ConstexprExtend = constexpr_extend>
+    ::atom::utils::concepts::pure Ty,
+    ::atom::utils::concepts::pure BasicConstexprExtend                = basic_constexpr_extend,
+    template <::atom::utils::concepts::pure> typename ConstexprExtend = constexpr_extend>
 struct reflected;
 
 template <typename BasicConstexprExtend, template <typename> typename ConstexprExtend>

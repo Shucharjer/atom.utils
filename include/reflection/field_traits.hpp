@@ -28,7 +28,7 @@ private:
 };
 
 template <>
-struct field_traits<void> : public basic_field_traits {
+struct field_traits<void> : public ::atom::utils::basic_field_traits {
     using type = void;
 
     explicit constexpr field_traits() : basic_field_traits("void") {}
@@ -36,7 +36,7 @@ struct field_traits<void> : public basic_field_traits {
 
 template <typename Ty>
 requires(!std::is_void_v<Ty>)
-struct field_traits<Ty*> : public basic_field_traits {
+struct field_traits<Ty*> : public ::atom::utils::basic_field_traits {
     using type = Ty;
 
     explicit constexpr field_traits(const char* name, Ty* pointer)
@@ -50,7 +50,7 @@ private:
 };
 
 template <typename Ty, typename Class>
-struct field_traits<Ty Class::*> : public UTILS basic_field_traits {
+struct field_traits<Ty Class::*> : public ::atom::utils::basic_field_traits {
     using type = Ty;
 
     explicit constexpr field_traits(const char* name, Ty Class::* pointer)
