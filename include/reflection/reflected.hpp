@@ -1,21 +1,40 @@
 #pragma once
+#include <type_traits>
 #include "concepts/type.hpp"
 #include "core.hpp"
 #include "reflection.hpp"
 #include "reflection/constexpr_extend.hpp"
 #include "reflection/extend.hpp"
+#include "reflection/hash.hpp"
 #include "structures/tstring.hpp"
 
 namespace atom::utils {
 
-template <UCONCEPTS pure BasicConstexprExtend>
+/*! @cond TURN_OFF_DOXYGEN */
+namespace internal {
+constexpr static inline std::string_view empty_string = "";
+constexpr static inline std::tuple<> empty_tuple{};
+} // namespace internal
+/*! @endcond */
+
+/**
+ * @brief Recording basic information about a type.
+ *
+ * @tparam BasicConstexprExtend Basic compile time information.
+ */
+template <::atom::utils::concepts::pure BasicConstexprExtend>
 struct basic_reflected {
 public:
-    constexpr explicit basic_reflected(const char* name = nullptr, std::size_t hash = 0)
-        : name_(name), hash_(hash) {}
+    constexpr explicit basic_reflected(const char* const name)
+        : basic_reflected(name, utils::hash(name)) {}
+
+    constexpr explicit basic_reflected(std::string_view name)
+        : basic_reflected(name.data(), hash) {}
+
+    constexpr basic_reflected() : basic_reflected(internal::empty_string.data()) {}
 
     template <typename TString>
-    requires std::is_base_of_v<UTILS basic_tstring, TString>
+    requires std::is_base_of_v<::atom::utils::basic_tstring, TString>
     constexpr explicit basic_reflected(std::size_t hash)
         : name_(std::make_shared<TString>()), hash_(hash) {}
 
@@ -32,16 +51,50 @@ public:
 
     constexpr virtual ~basic_reflected() = default;
 
+    /**
+     * @brief Get the name of this reflected type.
+     *
+     * @return std::string_view The name.
+     */
     [[nodiscard]] constexpr auto name() const -> std::string_view { return name_; }
 
+    /**
+     * @brief Get the hash value of this reflected type.
+     *
+     * @return std::size_t
+     */
     [[nodiscard]] constexpr auto hash() const -> std::size_t { return hash_; }
 
+    /**
+     * @brief Get the compile time extend information.
+     *
+     * @return const BasicConstexprExtend&
+     */
     [[nodiscard]] constexpr auto cextend() const -> const BasicConstexprExtend& {
         return get_constexpr_extend();
     }
 
+    /**
+     * @brief Get the runtime extend information.
+     *
+     * @return auto&
+     */
     [[nodiscard]] auto& extend() { return get_extend(); }
+    /**
+     * @brief
+     *
+     * @return const auto&
+     */
     [[nodiscard]] const auto& extend() const { return get_extend(); }
+
+protected:
+    static void relocate(basic_reflected& reflected, const char* name) {
+        reflected.name_ = name;
+        reflected.hash_ = utils::hash(name);
+    }
+
+    constexpr explicit basic_reflected(const char* const name, const std::size_t hash)
+        : name_(name), hash_(hash) {}
 
 private:
     const char* name_;
@@ -66,41 +119,84 @@ private:
     }
 };
 
+/**
+ * @brief A type stores reflected information.
+ *
+ * @tparam Ty The reflected type.
+ * @tparam BaseConstexprExtend A type contains basic compile time extend information.
+ * @tparam ConstexprExtend A type contains advanced compile time extend information.
+ */
 template <
-    UCONCEPTS pure Ty,
-    UCONCEPTS pure BaseConstexprExtend,
-    template <UCONCEPTS pure> typename ConstexprExtend>
-struct reflected final : public UTILS basic_reflected<UTILS basic_constexpr_extend> {
+    ::atom::utils::concepts::pure Ty,
+    ::atom::utils::concepts::pure BasicConstexprExtend,
+    template <::atom::utils::concepts::pure> typename ConstexprExtend>
+struct reflected final : public ::atom::utils::basic_reflected<BasicConstexprExtend> {
     using type = Ty;
-    constexpr reflected() : UTILS basic_reflected<UTILS basic_constexpr_extend>() {}
+    constexpr reflected() : ::atom::utils::basic_reflected<BasicConstexprExtend>() {
+        auto name = get_name();
+        basic_reflected<BasicConstexprExtend>::relocate(
+            static_cast<basic_reflected<BasicConstexprExtend>&>(*this), name
+        );
+    }
 
-    inline constexpr const auto& fields() const { return fields_; }
-    inline constexpr const auto& functions() const { return functions_; }
+    /**
+     * @brief Fields exploded to outside in the type.
+     *
+     * @return constexpr const auto& A tuple contains function traits.
+     */
+    constexpr const auto& fields() const {
+        if constexpr (requires(const Ty& obj) { Ty::reflect(static_cast<Ty*>(nullptr)); } &&
+                      std::is_default_constructible_v<Ty>) {
+            return Ty{}.reflect(static_cast<const Ty*>(nullptr));
+        }
+        else if constexpr (requires { reflect(static_cast<Ty*>(nullptr)); }) {
+            return reflect(static_cast<const Ty*>(nullptr));
+        }
+        else if constexpr (requires(const Ty& obj) { obj.reflect(); } &&
+                           std::is_default_constructible_v<Ty>) {
+            return Ty{}.reflect();
+        }
+        else {
+            return internal::empty_tuple;
+        }
+    }
+
+    /**
+     * @brief Functions exploded to outside in the type.
+     *
+     * @return constexpr const auto& A tuple contains function traits.
+     */
+    constexpr const auto& functions() const { return internal::empty_tuple; }
 
 private:
-    constexpr static auto constexpr_extend_ = UTILS constexpr_extend<type>();
-    constexpr static auto fields_           = std::make_tuple<>();
-    constexpr static auto functions_        = std::make_tuple<>();
+    constexpr static auto constexpr_extend_ = ::atom::utils::constexpr_extend<type>();
+
+    static inline const char* get_name() {
+        static std::string name = internal::process_name(typeid(Ty).name());
+        return name.data();
+    }
 
     [[nodiscard]] constexpr auto get_constexpr_extend() const
-        -> const UTILS basic_constexpr_extend& override {
+        -> const ::atom::utils::basic_constexpr_extend& override {
         return constexpr_extend_;
     }
 };
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
-template <UTILS tstring_v Name, std::size_t Index, typename Tuple>
+template <::atom::utils::tstring_v Name, std::size_t Index, typename Tuple>
 constexpr void find_traits(const Tuple& tuple, std::size_t& result) {
     if (std::get<Index>(tuple).name() == Name.val) {
         result = Index;
     }
 }
 } // namespace internal
+/*! @endcond */
 
-template <UTILS tstring_v Name, typename Tuple>
+template <::atom::utils::tstring_v Name, typename Tuple>
 consteval std::size_t index_of(const Tuple& tuple) {
-    auto index_sequence = std::make_index_sequence<UTILS tuple_size_v<Tuple>>();
-    std::size_t result  = UTILS tuple_size_v<Tuple>;
+    auto index_sequence = std::make_index_sequence<::atom::utils::tuple_size_v<Tuple>>();
+    std::size_t result  = ::atom::utils::tuple_size_v<Tuple>;
     []<std::size_t... Is>(const Tuple& tuple, std::size_t& result, std::index_sequence<Is...>) {
         (internal::find_traits<Name, Is>(tuple, result), ...);
     }(tuple, result, index_sequence);
@@ -112,7 +208,7 @@ consteval std::size_t index_of(const Tuple& tuple) {
 // constexpr auto index = index_of<"field name">(tuple);
 // auto& traits = std::get<index>(tuple);
 //
-// template <UTILS tstring_v Name, typename Tuple>
+// template <::atom::utils:: tstring_v Name, typename Tuple>
 // constexpr auto traits_of(const Tuple& tuple) {
 //     constexpr std::size_t index = index_of<Name>(tuple);
 //     static_assert(index < tuple_size_v<Tuple>, "This tuple doesn't have so many elements.");
@@ -125,6 +221,7 @@ consteval std::size_t index_of(const Tuple& tuple) {
     #include <nlohmann/json.hpp>
     #include "core/type_traits.hpp"
 
+/*! @cond TURN_OFF_DOXYGEN */
 namespace internal::reflection {
 
 template <std::size_t Index, typename Ty, typename Tuple>
@@ -151,6 +248,7 @@ constexpr void
 }
 
 } // namespace internal::reflection
+/*! @endcond */
 
 /**
  * @brief Store an instance's information into a `nlohmann::json` object.
@@ -161,7 +259,7 @@ constexpr void to_json(nlohmann::json& json, const Ty& obj) {
     using pure_t       = std::remove_cvref_t<Ty>;
     const auto& fields = ::atom::utils::reflected<pure_t>().fields();
     internal::reflection::to_json<Ty>(
-        json, obj, fields, std::make_index_sequence<UTILS tuple_size_v<decltype(fields)>>()
+        json, obj, fields, std::make_index_sequence<::atom::utils::tuple_size_v<decltype(fields)>>()
     );
 }
 
@@ -174,7 +272,7 @@ constexpr void from_json(const nlohmann::json& json, Ty& obj) {
     using pure_t       = std::remove_cvref_t<Ty>;
     const auto& fields = ::atom::utils::reflected<pure_t>().fields();
     internal::reflection::from_json(
-        json, obj, fields, std::make_index_sequence<UTILS tuple_size_v<decltype(fields)>>()
+        json, obj, fields, std::make_index_sequence<::atom::utils::tuple_size_v<decltype(fields)>>()
     );
 }
 
