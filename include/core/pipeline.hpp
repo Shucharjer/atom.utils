@@ -4,22 +4,25 @@
 #include <type_traits>
 #include "core/pair.hpp"
 
+// It is mainly used as a substitute when STL does not provide sufficient pipeline support, of
+// course this refers to C++20.
+// This pipeline system could work on cpp20 or higher.
+
 namespace atom::utils {
 
-// view: structure -> special range
-// fn: view getter, wrapper operator()
-// operator|: fn invoker, wrapper operator() as operator|
-
+/**
+ * @brief Construct a range closure quickly by CRTP.
+ *
+ */
 template <typename Derived>
+requires(!std::ranges::range<Derived>)
 struct pipeline_base {};
 
 /**
  * @brief The custom result of pipeline operators.
  *
- * It is mainly used as a substitute when STL does not provide sufficient pipeline support, of
- * course this refers to C++20
- * @tparam Rng
- * @tparam Closure
+ * @tparam First The type of the first range closure.
+ * @tparam Second The type of the second range closure.
  */
 template <typename First, typename Second>
 struct pipeline_result {
@@ -50,7 +53,7 @@ struct pipeline_result {
     }
 
     template <std::ranges::range Rng>
-    constexpr auto operator()(Rng&& range) noexcept(
+    [[nodiscard]] constexpr auto operator()(Rng&& range) noexcept(
         noexcept(std::forward<Second>(closures_.second())(
             std::forward<First>(closures_.first())(std::forward<Rng>(range))
         ))
@@ -61,7 +64,7 @@ struct pipeline_result {
     }
 
     template <std::ranges::range Rng>
-    constexpr auto operator()(Rng&& range) const
+    [[nodiscard]] constexpr auto operator()(Rng&& range) const
         noexcept(noexcept(std::forward<Second>(closures_.second())(
             std::forward<First>(closures_.first())(std::forward<Rng>(range))
         ))) {
@@ -84,14 +87,14 @@ template <std::ranges::range Rng, typename Closure>
 requires std::derived_from<
     std::remove_cvref_t<Closure>,
     atom::utils::pipeline_base<std::remove_cvref_t<Closure>>>
-constexpr auto operator|(Rng&& range, Closure&& closure) noexcept(
+[[nodiscard]] constexpr auto operator|(Rng&& range, Closure&& closure) noexcept(
     noexcept(std::forward<Closure>(closure)(std::forward<Rng>(range)))
 ) {
     return std::forward<Closure>(closure)(std::forward<Rng>(range));
 }
 
 /*! @cond TURN_OFF_DOXYGEN */
-namespace internal {
+namespace atom::utils::internal {
 
 template <typename Result>
 struct is_pipeline_result : public std::false_type {};
@@ -102,7 +105,7 @@ struct is_pipeline_result<::atom::utils::pipeline_result<First, Second>> : publi
 template <typename Result>
 constexpr bool is_pipeline_result_t = is_pipeline_result<Result>::value;
 
-} // namespace internal
+} // namespace atom::utils::internal
 /*! @endcond */
 
 /**
@@ -110,8 +113,8 @@ constexpr bool is_pipeline_result_t = is_pipeline_result<Result>::value;
  * from a range and a pipeline result.
  */
 template <std::ranges::range Rng, typename Result>
-requires internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
-constexpr auto operator|(Rng&& range, Result&& result) noexcept(
+requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
+[[nodiscard]] constexpr auto operator|(Rng&& range, Result&& result) noexcept(
     noexcept(std::forward<Result>(result)(std::forward<Rng>(range)))
 ) {
     return std::forward<Result>(result)(std::forward<Rng>(range));
@@ -128,7 +131,7 @@ requires std::derived_from<
          std::derived_from<
              std::remove_cvref_t<Another>,
              ::atom::utils::pipeline_base<std::remove_cvref_t<Another>>>
-constexpr auto operator|(
+[[nodiscard]] constexpr auto operator|(
     Closure&& closure, Another&& another
 ) noexcept(std::
                is_nothrow_constructible_v<
@@ -137,5 +140,13 @@ constexpr auto operator|(
                    Another>) {
     return UTILS pipeline_result<Closure, Another>(
         std::forward<Closure>(closure), std::forward<Another>(another)
+    );
+}
+
+template <typename Result, typename Closure>
+requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
+[[nodiscard]] constexpr auto operator|(Result&& closure, Closure&& another) {
+    return UTILS pipeline_result<Result, Closure>(
+        std::forward<Result>(closure), std::forward<Closure>(another)
     );
 }
