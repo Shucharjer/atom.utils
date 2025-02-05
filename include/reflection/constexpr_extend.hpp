@@ -8,7 +8,7 @@ namespace atom::utils {
 struct basic_constexpr_extend {
 
     /**
-     * @class constexpr_extend_info
+     * @class constexpr_extend_info Information could be got in compile time.
      * @brief Providing a structure to using designated list initialization, which could omit
      * some operations when defining extended information of the type.
      *
@@ -37,10 +37,10 @@ struct basic_constexpr_extend {
     constexpr basic_constexpr_extend(const constexpr_extend_info& info) : info(info) {}
 };
 
-template <UCONCEPTS pure Ty>
-struct constexpr_extend : public UTILS basic_constexpr_extend {
+template <::atom::utils::concepts::pure Ty>
+struct constexpr_extend : public ::atom::utils::basic_constexpr_extend {
     constexpr constexpr_extend()
-        : UTILS basic_constexpr_extend{
+        : ::atom::utils::basic_constexpr_extend{
               { .is_default_constructible = std::is_default_constructible_v<Ty>,
                .is_trivial_v             = std::is_trivial_v<Ty>,
                .is_copy_constructible    = std::is_copy_constructible_v<Ty>,
