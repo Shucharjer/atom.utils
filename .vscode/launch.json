@@ -1,0 +1,68 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "core",
+            "program": "${workspaceFolder}/build/core.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "memory",
+            "program": "${workspaceFolder}/build/memory.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "ranges",
+            "program": "${workspaceFolder}/build/ranges.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "reflection",
+            "program": "${workspaceFolder}/build/reflection.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "signal",
+            "program": "${workspaceFolder}/build/signal.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "structures",
+            "program": "${workspaceFolder}/build/structures.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "thread",
+            "program": "${workspaceFolder}/build/thread.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false
+        }
+    ]
+}
