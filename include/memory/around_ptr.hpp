@@ -5,7 +5,7 @@
 #include "signal.hpp"
 #include "signal/delegate.hpp"
 #include "thread.hpp"
-#include "thread/spin_lock.hpp"
+#include "thread/lock.hpp"
 
 namespace atom::utils {
 
@@ -13,7 +13,7 @@ template <typename Ty>
 class around_ptr {
 public:
     using value_type    = Ty;
-    using delegate_type = UTILS delegate<void(const Ty&)>;
+    using delegate_type = ::atom::utils::delegate<void(const Ty&)>;
     class proxy {
         friend class around_ptr;
 
@@ -126,7 +126,7 @@ public:
 
 private:
     std::shared_ptr<Ty> ptr_;
-    UTILS spin_lock lock_;
+    ::atom::utils::spin_lock lock_;
 };
 
 } // namespace atom::utils
