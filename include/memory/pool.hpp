@@ -31,7 +31,7 @@ public:
     using size_type = std::size_t;
 
     class pool {
-        using memory_block = UTILS internal::memory_block;
+        using memory_block = ::atom::utils::internal::memory_block;
 
         friend class synchronized_pool;
 
@@ -110,7 +110,7 @@ public:
     using size_type = std::size_t;
 
     class pool {
-        using memory_block = UTILS internal::memory_block;
+        using memory_block = ::atom::utils::internal::memory_block;
 
         friend class unsynchronized_pool;
 

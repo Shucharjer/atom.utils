@@ -45,14 +45,18 @@ public:
  * @brief Lazy storage.
  * Initialize on Get, Copy on Write.
  */
-template <typename Ty, UCONCEPTS rebindable_allocator Allocator = UTILS standard_allocator<Ty>>
+template <
+    typename Ty,
+    ::atom::utils::concepts::rebindable_allocator Allocator = ::atom::utils::standard_allocator<Ty>>
 class unique_storage;
 
 /**
  * @brief Shared lazy storage.
  * Initialize on Get, Copy on Write.
  */
-template <typename Ty, UCONCEPTS rebindable_allocator Allocator = UTILS standard_allocator<Ty>>
+template <
+    typename Ty,
+    ::atom::utils::concepts::rebindable_allocator Allocator = ::atom::utils::standard_allocator<Ty>>
 class shared_storage;
 
 template <typename Ty>
@@ -94,7 +98,7 @@ constexpr auto wrap_destroyer(Destroyer destroyer) -> void (*)(void*) {
 
 } // namespace internal
 
-template <typename Ty, UCONCEPTS rebindable_allocator Allocator>
+template <typename Ty, ::atom::utils::concepts::rebindable_allocator Allocator>
 class unique_storage : public basic_storage {
     using alty_traits = std::allocator_traits<Allocator>;
 
@@ -234,7 +238,7 @@ private:
     void (*destroyer_)(void*);
 };
 
-template <typename Ty, UCONCEPTS rebindable_allocator Allocator>
+template <typename Ty, ::atom::utils::concepts::rebindable_allocator Allocator>
 class shared_storage final : public basic_storage {
     using alty_traits = std::allocator_traits<Allocator>;
 

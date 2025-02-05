@@ -49,10 +49,10 @@ concept rebindable = requires { typename Allocator::template rebind_t<RebindType
  *
  */
 template <typename Ty>
-concept rebindable_allocator = UCONCEPTS allocator<Ty> && requires() {
-    UCONCEPTS internal::rebindable<Ty, int>;
-    UCONCEPTS internal::rebindable<Ty, float>;
-    UCONCEPTS internal::rebindable<Ty, double>;
+concept rebindable_allocator = ::atom::utils::concepts::allocator<Ty> && requires() {
+    ::atom::utils::concepts::internal::rebindable<Ty, int>;
+    ::atom::utils::concepts::internal::rebindable<Ty, float>;
+    ::atom::utils::concepts::internal::rebindable<Ty, double>;
 };
 
 } // namespace atom::utils::concepts

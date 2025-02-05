@@ -46,7 +46,7 @@ template <typename... Args, template <typename...> typename Tuple>
 struct is_tuple<Tuple<Args...>> : std::true_type {};
 
 template <typename Ty>
-constexpr bool is_tuple_v = UTILS is_tuple<Ty>::value;
+constexpr bool is_tuple_v = ::atom::utils::is_tuple<Ty>::value;
 
 template <typename>
 struct tuple_size;
@@ -68,7 +68,7 @@ using is_nothrow_invocable_member_function =
 
 template <auto Candidate, typename... Args>
 constexpr bool is_nothrow_invocable_member_function_v =
-    UTILS is_nothrow_invocable_member_function<Candidate, Args...>::value;
+    ::atom::utils::is_nothrow_invocable_member_function<Candidate, Args...>::value;
 
 template <typename To, typename From>
 struct same_volatile {
