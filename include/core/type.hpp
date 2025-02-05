@@ -6,6 +6,11 @@
 
 namespace atom::utils {
 
+/**
+ * @brief Auxiliary type for passing parameters in template constructors.
+ *
+ * @tparam auto Argument.
+ */
 template <auto>
 struct spreader {
     explicit spreader() = default;
@@ -14,6 +19,11 @@ struct spreader {
 template <auto Candidate>
 inline constexpr spreader<Candidate> spread_arg{};
 
+/**
+ * @brief Auxiliary type for passing type in template constructors.
+ *
+ * @tparam typename Type.
+ */
 template <typename>
 struct type_spreader {
     explicit type_spreader() = default;

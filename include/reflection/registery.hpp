@@ -11,6 +11,13 @@
 
 namespace atom::utils {
 
+/**
+ * @brief Type information registry.
+ *
+ * Gather reflected information.
+ * @tparam BasicConstexprExtend
+ * @tparam ConstexprExtend
+ */
 template <typename BasicConstexprExtend, template <typename> typename ConstexprExtend>
 class registry {
 public:
@@ -23,6 +30,12 @@ private:
 public:
     registry() = delete;
 
+    /**
+     * @brief Get unique identity.
+     *
+     * @param hash The hash value of a type.
+     * @return default_id_t Unique identity.
+     */
     static default_id_t identity(const size_t hash) {
         static std::unordered_map<size_t, default_id_t> map;
         if (!map.contains(hash)) {
@@ -32,6 +45,11 @@ public:
         return map.at(hash);
     }
 
+    /**
+     * @brief Register a type.
+     *
+     * @tparam Ty The type want to register.
+     */
     template <typename Ty>
     static void enroll() {
         using pure_t     = typename std::remove_cvref_t<Ty>;
@@ -52,7 +70,14 @@ public:
         }
     }
 
-    static auto find(default_id_t ident) {
+    /**
+     * @brief Fint out the reflected information.
+     *
+     * @param ident Unique identity of a type.
+     * @return auto Shared pointer.
+     */
+    static auto find(const default_id_t ident)
+        -> std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>> {
         auto& registered = self_type::registered();
         auto& mutex      = self_type::mutex();
         std::shared_lock<std::shared_mutex> shared_lock{ mutex };
@@ -70,7 +95,7 @@ public:
     }
 
     template <typename Ty>
-    static auto find() {
+    static auto find() -> std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>> {
         using pure_t     = std::remove_cvref_t<Ty>;
         const auto hash  = UTILS hash<pure_t>();
         const auto ident = identity(hash);
