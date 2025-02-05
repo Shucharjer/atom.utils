@@ -1,5 +1,6 @@
 #pragma once
 #include <concepts>
+#include <initializer_list>
 #include "concepts.hpp"
 #include "core.hpp"
 #include "core/pair.hpp"
@@ -15,16 +16,16 @@ namespace atom::utils {
 template <
     std::unsigned_integral Key,
     typename Val,
-    UCONCEPTS rebindable_allocator Alloc,
+    ::atom::utils::concepts::rebindable_allocator Alloc,
     std::size_t PageSize>
 class dense_map {
     template <typename Target>
-    using allocator_t = typename UTILS rebind_allocator<Alloc>::template to<Target>::type;
+    using allocator_t = typename ::atom::utils::rebind_allocator<Alloc>::template to<Target>::type;
 
 public:
     using key_type    = Key;
     using mapped_type = Val;
-    using value_type  = UTILS compressed_pair<key_type, mapped_type>;
+    using value_type  = std::pair<key_type, mapped_type>;
 
     using size_type       = std::size_t;
     using difference_type = std::ptrdiff_t;
@@ -42,15 +43,21 @@ public:
 
 private:
     using array_t            = std::array<size_type, PageSize>;
-    using storage_t          = UTILS unique_storage<array_t, allocator_t<array_t>>;
-    using shared_lock_keeper = UTILS lock_keeper<2, std::shared_mutex, std::shared_lock>;
-    using unique_lock_keeper = UTILS lock_keeper<2, std::shared_mutex, std::unique_lock>;
+    using storage_t          = ::atom::utils::unique_storage<array_t, allocator_t<array_t>>;
+    using shared_lock_keeper = ::atom::utils::lock_keeper<2, std::shared_mutex, std::shared_lock>;
+    using unique_lock_keeper = ::atom::utils::lock_keeper<2, std::shared_mutex, std::unique_lock>;
 
 public:
-    dense_map()
-        : alloc_n_dense_(allocator_t<value_type>{}, allocator_t<value_type>{}),
-          sparse_(allocator_t<storage_t>{}) {}
+    /**
+     * @brief Default constructor.
+     *
+     */
+    dense_map() : alloc_n_dense_(), sparse_() {}
 
+    /**
+     * @brief Construct with allocator.
+     *
+     */
     template <typename Al>
     requires std::is_constructible_v<allocator_t<value_type>, Al> &&
                  std::is_constructible_v<allocator_t<array_t>, Al> &&
@@ -58,6 +65,88 @@ public:
     explicit dense_map(const Al& allocator)
         : alloc_n_dense_(allocator, allocator_t<value_type>{ allocator }),
           sparse_(allocator_t<storage_t>(allocator)) {}
+
+    /**
+     * @brief Construct by iterators and allocator.
+     *
+     */
+    template <typename Iter, typename Al>
+    explicit dense_map(Iter first, Iter last, Al&& allocator)
+        : alloc_n_dense_(
+              allocator, std::vector<value_type, allocator_t<value_type>>(first, last, allocator)
+          ),
+          sparse_(allocator_t<storage_t>(std::forward<Al>(allocator))) {
+        for (const auto& [key, val] : alloc_n_dense_.second()) {
+            auto page   = page_of(key);
+            auto offset = offset_of(key);
+            check_page(page);
+            sparse_[page]->at(offset) = alloc_n_dense_.second().size();
+        }
+    }
+
+    /**
+     * @brief Construct by iterators.
+     *
+     */
+    template <typename Iter>
+    explicit dense_map(Iter first, Iter last)
+        // delegate constructor
+        : dense_map(first, last, allocator_t<value_type>{}) {}
+
+    /**
+     * @brief Construct by initializer list and allocator.
+     *
+     */
+    template <typename Al>
+    explicit dense_map(const std::initializer_list<std::pair<Key, Val>>& list, Al&& allocator)
+        : alloc_n_dense_(
+              allocator, std::vector<value_type, allocator_t<value_type>>(list, allocator)
+          ),
+          sparse_(allocator_t<storage_t>(std::forward<Al>(allocator))) {
+        for (const auto& [key, val] : alloc_n_dense_.second()) {
+            auto page   = page_of(key);
+            auto offset = offset_of(key);
+            check_page(page);
+            sparse_[page]->at(offset) = alloc_n_dense_.second().size();
+        }
+    }
+
+    /**
+     * @brief Construct by initializer list and allocator.
+     *
+     */
+    template <typename Al>
+    explicit dense_map(std::initializer_list<std::pair<Key, Val>>&& list, Al&& allocator)
+        : alloc_n_dense_(
+              allocator,
+              std::vector<value_type, allocator_t<value_type>>(std::move(list), allocator)
+          ),
+          sparse_(allocator_t<storage_t>(std::forward<Al>(allocator))) {
+        const auto size = alloc_n_dense_.second().size();
+        for (auto i = 0; i < size; ++i) {
+            const auto& [key, val] = alloc_n_dense_.second()[i];
+            const auto page        = page_of(key);
+            const auto offset      = offset_of(key);
+            check_page(page);
+            sparse_[page]->at(offset) = i;
+        }
+    }
+
+    /**
+     * @brief Construct by initializer list.
+     *
+     */
+    explicit dense_map(const std::initializer_list<std::pair<Key, Val>>& list)
+        // delegate constructor
+        : dense_map(list, allocator_t<value_type>{}) {}
+
+    /**
+     * @brief Construct by initializer list.
+     *
+     */
+    explicit dense_map(std::initializer_list<std::pair<Key, Val>>&& list)
+        // delegate consturctor
+        : dense_map(std::move(list), allocator_t<value_type>{}) {}
 
     dense_map(dense_map&& that) noexcept
         : alloc_n_dense_(std::move(that.alloc_n_dense_)), sparse_(std::move(that.sparse_)) {}
@@ -72,8 +161,15 @@ public:
         return *this;
     }
 
-    // TODO:
-    dense_map(const dense_map&) = delete;
+    dense_map(const dense_map& that)
+        : alloc_n_dense_(that.alloc_n_dense_), sparse_(that.sparse_.size()) {
+        //
+        for (const auto& page : that.sparse_) {
+            sparse_.emplace_back(
+                unique_storage<array_t, allocator_t<array_t>>(page, alloc_n_dense_.first())
+            );
+        }
+    }
 
     // TODO:
     dense_map& operator=(const dense_map&) = delete;
@@ -84,28 +180,28 @@ public:
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
-        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second();
+        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second;
     }
 
     [[nodiscard]] auto at(const key_type key) const -> const Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
-        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second();
+        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second;
     }
 
     auto operator[](const key_type key) -> Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
-        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second();
+        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second;
     }
 
     auto operator[](const key_type key) const -> const Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
-        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second();
+        return alloc_n_dense_.second()[sparse_[page]->at(offset)].second;
     }
 
     template <typename ValTy>
@@ -134,8 +230,8 @@ public:
     requires std::is_constructible_v<value_type, Args...>
     void emplace(Args&&... args) {
         auto val    = value_type(std::forward<Args>(args)...);
-        auto page   = page_of(val.first());
-        auto offset = offset_of(val.first());
+        auto page   = page_of(val.first);
+        auto offset = offset_of(val.first);
 
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         try {
@@ -283,7 +379,8 @@ private:
     ) const noexcept -> bool {
         auto& dense = alloc_n_dense_.second();
         return dense.size() && sparse_.size() > page
-                   ? sparse_[page]->at(offset) ? true : dense[sparse_[page]->at(offset)] == key
+                   ? sparse_[page]->at(offset) ? true
+                                               : dense[sparse_[page]->at(offset)].first == key
                    : false;
     }
     auto erase_without_check_impl(const size_type page, const size_type offset) {
@@ -305,9 +402,9 @@ private:
 };
 
 template <std::unsigned_integral Key, typename Val, std::size_t PageSize = k_default_page_size>
-using sync_dense_map = dense_map<Key, Val, sync_allocator<compressed_pair<Key, Val>>, PageSize>;
+using sync_dense_map = dense_map<Key, Val, sync_allocator<std::pair<Key, Val>>, PageSize>;
 
 template <std::unsigned_integral Key, typename Val, std::size_t PageSize = k_default_page_size>
-using unsync_dense_map = dense_map<Key, Val, unsync_allocator<compressed_pair<Key, Val>>, PageSize>;
+using unsync_dense_map = dense_map<Key, Val, unsync_allocator<std::pair<Key, Val>>, PageSize>;
 
 } // namespace atom::utils
