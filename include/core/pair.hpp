@@ -194,10 +194,13 @@ class reversed_compressed_pair;
 template <typename First, typename Second>
 class compressed_pair final : private ::atom::utils::internal::compressed_element<First, true>,
                               private ::atom::utils::internal::compressed_element<Second, false> {
-public:
     using self_type   = compressed_pair;
     using first_base  = ::atom::utils::internal::compressed_element<First, true>;
     using second_base = ::atom::utils::internal::compressed_element<Second, false>;
+
+public:
+    using first_type  = First;
+    using second_type = Second;
 
     /**
      * @brief Default constructor.
@@ -330,10 +333,13 @@ template <typename First, typename Second>
 class reversed_compressed_pair final
     : private ::atom::utils::internal::compressed_element<Second, true>,
       private ::atom::utils::internal::compressed_element<First, false> {
-public:
     using self_type   = reversed_compressed_pair;
     using first_base  = internal::compressed_element<Second, true>;
     using second_base = internal::compressed_element<First, false>;
+
+public:
+    using first_type  = First;
+    using second_type = Second;
 
     constexpr reversed_compressed_pair(
     ) noexcept(std::is_nothrow_default_constructible_v<second_base> && std::is_nothrow_default_constructible_v<first_base>)
@@ -630,8 +636,16 @@ struct reversed_result<pair_wrapper<First, Second, Pair>> {
 template <typename Pair>
 using reversed_result_t = typename reversed_result<Pair>::type;
 
+/*! @cond TURN_OFF_DOXYGEN */
+namespace internal {
 template <typename Pair>
-concept reversible_pair = requires { typename reversed_result<Pair>::type; };
+concept reversible_pair = requires {
+    typename reversed_result<Pair>::type;
+    typename Pair::first_type;
+    typename Pair::second_type;
+} && std::is_trivial_v<typename Pair::first_type> && std::is_trivial_v<typename Pair::second_type>;
+} // namespace internal
+/*! @endcond */
 
 ///////////////////////////////////////////////////////////////////////////////
 // reverse
@@ -645,7 +659,7 @@ concept reversible_pair = requires { typename reversed_result<Pair>::type; };
  * @return Reversed pair.
  */
 template <typename Pair>
-requires reversible_pair<std::remove_cv_t<Pair>>
+requires internal::reversible_pair<std::remove_cv_t<Pair>>
 constexpr decltype(auto) reverse(Pair& pair) noexcept {
     using result_type = typename UTILS same_cv_t<reversed_result_t<std::remove_cv_t<Pair>>, Pair>;
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -666,7 +680,7 @@ constexpr decltype(auto) reverse(Pair& pair) noexcept {
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr auto& get(::atom::utils::compressed_pair<First, Second>& pair) {
+constexpr auto& get(::atom::utils::compressed_pair<First, Second>& pair) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
         return pair.first();
@@ -685,7 +699,7 @@ constexpr auto& get(::atom::utils::compressed_pair<First, Second>& pair) {
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr const auto& get(const ::atom::utils::compressed_pair<First, Second>& pair) {
+constexpr const auto& get(const ::atom::utils::compressed_pair<First, Second>& pair) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
         return pair.first();
@@ -704,7 +718,7 @@ constexpr const auto& get(const ::atom::utils::compressed_pair<First, Second>& p
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr auto& get(::atom::utils::reversed_compressed_pair<First, Second>& pair) {
+constexpr auto& get(::atom::utils::reversed_compressed_pair<First, Second>& pair) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
         return pair.first();
@@ -723,7 +737,8 @@ constexpr auto& get(::atom::utils::reversed_compressed_pair<First, Second>& pair
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr const auto& get(const ::atom::utils::reversed_compressed_pair<First, Second>& pair) {
+constexpr const auto& get(const ::atom::utils::reversed_compressed_pair<First, Second>& pair
+) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
         return pair.first();
