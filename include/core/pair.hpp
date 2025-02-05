@@ -16,7 +16,6 @@ namespace internal {
  * they have the same type.
  */
 template <typename Ty, bool IsFirst>
-requires(!std::is_reference_v<Ty>)
 class compressed_element {
 public:
     using self_type       = compressed_element;
