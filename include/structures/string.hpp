@@ -5,8 +5,8 @@
 #include <ranges>
 #include <string>
 #include <type_traits>
-#include "allocator.h"
-#include "pair.h"
+#include "core/pair.hpp"
+#include "memory/allocator.hpp"
 
 namespace atom::utils {
 
