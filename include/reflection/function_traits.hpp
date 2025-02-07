@@ -40,6 +40,8 @@ struct function_traits<Ret (*)(Args...)> : public ::atom::utils::basic_function_
         return pointer_(std::forward<Args>(args)...);
     }
 
+    [[nodiscard]] constexpr auto pointer() const noexcept -> Ret (*)(Args...) { return pointer_; }
+
 private:
     Ret (*pointer_)(Args...);
 };
@@ -55,6 +57,10 @@ struct function_traits<Ret (Class::*)(Args...)> : public ::atom::utils::basic_fu
 
     [[nodiscard]] constexpr auto call(Class& instance, Args&&... args) const -> Ret {
         (instance.*pointer_)(std::forward<Args>(args)...);
+    }
+
+    [[nodiscard]] constexpr auto pointer() const noexcept -> Ret (Class::*)(Args...) {
+        return pointer_;
     }
 
 private:
