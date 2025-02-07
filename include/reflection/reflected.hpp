@@ -394,7 +394,7 @@ inline void
     (bind_fields_to_lua_impl<Is>(fields, usertype), ...);
 }
 
-template <typename Index, typename Ty, typename Tuple>
+template <size_t Index, typename Ty, typename Tuple>
 inline void bind_functions_to_lua_impl(
     const Tuple& functions, sol::usertype<Ty>& usertype
 ) noexcept {
@@ -443,9 +443,9 @@ inline sol::usertype<Ty> bind_to_lua(sol::state& lua) noexcept {
 
     if constexpr (requires {
                       ::atom::utils::reflected<Ty>();
-                      ::atom::utils::reflected<Ty>().functions();
+                      ::atom::utils::reflected<Ty>().funcs();
                   }) {
-        const auto& functions = reflected.functions();
+        const auto& functions = reflected.funcs();
         internal::bind_functions_to_lua<Ty>(
             functions,
             usertype,
@@ -454,6 +454,11 @@ inline sol::usertype<Ty> bind_to_lua(sol::state& lua) noexcept {
     }
 
     return usertype;
+}
+
+template <typename Ty>
+inline auto wrapped_bind_to_lua() -> void (*)(sol::state&) {
+    return [](sol::state& lua) -> void { std::ignore = bind_to_lua<Ty>(lua); };
 }
 
 #endif
