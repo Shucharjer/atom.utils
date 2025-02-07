@@ -1,5 +1,5 @@
 #pragma once
-#include "reflection/registery.hpp"
+#include "reflection/registry.hpp"
 
 namespace atom::utils {
 
