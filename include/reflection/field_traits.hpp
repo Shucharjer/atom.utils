@@ -45,6 +45,8 @@ struct field_traits<Ty*> : public ::atom::utils::basic_field_traits {
     [[nodiscard]] constexpr auto get() -> Ty& { return *pointer_; }
     [[nodiscard]] constexpr auto get() const -> const Ty& { return *pointer_; }
 
+    [[nodiscard]] constexpr auto pointer() const noexcept -> Ty* { return pointer_; }
+
 private:
     Ty* pointer_;
 };
@@ -62,6 +64,8 @@ struct field_traits<Ty Class::*> : public ::atom::utils::basic_field_traits {
     [[nodiscard]] constexpr auto get(const Class& instance) const -> const Ty& {
         return instance.*pointer_;
     }
+
+    [[nodiscard]] constexpr auto pointer() const noexcept -> Ty Class::* { return pointer_; }
 
 private:
     Ty Class::* pointer_;
