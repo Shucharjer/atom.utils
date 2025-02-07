@@ -1,7 +1,6 @@
 #pragma once
 #include <type_traits>
 #include "concepts/type.hpp"
-#include "core.hpp"
 #include "reflection.hpp"
 #include "reflection/constexpr_extend.hpp"
 #include "reflection/extend.hpp"
@@ -243,7 +242,6 @@ constexpr void from_json_impl(const nlohmann::json& json, Ty& obj, const Tuple& 
 template <typename Ty, typename Tuple, std::size_t... Is>
 constexpr void
     from_json(const nlohmann::json& json, Ty& obj, const Tuple& tuple, std::index_sequence<Is...>) {
-    auto impl = [&json, &obj]<std::size_t Index>() {};
     (from_json_impl<Is>(json, obj, tuple), ...);
 }
 
@@ -276,4 +274,78 @@ constexpr void from_json(const nlohmann::json& json, Ty& obj) {
     );
 }
 
+#endif
+
+#if __has_include(<simdjson.h>)
+    #include <simdjson.h>
+
+/*! @cond TURN_OFF_DOXYGEN */
+namespace internal::reflection {
+template <size_t Index, typename Ty, typename Tuple>
+auto tag_invoke_impl(simdjson::ondemand::object& obj, Ty& object, const Tuple& fields) noexcept {
+    const auto& traits = std::get<Index>(fields);
+    auto inst          = obj[traits.name()];
+    auto& elem         = traits.get(object);
+    using elem_t       = std::remove_cvref_t<decltype(elem)>;
+    if constexpr (std::is_same_v<elem_t, bool>) {
+        return inst.get_bool(elem);
+    }
+    else if constexpr (std::is_same_v<elem_t, uint64_t>) {
+        return inst.get_uint64(elem);
+    }
+    else if constexpr (std::is_same_v<elem_t, int64_t>) {
+        return inst.get_int64(elem);
+    }
+    else if constexpr (std::is_same_v<elem_t, double>) {
+        return inst.get_double(elem);
+    }
+    else if constexpr (std::is_same_v<elem_t, std::string_view>) {
+        return inst.get_string(elem);
+    }
+    else if constexpr (std::is_same_v<elem_t, simdjson::ondemand::object>) {
+        return inst.get_object(elem);
+    }
+    else if constexpr (std::is_same_v<elem_t, simdjson::ondemand::array>) {
+        return inst.get_array(elem);
+    }
+    else {
+        return inst.get(elem);
+    }
+}
+
+template <typename Ty, typename Tuple, size_t... Is>
+auto tag_invoke(simdjson::ondemand::object& obj, Ty& object, const Tuple& fields, std::index_sequence<Is...>) noexcept {
+    return (tag_invoke_impl<Is>(obj, object, fields), ...);
+}
+} // namespace internal::reflection
+
+namespace simdjson {
+template <typename simdjson_value, typename Ty>
+requires(
+    std::tuple_size_v<std::remove_cvref_t<decltype(::atom::utils::reflected<Ty>().fields())>> != 0
+)
+auto tag_invoke(simdjson::deserialize_tag, simdjson_value& val, Ty& object) noexcept {
+    ondemand::object obj;
+    auto error = val.get_object().get(obj);
+    if (error) [[unlikely]] {
+        return error;
+    }
+
+    using pure_t       = std::remove_cvref_t<Ty>;
+    const auto& fields = ::atom::utils::reflected<pure_t>().fields();
+    if (error = ::internal::reflection::tag_invoke(
+            obj,
+            object,
+            fields,
+            std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(fields)>>>()
+        );
+        error) [[unlikely]] {
+        return error;
+    }
+
+    return simdjson::SUCCESS;
+}
+} // namespace simdjson
+
+/*! @endcond */
 #endif
