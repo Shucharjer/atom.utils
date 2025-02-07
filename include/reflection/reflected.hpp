@@ -253,7 +253,7 @@ constexpr void
  *
  */
 template <typename Ty>
-constexpr void to_json(nlohmann::json& json, const Ty& obj) {
+constexpr inline void to_json(nlohmann::json& json, const Ty& obj) {
     using pure_t       = std::remove_cvref_t<Ty>;
     const auto& fields = ::atom::utils::reflected<pure_t>().fields();
     internal::reflection::to_json<Ty>(
@@ -262,11 +262,23 @@ constexpr void to_json(nlohmann::json& json, const Ty& obj) {
 }
 
 /**
+ * @brief Construct a new json object.
+ *
+ * This function is mainly for lua support.
+ */
+template <typename Ty>
+constexpr inline nlohmann::json to_new_json(const Ty& self) {
+    nlohmann::json json;
+    to_json(json, self);
+    return json;
+}
+
+/**
  * @brief Restore an instance's information from a `nlohmann::json` object.
  *
  */
 template <typename Ty>
-constexpr void from_json(const nlohmann::json& json, Ty& obj) {
+constexpr inline void from_json(const nlohmann::json& json, Ty& obj) {
     using pure_t       = std::remove_cvref_t<Ty>;
     const auto& fields = ::atom::utils::reflected<pure_t>().fields();
     internal::reflection::from_json(
@@ -274,10 +286,24 @@ constexpr void from_json(const nlohmann::json& json, Ty& obj) {
     );
 }
 
+/**
+ * @brief Set a json object from a specific object.
+ *
+ * This function is mainly for support lua.
+ */
+template <typename Ty>
+requires std::is_default_constructible_v<Ty>
+constexpr inline void set_from_json(Ty& self, const nlohmann::json& json) noexcept {
+    from_json(json, self);
+}
+
 #endif
 
 #if __has_include(<simdjson.h>)
     #include <simdjson.h>
+
+// Support for simdjson.
+// This mainly for higher performance when parsing json document.
 
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal::reflection {
@@ -348,4 +374,86 @@ auto tag_invoke(simdjson::deserialize_tag, simdjson_value& val, Ty& object) noex
 } // namespace simdjson
 
 /*! @endcond */
+#endif
+
+#if __has_include(<lua.hpp>) && __has_include(<sol/sol.hpp>)
+    #include <sol/sol.hpp>
+
+/*! @cond TURN_OFF_DOXYGEN */
+namespace internal {
+
+template <size_t Index, typename Ty, typename Tuple>
+inline void bind_fields_to_lua_impl(const Tuple& fields, sol::usertype<Ty>& usertype) noexcept {
+    const auto& traits      = std::get<Index>(fields);
+    usertype[traits.name()] = traits.pointer();
+}
+
+template <typename Ty, typename Tuple, size_t... Is>
+inline void
+    bind_fields_to_lua(const Tuple& fields, sol::usertype<Ty>& usertype, std::index_sequence<Is...>) noexcept {
+    (bind_fields_to_lua_impl<Is>(fields, usertype), ...);
+}
+
+template <typename Index, typename Ty, typename Tuple>
+inline void bind_functions_to_lua_impl(
+    const Tuple& functions, sol::usertype<Ty>& usertype
+) noexcept {
+    const auto& traits      = std::get<Index>(functions);
+    usertype[traits.name()] = traits.pointer();
+}
+
+template <typename Ty, typename Tuple, size_t... Is>
+inline void
+    bind_functions_to_lua(const Tuple& functions, sol::usertype<Ty>& usertype, std::index_sequence<Is...>) noexcept {
+    (bind_functions_to_lua_impl<Is>(functions, usertype), ...);
+}
+
+} // namespace internal
+/*! @endcond */
+
+/**
+ * @brief Bind a usertype to lua state.
+ *
+ */
+template <typename Ty>
+inline sol::usertype<Ty> bind_to_lua(sol::state& lua) noexcept {
+    auto reflected = ::atom::utils::reflected<Ty>();
+
+    auto usertype = lua.new_usertype<Ty>(reflected.name());
+    if constexpr (std::is_default_constructible_v<Ty>) {
+        usertype["new"] = sol::constructors<Ty()>();
+    }
+
+    if constexpr (requires {
+                      ::atom::utils::reflected<Ty>();
+                      ::atom::utils::reflected<Ty>().fields();
+                  }) {
+    #if __has_include(<nlohmann/json.hpp>)
+        usertype["to_json"]   = &to_new_json<Ty>;
+        usertype["from_json"] = &set_from_json<Ty>;
+    #endif
+
+        const auto& fields = reflected.fields();
+        internal::bind_fields_to_lua<Ty>(
+            fields,
+            usertype,
+            std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(fields)>>>()
+        );
+    }
+
+    if constexpr (requires {
+                      ::atom::utils::reflected<Ty>();
+                      ::atom::utils::reflected<Ty>().functions();
+                  }) {
+        const auto& functions = reflected.functions();
+        internal::bind_functions_to_lua<Ty>(
+            functions,
+            usertype,
+            std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(functions)>>>()
+        );
+    }
+
+    return usertype;
+}
+
 #endif
