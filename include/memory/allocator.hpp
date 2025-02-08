@@ -4,7 +4,6 @@
 #include <type_traits>
 #include "concepts/mempool.hpp"
 #include "concepts/type.hpp"
-#include "core.hpp"
 #include "memory.hpp"
 
 namespace atom::utils {
@@ -56,6 +55,10 @@ struct standard_allocator final : public basic_allocator {
     template <typename T>
     using rebind_t = standard_allocator<T>;
 
+    static_assert(!std::is_const_v<Ty>);
+    static_assert(!std::is_function_v<Ty>);
+    static_assert(!std::is_reference_v<Ty>);
+
     standard_allocator() noexcept                                     = default;
     standard_allocator(const standard_allocator&) noexcept            = default;
     standard_allocator(standard_allocator&&) noexcept                 = default;
@@ -79,15 +82,11 @@ struct standard_allocator final : public basic_allocator {
         deallocate(static_cast<Ty*>(ptr), count);
     }
 
-    auto destroy(void* ptr) const noexcept(std::is_nothrow_destructible_v<Ty>) -> void override {
-        static_cast<Ty*>(ptr)->~Ty();
-    }
-
-    [[nodiscard]] Ty* allocate(const size_type count = 1) {
+    [[nodiscard]] constexpr Ty* allocate(const size_type count = 1) {
         return std::allocator<Ty>{}.allocate(count);
     }
 
-    void deallocate(Ty* ptr, const size_type count = 1) noexcept {
+    constexpr void deallocate(Ty* ptr, const size_type count = 1) noexcept {
         std::allocator<Ty>{}.deallocate(ptr, count);
     }
 };
@@ -113,11 +112,20 @@ public:
     template <typename Other, ::atom::utils::concepts::mempool Pool = MemoryPool>
     using rebind_t = allocator<Other, Pool>;
 
+    static_assert(!std::is_const_v<Ty>);
+    static_assert(!std::is_function_v<Ty>);
+    static_assert(!std::is_reference_v<Ty>);
+
     explicit constexpr allocator(const shared_type& pool
     ) noexcept(std::is_nothrow_copy_constructible_v<shared_type>)
         : pool_(pool) {}
 
-    explicit constexpr allocator(const MemoryPool& pool
+    template <typename = void>
+    requires requires(MemoryPool pool) {
+        pool.get();
+        { pool.get() } -> std::same_as<shared_type>;
+    }
+    explicit constexpr allocator(MemoryPool& pool
     ) noexcept(std::is_nothrow_copy_constructible_v<shared_type>)
         : pool_(pool.get()) {}
 
@@ -162,17 +170,6 @@ public:
         );
     }
 
-    template <typename... Args>
-    constexpr void construct(
-        Ty* const ptr, Args&&... args
-    ) noexcept(std::is_nothrow_constructible_v<Ty, Args...>) {
-        ::new (ptr) Ty(std::forward<Args>(args)...);
-    }
-
-    constexpr void destroy(Ty* const ptr) noexcept(std::is_nothrow_destructible_v<Ty>) {
-        ptr->~Ty();
-    }
-
     [[nodiscard]] bool operator==(const allocator& that) const noexcept {
         return pool_ == that.pool_;
     }
@@ -184,12 +181,6 @@ public:
     auto dealloc(void* ptr, const size_type count = 1) noexcept -> void override {
         deallocate(static_cast<Ty*>(ptr), count);
     }
-
-    auto destroy(void* ptr) const noexcept(std::is_nothrow_destructible_v<Ty>) -> void override {
-        static_cast<Ty*>(ptr)->~Ty();
-    }
-
-    void destroy(Ty* ptr) const noexcept(std::is_nothrow_destructible_v<Ty>) { ptr->~Ty(); }
 
 private:
     shared_type pool_;
