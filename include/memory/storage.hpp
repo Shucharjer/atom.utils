@@ -24,6 +24,28 @@ inline constexpr void destroy(
     destroyer(static_cast<void* const>(ptr));
 }
 
+template <typename Begin, typename End>
+constexpr void destroy_range(
+    Begin begin, End end
+) noexcept(std::is_nothrow_destructible_v<std::iter_value_t<Begin>>) {
+    using value_type = std::iter_value_t<Begin>;
+    if constexpr (!std::is_trivially_destructible_v<value_type>) {
+        for (; begin != end; ++begin) {
+            (*begin)->~value_type();
+        }
+    }
+}
+
+template <typename Ty>
+constexpr void destroy(Ty* const ptr) noexcept(std::is_nothrow_destructible_v<Ty>) {
+    if constexpr (std::is_array_v<Ty>) {
+        destroy_range(std::begin(*ptr), std::end(*ptr));
+    }
+    else if constexpr (!std::is_trivially_destructible_v<Ty>) {
+        ptr->~Ty();
+    }
+}
+
 } // namespace internal
 
 class basic_storage {
