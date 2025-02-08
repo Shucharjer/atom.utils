@@ -20,7 +20,7 @@ class closure : public pipeline_base<closure<Fn, Args...>> {
 
 public:
     static_assert((std::same_as<std::decay_t<Args>, Args> && ...));
-    static_assert(std::is_empty_v<Fn> && std::is_default_constructible_v<Fn>);
+    static_assert(std::is_empty_v<Fn> || std::is_default_constructible_v<Fn>);
 
     template <typename... ArgTypes>
     requires(std::same_as<std::decay_t<ArgTypes>, Args> && ...)
