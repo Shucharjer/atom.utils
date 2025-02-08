@@ -30,6 +30,10 @@ private:                                                                        
 public:                                                                                            \
     constexpr auto& fields() const noexcept { return fields_; }
 
+#define FUNC(funcname)                                                                             \
+    ::atom::utils::function_traits<decltype(&type::funcname)> { #funcname, &type::funcname }       \
+    //
+
 #define FUNCS(...)                                                                                 \
 private:                                                                                           \
     constexpr static auto funcs_ = std::make_tuple(__VA_ARGS__);                                   \
