@@ -40,10 +40,17 @@ public:
     // clang-format off
     constexpr compressed_element(const compressed_element&) 
         noexcept(std::is_nothrow_copy_constructible_v<Ty>)      = default;
-    constexpr compressed_element(compressed_element&&) noexcept = default;
+    constexpr compressed_element(compressed_element&& that) noexcept(
+        std::is_nothrow_move_constructible_v<Ty>) : value_(std::move(that.value_)) {}
     constexpr compressed_element& operator=(const compressed_element&)
         noexcept(std::is_nothrow_copy_assignable_v<Ty>)                    = default;
-    constexpr compressed_element& operator=(compressed_element&&) noexcept = default;
+    constexpr compressed_element& operator=(compressed_element&& that) noexcept(
+        std::is_nothrow_move_constructible_v<Ty>) {
+        if (this != &that) {
+            value_ = std::move(that.value_);
+        }
+        return *this;
+    }
     // clang-format on
 
     constexpr ~compressed_element() noexcept(std::is_nothrow_destructible_v<Ty>) = default;
@@ -87,6 +94,12 @@ public:
 
     constexpr compressed_element& operator=(nullptr_t) noexcept {
         value_ = nullptr;
+        return *this;
+    }
+
+    template <typename T>
+    constexpr compressed_element& operator=(T* value) noexcept {
+        value_ = value;
         return *this;
     }
 
@@ -248,13 +261,13 @@ public:
 
     constexpr compressed_pair(compressed_pair&& that
     ) noexcept(std::is_nothrow_move_constructible_v<first_base> && std::is_nothrow_move_constructible_v<second_base>)
-        : first_base(std::move(static_cast<first_base&>(that))),
-          second_base(std::move(static_cast<second_base&>(that))) {}
+        : first_base(std::move(static_cast<first_base&&>(that))),
+          second_base(std::move(static_cast<second_base&&>(that))) {}
 
     constexpr compressed_pair& operator=(compressed_pair&& that
     ) noexcept(std::is_nothrow_move_assignable_v<first_base> && std::is_nothrow_move_assignable_v<second_base>) {
-        first()  = std::move(that.first());
-        second() = std::move(that.second());
+        static_cast<first_base&>(*this) = std::move(static_cast<first_base&&>(that));
+        static_cast<second_base&>(*this) = std::move(static_cast<second_base&&>(that));
         return *this;
     }
 
