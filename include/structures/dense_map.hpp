@@ -1,10 +1,8 @@
 #pragma once
 #include <concepts>
 #include <initializer_list>
-#include "concepts.hpp"
 #include "core.hpp"
 #include "core/pair.hpp"
-#include "memory.hpp"
 #include "memory/allocator.hpp"
 #include "memory/storage.hpp"
 #include "structures.hpp"
@@ -210,42 +208,20 @@ public:
         auto offset = offset_of(key);
 
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        auto current_page_count = sparse_.size();
         try {
             check_page(page);
-
             sparse_[page]->at(offset) = alloc_n_dense_.second().size();
             try {
                 alloc_n_dense_.second().emplace_back(key, std::forward<ValTy>(val));
             }
             catch (...) {
                 sparse_[page]->at(offset) = 0;
+                throw;
             }
         }
         catch (...) {
-            pop_page_to(page);
-        }
-    }
-
-    template <typename... Args>
-    requires std::is_constructible_v<value_type, Args...>
-    void emplace(Args&&... args) {
-        auto val    = value_type(std::forward<Args>(args)...);
-        auto page   = page_of(val.first);
-        auto offset = offset_of(val.first);
-
-        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
-        try {
-            check_page(page);
-            sparse_[page]->at(offset) = alloc_n_dense_.second().size();
-            try {
-                alloc_n_dense_.second().emplace_back(std::move(val));
-            }
-            catch (...) {
-                sparse_[page]->at(offset) = 0;
-            }
-        }
-        catch (...) {
-            pop_page_to(page);
+            pop_page_to(current_page_count);
         }
     }
 
@@ -266,7 +242,7 @@ public:
         erase_without_check(page, offset);
     }
 
-    auto contains(const key_type key) -> bool {
+    auto contains(const key_type key) const -> bool {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         return contains_impl(key, page, offset);
