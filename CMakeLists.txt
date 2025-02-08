@@ -15,6 +15,10 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+# CMake
+
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
+
 include_directories(include)
 
 add_library(Utils INTERFACE)
@@ -27,9 +31,83 @@ target_include_directories(Utils INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_sources(Utils INTERFACE
-    # the fellow line is a template    
-    # $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/>
+option(Utils_INCLUDE_HEADERS OFF)
+
+if (Utils_INCLUDE_HEADERS)
+    target_sources(Utils INTERFACE
+        # the fellow line is a template    
+        # $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/auxiliary.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/auxiliary/singleton.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concepts.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concpets/allocator.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concepts/mempool.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concepts/ranges.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concepts/type.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concepts/uconceptdef.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/closure.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/langdef.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/pair.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/pipeline.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/tuple.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/type_traits.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/type.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/memory.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/memory/allocator.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/memory/around_ptr.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/memory/pool.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/memory/storage.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/misc.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/misc/timer.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges/iterator.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges/to.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/constexpr_extend.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/extend.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/field_traits.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/function_triats.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/hash.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/macros.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/reflected.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/register.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/registry.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/delegate.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/sink.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/dispatcher.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/dense_map.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/dense_set.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/linear.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/map.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/set.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/string.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/tstring.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/corotine.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/lock_keeper.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/lock.hpp>
+        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/thread_pool.hpp>
+    )
+endif()
+
+include(JoinPaths)
+
+set(Utils_PKGCONFIG ${CMAKE_CURRENT_BINARY_DIR}/utils.pc)
+
+join_paths(Utils_PKGCONFIG_INCLUDEDIR "\${prefix}" "CMAKE_INSTALL_INCLUDEDIR")
+
+configure_file(
+    ${Utils_SOURCE_DIR}/cmake/in/utils.pc.in
+    ${Utils_PKGCONFIG}
+    @ONLY
+)
+
+install(
+    FILES ${Utils_PKGCONFIG}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
 include(CMakePackageConfigHelpers)
@@ -63,8 +141,7 @@ install(
 )
 
 install(
-    FILES
-        ${PROJECT_BINARY_DIR}/UtilsConfig.cmake
+    FILES ${PROJECT_BINARY_DIR}/UtilsConfig.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake
 )
 
@@ -117,6 +194,7 @@ if(BUILD_UTILS_DOCS)
 endif()
 
 option(BUILD_UTILS_TEST OFF)
+set(BUILD_UTILS_TEST ON)
 
 if(BUILD_UTILS_TEST)
 

@@ -1,0 +1,7 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=@Utils_PKGCONFIG_INCLUDEDIR@
+
+Name: Utils
+Description: A collection of basic tools.
+Url: https://github.com/Shucharjer/atom.utils
+Cflags: -I${includedir}
