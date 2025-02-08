@@ -20,8 +20,8 @@ template <typename Destroyer, typename Ty>
 inline constexpr void destroy(
     Ty* const ptr, const Destroyer& destroyer
 ) noexcept(std::is_nothrow_destructible_v<Ty>) {
-    static_assert(std::is_invocable_v<Destroyer, Ty* const>);
-    destroyer(ptr);
+    static_assert(std::is_invocable_v<Destroyer, void* const>);
+    destroyer(static_cast<void* const>(ptr));
 }
 
 } // namespace internal
@@ -66,7 +66,7 @@ struct default_destroyer {
     template <typename T>
     using rebind_t = default_destroyer<T>;
 
-    inline constexpr void operator()(Ty* const ptr) const noexcept { ptr->~Ty(); }
+    inline constexpr void operator()(Ty* const ptr) const noexcept { internal::destroy(ptr); }
 };
 
 struct with_allocator_t {};
@@ -118,27 +118,24 @@ public:
     constexpr explicit unique_storage(
         const Allocator& allocator = Allocator()
     ) noexcept(std::is_nothrow_default_constructible_v<allocator_type>)
-        : pair_(nullptr, allocator),
-          destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {}
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {}
 
     constexpr explicit unique_storage(
         const Ty* ptr, const Allocator& allocator = Allocator()
     ) noexcept(std::is_nothrow_default_constructible_v<allocator_type>)
-        : pair_(ptr, allocator), destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
-    }
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(ptr) {}
 
     template <typename Destroyer>
     constexpr explicit unique_storage(const Ty* ptr, with_destroyer_t, Destroyer destroyer)
-        : pair_(ptr, Allocator()), destroyer_(internal::wrap_destroyer<Ty>(destroyer)) {}
+        : pair_(internal::wrap_destroyer<Ty>(destroyer), Allocator()), val_(ptr) {}
 
     constexpr explicit unique_storage(construct_at_once_t, const Allocator& allocator = Allocator{})
-        : pair_(nullptr, allocator),
-          destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {
         Ty* ptr = nullptr;
         try {
             ptr = pair_.second().allocate(1);
             ::new (ptr) Ty();
-            pair_.first() = std::launder(ptr);
+            val_ = std::launder(ptr);
         }
         catch (...) {
             if (ptr) {
@@ -150,13 +147,12 @@ public:
 
     template <typename... Args>
     explicit unique_storage(Args&&... args, const Allocator& allocator = Allocator{})
-        : pair_(nullptr, allocator),
-          destroyer_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {
         Ty* ptr = nullptr;
         try {
             ptr = pair_.second().allocate(1);
             ::new (ptr) Ty(std::forward<Args>(args)...);
-            pair_.first() = std::launder(ptr);
+            val_ = std::launder(ptr);
         }
         catch (...) {
             if (ptr) {
@@ -169,73 +165,67 @@ public:
     unique_storage(const unique_storage& that) = delete;
 
     constexpr unique_storage(unique_storage&& that) noexcept
-        : pair_(std::move(that.pair_)), destroyer_(that.destroyer_) {}
+        : pair_(std::move(that.pair_)), val_(std::exchange(that.val_, nullptr)) {}
 
     unique_storage& operator=(const unique_storage& that) = delete;
 
     constexpr unique_storage& operator=(unique_storage&& that) noexcept {
         if (this != &that) {
             pair_ = std::move(that.pair_);
+            val_  = std::exchange(that.val_, nullptr);
         }
 
         return *this;
     }
 
-    constexpr ~unique_storage() noexcept(std::is_nothrow_destructible_v<Ty>) override {
-        if (pair_.first()) {
-            internal::destroy(pair_.first(), destroyer_);
-            pair_.second().deallocate(pair_.first(), 1);
-        }
+    constexpr ~unique_storage() noexcept(std::is_nothrow_destructible_v<Ty>) override { release(); }
+
+    auto raw() noexcept -> void* override { return static_cast<void*>(val_); }
+    [[nodiscard]] auto raw() const noexcept -> const void* override {
+        return static_cast<void*>(val_);
     }
 
-    auto raw() noexcept -> void* override { return pair_.first(); }
-    [[nodiscard]] auto raw() const noexcept -> const void* override { return pair_.first(); }
+    constexpr explicit operator bool() const noexcept override { return val_; }
 
-    constexpr explicit operator bool() const noexcept override { return pair_.first(); }
-
-    constexpr auto get() noexcept -> Ty* { return pair_.first(); }
-    [[nodiscard]] constexpr auto get() const noexcept -> const Ty* { return pair_.first(); }
+    constexpr auto get() noexcept -> Ty* { return val_; }
+    [[nodiscard]] constexpr auto get() const noexcept -> const Ty* { return val_; }
 
     template <typename Val>
     unique_storage& operator=(Val&& val) {
-        auto& val_ = pair_.first();
-
         if (val_) {
             *val_ = std::forward<Val>(val);
         }
         else {
-            val_ = pair_.second().allocate();
-            ::new (val_) Ty(std::forward<Val>(val));
-            val_ = std::launder(val_);
+            auto* ptr = pair_.second().allocate();
+            ::new (ptr) Ty(std::forward<Val>(val));
+            val_ = std::launder(ptr);
         }
 
         return *this;
     }
 
-    constexpr auto operator->() noexcept -> Ty* { return pair_.first(); }
-    [[nodiscard]] constexpr auto operator->() const noexcept -> const Ty* { return pair_.first(); }
+    constexpr auto operator->() noexcept -> Ty* { return val_; }
+    [[nodiscard]] constexpr auto operator->() const noexcept -> const Ty* { return val_; }
 
     constexpr void reset() {
-        auto& val_ = pair_.first();
-
         if (val_) [[likely]] {
-            internal::destroy(val_, destroyer_);
+            pair_.first()(static_cast<void*>(val_));
+            pair_.second().deallocate(val_, 1);
             val_ = nullptr;
         }
     }
 
     constexpr void release() {
-        auto& val_ = pair_.first();
-
         if (val_) [[likely]] {
-            internal::destroy(val_, destroyer_);
+            pair_.first()(static_cast<void*>(val_));
+            pair_.second().deallocate(val_, 1);
             val_ = nullptr;
         }
     }
 
 private:
-    compressed_pair<Ty*, allocator_type> pair_;
-    void (*destroyer_)(void*);
+    compressed_pair<void (*)(void*), allocator_type> pair_;
+    Ty* val_;
 };
 
 template <typename Ty, ::atom::utils::concepts::rebindable_allocator Allocator>
