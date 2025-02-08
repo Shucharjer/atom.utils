@@ -78,7 +78,7 @@ private:
  * @return closure<Fn, std::decay_t<Args>...> Closure.
  */
 template <typename Fn, typename... Args>
-constexpr static auto make_closure(Args&&... args) -> closure<Fn, std::decay_t<Args>...> {
+constexpr static inline auto make_closure(Args&&... args) -> closure<Fn, std::decay_t<Args>...> {
     return closure<Fn, std::decay_t<Args>...>(std::forward<Args>(args)...);
 }
 

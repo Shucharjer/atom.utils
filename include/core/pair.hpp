@@ -266,7 +266,7 @@ public:
 
     constexpr compressed_pair& operator=(compressed_pair&& that
     ) noexcept(std::is_nothrow_move_assignable_v<first_base> && std::is_nothrow_move_assignable_v<second_base>) {
-        static_cast<first_base&>(*this) = std::move(static_cast<first_base&&>(that));
+        static_cast<first_base&>(*this)  = std::move(static_cast<first_base&&>(that));
         static_cast<second_base&>(*this) = std::move(static_cast<second_base&&>(that));
         return *this;
     }
@@ -673,7 +673,7 @@ concept reversible_pair = requires {
  */
 template <typename Pair>
 requires internal::reversible_pair<std::remove_cv_t<Pair>>
-constexpr decltype(auto) reverse(Pair& pair) noexcept {
+constexpr inline decltype(auto) reverse(Pair& pair) noexcept {
     using result_type = typename UTILS same_cv_t<reversed_result_t<std::remove_cv_t<Pair>>, Pair>;
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<result_type&>(pair);
@@ -693,7 +693,7 @@ constexpr decltype(auto) reverse(Pair& pair) noexcept {
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr auto& get(::atom::utils::compressed_pair<First, Second>& pair) noexcept {
+constexpr inline auto& get(::atom::utils::compressed_pair<First, Second>& pair) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
         return pair.first();
@@ -712,7 +712,8 @@ constexpr auto& get(::atom::utils::compressed_pair<First, Second>& pair) noexcep
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr const auto& get(const ::atom::utils::compressed_pair<First, Second>& pair) noexcept {
+constexpr inline const auto& get(const ::atom::utils::compressed_pair<First, Second>& pair
+) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
         return pair.first();
@@ -731,7 +732,7 @@ constexpr const auto& get(const ::atom::utils::compressed_pair<First, Second>& p
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr auto& get(::atom::utils::reversed_compressed_pair<First, Second>& pair) noexcept {
+constexpr inline auto& get(::atom::utils::reversed_compressed_pair<First, Second>& pair) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
         return pair.first();
@@ -750,7 +751,7 @@ constexpr auto& get(::atom::utils::reversed_compressed_pair<First, Second>& pair
  * @return Element reference.
  */
 template <size_t Index, typename First, typename Second>
-constexpr const auto& get(const ::atom::utils::reversed_compressed_pair<First, Second>& pair
+constexpr inline const auto& get(const ::atom::utils::reversed_compressed_pair<First, Second>& pair
 ) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
     if constexpr (Index == 0U) {
@@ -766,7 +767,7 @@ template <
     typename First,
     typename Second,
     template <typename, typename> typename Pair>
-constexpr inline auto get(pair_wrapper<First, Second, Pair>& pair) noexcept {
+constexpr inline auto& get(pair_wrapper<First, Second, Pair>& pair) noexcept {
     static_assert(Index < 2, "Index out of range");
     if constexpr (Index) {
         return pair.second();
@@ -781,7 +782,7 @@ template <
     typename First,
     typename Second,
     template <typename, typename> typename Pair>
-constexpr inline auto get(const pair_wrapper<First, Second, Pair>& pair) noexcept {
+constexpr inline const auto& get(const pair_wrapper<First, Second, Pair>& pair) noexcept {
     static_assert(Index < 2, "Index out of range");
     if constexpr (Index) {
         return pair.second();

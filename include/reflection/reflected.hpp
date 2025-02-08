@@ -308,7 +308,9 @@ constexpr inline void set_from_json(Ty& self, const nlohmann::json& json) noexce
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal::reflection {
 template <size_t Index, typename Ty, typename Tuple>
-auto tag_invoke_impl(simdjson::ondemand::object& obj, Ty& object, const Tuple& fields) noexcept {
+static inline auto tag_invoke_impl(
+    simdjson::ondemand::object& obj, Ty& object, const Tuple& fields
+) noexcept {
     const auto& traits = std::get<Index>(fields);
     auto inst          = obj[traits.name()];
     auto& elem         = traits.get(object);
@@ -340,7 +342,8 @@ auto tag_invoke_impl(simdjson::ondemand::object& obj, Ty& object, const Tuple& f
 }
 
 template <typename Ty, typename Tuple, size_t... Is>
-auto tag_invoke(simdjson::ondemand::object& obj, Ty& object, const Tuple& fields, std::index_sequence<Is...>) noexcept {
+static inline auto
+    tag_invoke(simdjson::ondemand::object& obj, Ty& object, const Tuple& fields, std::index_sequence<Is...>) noexcept {
     return (tag_invoke_impl<Is>(obj, object, fields), ...);
 }
 } // namespace internal::reflection
@@ -350,7 +353,7 @@ template <typename simdjson_value, typename Ty>
 requires(
     std::tuple_size_v<std::remove_cvref_t<decltype(::atom::utils::reflected<Ty>().fields())>> != 0
 )
-auto tag_invoke(simdjson::deserialize_tag, simdjson_value& val, Ty& object) noexcept {
+inline auto tag_invoke(simdjson::deserialize_tag, simdjson_value& val, Ty& object) noexcept {
     ondemand::object obj;
     auto error = val.get_object().get(obj);
     if (error) [[unlikely]] {

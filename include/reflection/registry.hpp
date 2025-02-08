@@ -108,19 +108,19 @@ public:
     }
 
 protected:
-    static auto registered() -> std::unordered_map<
+    static inline auto registered() -> std::unordered_map<
         default_id_t,
         std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>>>& {
         static std::unordered_map<default_id_t, pointer> registered;
         return registered;
     }
 
-    static auto mutex() -> std::shared_mutex& {
+    static inline auto mutex() -> std::shared_mutex& {
         static std::shared_mutex mutex;
         return mutex;
     }
 
-    static auto next_id() -> default_id_t {
+    static inline auto next_id() -> default_id_t {
         static std::atomic<default_id_t> current_id;
         auto next_id = current_id.load(std::memory_order_acquire);
         current_id.fetch_add(1, std::memory_order_release);
