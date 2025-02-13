@@ -112,9 +112,9 @@ AllowShortLoopsOnASingleLine: false
 
 # Bin是装箱的意思，这里可以理解为让它紧凑
 # 装箱实参
-BinPackArguments: false
+BinPackArguments: true
 # 装箱形参
-BinPackParameters: false
+BinPackParameters: true
 # 模板后换行
 AlwaysBreakTemplateDeclarations: Yes
 # 括号列表
