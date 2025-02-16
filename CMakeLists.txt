@@ -19,8 +19,6 @@ endif()
 
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
-include_directories(include)
-
 add_library(Utils INTERFACE)
 add_library(Atom::Utils ALIAS Utils)
 
@@ -194,7 +192,6 @@ if(BUILD_UTILS_DOCS)
 endif()
 
 option(BUILD_UTILS_TEST OFF)
-set(BUILD_UTILS_TEST ON)
 
 if(BUILD_UTILS_TEST)
 

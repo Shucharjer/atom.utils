@@ -40,18 +40,12 @@ concept common_constructible =
          std::input_iterator_tag>) &&
     // constructible from iterator (and arguments)
     std::constructible_from<
-        Container,
-        std::ranges::iterator_t<Rng>,
-        std::ranges::iterator_t<Rng>,
-        Args...>;
+        Container, std::ranges::iterator_t<Rng>, std::ranges::iterator_t<Rng>, Args...>;
 
 // concept: can_emplace_back
 template <typename Container, typename Reference>
-// clang-format off
-concept can_emplace_back = requires(Container& cnt) {
-    // clang-format on
-    cnt.emplace_back(std::declval<Reference>());
-};
+concept can_emplace_back =
+    requires(Container& cnt) { cnt.emplace_back(std::declval<Reference>()); };
 
 // concept: can_push_back
 template <typename Container, typename Reference>
@@ -59,19 +53,13 @@ concept can_push_back = requires(Container& cnt) { cnt.push_back(std::declval<Re
 
 // concept: can_emplace_end
 template <typename Container, typename Reference>
-// clang-format off
-concept can_emplace_end = requires(Container& cnt) {
-    // clang-format on
-    cnt.emplace(cnt.end(), std::declval<Reference>());
-};
+concept can_emplace_end =
+    requires(Container& cnt) { cnt.emplace(cnt.end(), std::declval<Reference>()); };
 
 // concept: can_insert_end
 template <typename Container, typename Reference>
-// clang-format off
-concept can_insert_end = requires(Container& cnt) {
-    // clang-format on
-    cnt.insert(cnt.end(), std::declval<Reference>());
-};
+concept can_insert_end =
+    requires(Container& cnt) { cnt.insert(cnt.end(), std::declval<Reference>()); };
 
 // concept: constructible_appendable
 /**

@@ -63,8 +63,7 @@ public:
     void bind() noexcept {
         static_assert(
             std::is_invocable_r_v<Ret, decltype(Candidate), Args...>,
-            "'Candidate' should be a complete function."
-        );
+            "'Candidate' should be a complete function.");
 
         context_  = nullptr;
         function_ = [](void const*, Args... args) -> Ret {
@@ -83,8 +82,7 @@ public:
     void bind(Type& instance) noexcept {
         static_assert(
             std::is_invocable_r_v<Ret, decltype(Candidate), Type*, Args...>,
-            "'Candidate' should be a complete function."
-        );
+            "'Candidate' should be a complete function.");
 
         context_  = &instance;
         function_ = [](void const* payload, Args... args) -> Ret {

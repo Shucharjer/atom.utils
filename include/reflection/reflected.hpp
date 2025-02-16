@@ -1,9 +1,7 @@
 #pragma once
-#include <type_traits>
+#include <string_view>
 #include "concepts/type.hpp"
-#include "reflection.hpp"
-#include "reflection/constexpr_extend.hpp"
-#include "reflection/extend.hpp"
+#include "description.hpp"
 #include "reflection/hash.hpp"
 #include "structures/tstring.hpp"
 
@@ -19,36 +17,22 @@ constexpr static inline std::tuple<> empty_tuple{};
 /**
  * @brief Recording basic information about a type.
  *
- * @tparam BasicConstexprExtend Basic compile time information.
  */
-template <::atom::utils::concepts::pure BasicConstexprExtend>
 struct basic_reflected {
 public:
-    constexpr explicit basic_reflected(const char* const name)
-        : basic_reflected(name, utils::hash(name)) {}
-
-    constexpr explicit basic_reflected(std::string_view name)
-        : basic_reflected(name.data(), hash) {}
-
-    constexpr basic_reflected() : basic_reflected(internal::empty_string.data()) {}
-
-    template <typename TString>
-    requires std::is_base_of_v<::atom::utils::basic_tstring, TString>
-    constexpr explicit basic_reflected(std::size_t hash)
-        : name_(std::make_shared<TString>()), hash_(hash) {}
-
     constexpr basic_reflected(const basic_reflected&)            = default;
     constexpr basic_reflected& operator=(const basic_reflected&) = default;
 
     constexpr basic_reflected(basic_reflected&& obj) noexcept
-        : name_(obj.name_), hash_(obj.hash_) {}
+        : name_(obj.name_), hash_(obj.hash_), description_(obj.description_) {}
     constexpr basic_reflected& operator=(basic_reflected&& obj) noexcept {
-        name_ = obj.name_;
-        hash_ = obj.hash_;
+        name_        = obj.name_;
+        hash_        = obj.hash_;
+        description_ = obj.description_;
         return *this;
     }
 
-    constexpr virtual ~basic_reflected() = default;
+    constexpr ~basic_reflected() = default;
 
     /**
      * @brief Get the name of this reflected type.
@@ -64,58 +48,17 @@ public:
      */
     [[nodiscard]] constexpr auto hash() const -> std::size_t { return hash_; }
 
-    /**
-     * @brief Get the compile time extend information.
-     *
-     * @return const BasicConstexprExtend&
-     */
-    [[nodiscard]] constexpr auto cextend() const -> const BasicConstexprExtend& {
-        return get_constexpr_extend();
-    }
-
-    /**
-     * @brief Get the runtime extend information.
-     *
-     * @return auto&
-     */
-    [[nodiscard]] auto& extend() { return get_extend(); }
-    /**
-     * @brief
-     *
-     * @return const auto&
-     */
-    [[nodiscard]] const auto& extend() const { return get_extend(); }
+    [[nodiscard]] constexpr auto description() const -> description_bits { return description_; }
 
 protected:
-    static void relocate(basic_reflected& reflected, const char* name) {
-        reflected.name_ = name;
-        reflected.hash_ = utils::hash(name);
-    }
-
-    constexpr explicit basic_reflected(const char* const name, const std::size_t hash)
-        : name_(name), hash_(hash) {}
+    constexpr explicit basic_reflected(
+        const char* const name, const std::size_t hash, description_bits description)
+        : name_(name), hash_(hash), description_(description) {}
 
 private:
     const char* name_;
     std::size_t hash_;
-
-    constexpr static auto default_constexpr_extend_ = BasicConstexprExtend();
-
-    [[nodiscard]] virtual auto get_constexpr_extend() const -> const BasicConstexprExtend& {
-        return default_constexpr_extend_;
-    }
-
-    /**
-     * @brief Get the static instance contains extend information.
-     * Cheshire Cat.
-     *
-     * @return The shared pointer of extend.
-     */
-    static auto get_extend() -> std::shared_ptr<struct extend>& {
-        // Cheshire Cat Idioms
-        static std::shared_ptr<struct extend> extend_ = std::make_shared<struct extend>();
-        return extend_;
-    }
+    description_bits description_;
 };
 
 /**
@@ -125,18 +68,16 @@ private:
  * @tparam BaseConstexprExtend A type contains basic compile time extend information.
  * @tparam ConstexprExtend A type contains advanced compile time extend information.
  */
-template <
-    ::atom::utils::concepts::pure Ty,
-    ::atom::utils::concepts::pure BasicConstexprExtend,
-    template <::atom::utils::concepts::pure> typename ConstexprExtend>
-struct reflected final : public ::atom::utils::basic_reflected<BasicConstexprExtend> {
-    using type = Ty;
-    constexpr reflected() : ::atom::utils::basic_reflected<BasicConstexprExtend>() {
-        auto name = get_name();
-        basic_reflected<BasicConstexprExtend>::relocate(
-            static_cast<basic_reflected<BasicConstexprExtend>&>(*this), name
-        );
-    }
+template <concepts::pure Ty>
+struct reflected final : public ::atom::utils::basic_reflected {
+    constexpr reflected() noexcept
+        : ::atom::utils::basic_reflected(name_of<Ty>(), hash_of<Ty>(), description_of<Ty>) {}
+
+    reflected(const reflected&) noexcept            = default;
+    reflected(reflected&&) noexcept                 = default;
+    reflected& operator=(const reflected&) noexcept = default;
+    reflected& operator=(reflected&&) noexcept      = default;
+    constexpr ~reflected() noexcept                 = default;
 
     /**
      * @brief Fields exploded to outside in the type.
@@ -144,16 +85,9 @@ struct reflected final : public ::atom::utils::basic_reflected<BasicConstexprExt
      * @return constexpr const auto& A tuple contains function traits.
      */
     constexpr const auto& fields() const {
-        if constexpr (requires(const Ty& obj) { Ty::reflect(static_cast<Ty*>(nullptr)); } &&
-                      std::is_default_constructible_v<Ty>) {
-            return Ty{}.reflect(static_cast<const Ty*>(nullptr));
-        }
-        else if constexpr (requires { reflect(static_cast<Ty*>(nullptr)); }) {
-            return reflect(static_cast<const Ty*>(nullptr));
-        }
-        else if constexpr (requires(const Ty& obj) { obj.reflect(); } &&
-                           std::is_default_constructible_v<Ty>) {
-            return Ty{}.reflect();
+        if constexpr (concepts::aggregate<Ty>) {}
+        else if constexpr (concepts::has_field_traits<Ty>) {
+            return Ty::field_traits();
         }
         else {
             return internal::empty_tuple;
@@ -165,19 +99,13 @@ struct reflected final : public ::atom::utils::basic_reflected<BasicConstexprExt
      *
      * @return constexpr const auto& A tuple contains function traits.
      */
-    constexpr const auto& functions() const { return internal::empty_tuple; }
-
-private:
-    constexpr static auto constexpr_extend_ = ::atom::utils::constexpr_extend<type>();
-
-    static inline const char* get_name() {
-        static std::string name = internal::process_name(typeid(Ty).name());
-        return name.data();
-    }
-
-    [[nodiscard]] constexpr auto get_constexpr_extend() const
-        -> const ::atom::utils::basic_constexpr_extend& override {
-        return constexpr_extend_;
+    constexpr const auto& functions() const {
+        if constexpr (concepts::has_function_traits<Ty>) {
+            return Ty::function_traits();
+        }
+        else {
+            return internal::empty_tuple;
+        }
     }
 };
 
@@ -216,169 +144,6 @@ consteval std::size_t index_of(const Tuple& tuple) {
 
 } // namespace atom::utils
 
-#if __has_include(<nlohmann/json.hpp>)
-    #include <nlohmann/json.hpp>
-    #include "core/type_traits.hpp"
-
-/*! @cond TURN_OFF_DOXYGEN */
-namespace internal::reflection {
-
-template <std::size_t Index, typename Ty, typename Tuple>
-constexpr void to_json_impl(nlohmann::json& json, const Ty& obj, const Tuple& tuple) {
-    json[std::get<Index>(tuple).name()] = std::get<Index>(tuple).get(obj);
-}
-
-template <typename Ty, typename Tuple, std::size_t... Is>
-constexpr void
-    to_json(nlohmann::json& json, const Ty& obj, const Tuple& tuple, std::index_sequence<Is...>) {
-    (to_json_impl<Is>(json, obj, tuple), ...);
-}
-
-template <std::size_t Index, typename Ty, typename Tuple>
-constexpr void from_json_impl(const nlohmann::json& json, Ty& obj, const Tuple& tuple) {
-    json.at(std::get<Index>(tuple).name()).get_to(std::get<Index>(tuple).get(obj));
-}
-
-template <typename Ty, typename Tuple, std::size_t... Is>
-constexpr void
-    from_json(const nlohmann::json& json, Ty& obj, const Tuple& tuple, std::index_sequence<Is...>) {
-    (from_json_impl<Is>(json, obj, tuple), ...);
-}
-
-} // namespace internal::reflection
-/*! @endcond */
-
-/**
- * @brief Store an instance's information into a `nlohmann::json` object.
- *
- */
-template <typename Ty>
-constexpr inline void to_json(nlohmann::json& json, const Ty& obj) {
-    using pure_t       = std::remove_cvref_t<Ty>;
-    const auto& fields = ::atom::utils::reflected<pure_t>().fields();
-    internal::reflection::to_json<Ty>(
-        json, obj, fields, std::make_index_sequence<::atom::utils::tuple_size_v<decltype(fields)>>()
-    );
-}
-
-/**
- * @brief Construct a new json object.
- *
- * This function is mainly for lua support.
- */
-template <typename Ty>
-constexpr inline nlohmann::json to_new_json(const Ty& self) {
-    nlohmann::json json;
-    to_json(json, self);
-    return json;
-}
-
-/**
- * @brief Restore an instance's information from a `nlohmann::json` object.
- *
- */
-template <typename Ty>
-constexpr inline void from_json(const nlohmann::json& json, Ty& obj) {
-    using pure_t       = std::remove_cvref_t<Ty>;
-    const auto& fields = ::atom::utils::reflected<pure_t>().fields();
-    internal::reflection::from_json(
-        json, obj, fields, std::make_index_sequence<::atom::utils::tuple_size_v<decltype(fields)>>()
-    );
-}
-
-/**
- * @brief Set a json object from a specific object.
- *
- * This function is mainly for support lua.
- */
-template <typename Ty>
-requires std::is_default_constructible_v<Ty>
-constexpr inline void set_from_json(Ty& self, const nlohmann::json& json) noexcept {
-    from_json(json, self);
-}
-
-#endif
-
-#if __has_include(<simdjson.h>)
-    #include <simdjson.h>
-
-// Support for simdjson.
-// This mainly for higher performance when parsing json document.
-
-/*! @cond TURN_OFF_DOXYGEN */
-namespace internal::reflection {
-template <size_t Index, typename Ty, typename Tuple>
-static inline auto tag_invoke_impl(
-    simdjson::ondemand::object& obj, Ty& object, const Tuple& fields
-) noexcept {
-    const auto& traits = std::get<Index>(fields);
-    auto inst          = obj[traits.name()];
-    auto& elem         = traits.get(object);
-    using elem_t       = std::remove_cvref_t<decltype(elem)>;
-    if constexpr (std::is_same_v<elem_t, bool>) {
-        return inst.get_bool(elem);
-    }
-    else if constexpr (std::is_same_v<elem_t, uint64_t>) {
-        return inst.get_uint64(elem);
-    }
-    else if constexpr (std::is_same_v<elem_t, int64_t>) {
-        return inst.get_int64(elem);
-    }
-    else if constexpr (std::is_same_v<elem_t, double>) {
-        return inst.get_double(elem);
-    }
-    else if constexpr (std::is_same_v<elem_t, std::string_view>) {
-        return inst.get_string(elem);
-    }
-    else if constexpr (std::is_same_v<elem_t, simdjson::ondemand::object>) {
-        return inst.get_object(elem);
-    }
-    else if constexpr (std::is_same_v<elem_t, simdjson::ondemand::array>) {
-        return inst.get_array(elem);
-    }
-    else {
-        return inst.get(elem);
-    }
-}
-
-template <typename Ty, typename Tuple, size_t... Is>
-static inline auto
-    tag_invoke(simdjson::ondemand::object& obj, Ty& object, const Tuple& fields, std::index_sequence<Is...>) noexcept {
-    return (tag_invoke_impl<Is>(obj, object, fields), ...);
-}
-} // namespace internal::reflection
-
-namespace simdjson {
-template <typename simdjson_value, typename Ty>
-requires(
-    std::tuple_size_v<std::remove_cvref_t<decltype(::atom::utils::reflected<Ty>().fields())>> != 0
-)
-inline auto tag_invoke(simdjson::deserialize_tag, simdjson_value& val, Ty& object) noexcept {
-    ondemand::object obj;
-    auto error = val.get_object().get(obj);
-    if (error) [[unlikely]] {
-        return error;
-    }
-
-    using pure_t       = std::remove_cvref_t<Ty>;
-    const auto& fields = ::atom::utils::reflected<pure_t>().fields();
-    if (error = ::internal::reflection::tag_invoke(
-            obj,
-            object,
-            fields,
-            std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(fields)>>>()
-        );
-        error) [[unlikely]] {
-        return error;
-    }
-
-    return simdjson::SUCCESS;
-}
-} // namespace simdjson
-
-/*! @endcond */
-#endif
-
 #if __has_include(<lua.hpp>) && __has_include(<sol/sol.hpp>)
     #include <sol/sol.hpp>
 
@@ -392,22 +157,21 @@ inline void bind_fields_to_lua_impl(const Tuple& fields, sol::usertype<Ty>& user
 }
 
 template <typename Ty, typename Tuple, size_t... Is>
-inline void
-    bind_fields_to_lua(const Tuple& fields, sol::usertype<Ty>& usertype, std::index_sequence<Is...>) noexcept {
+inline void bind_fields_to_lua(
+    const Tuple& fields, sol::usertype<Ty>& usertype, std::index_sequence<Is...>) noexcept {
     (bind_fields_to_lua_impl<Is>(fields, usertype), ...);
 }
 
 template <size_t Index, typename Ty, typename Tuple>
 inline void bind_functions_to_lua_impl(
-    const Tuple& functions, sol::usertype<Ty>& usertype
-) noexcept {
+    const Tuple& functions, sol::usertype<Ty>& usertype) noexcept {
     const auto& traits      = std::get<Index>(functions);
     usertype[traits.name()] = traits.pointer();
 }
 
 template <typename Ty, typename Tuple, size_t... Is>
-inline void
-    bind_functions_to_lua(const Tuple& functions, sol::usertype<Ty>& usertype, std::index_sequence<Is...>) noexcept {
+inline void bind_functions_to_lua(
+    const Tuple& functions, sol::usertype<Ty>& usertype, std::index_sequence<Is...>) noexcept {
     (bind_functions_to_lua_impl<Is>(functions, usertype), ...);
 }
 
@@ -438,10 +202,8 @@ inline sol::usertype<Ty> bind_to_lua(sol::state& lua) noexcept {
 
         const auto& fields = reflected.fields();
         internal::bind_fields_to_lua<Ty>(
-            fields,
-            usertype,
-            std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(fields)>>>()
-        );
+            fields, usertype,
+            std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(fields)>>>());
     }
 
     if constexpr (requires {
@@ -450,10 +212,9 @@ inline sol::usertype<Ty> bind_to_lua(sol::state& lua) noexcept {
                   }) {
         const auto& functions = reflected.funcs();
         internal::bind_functions_to_lua<Ty>(
-            functions,
-            usertype,
-            std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(functions)>>>()
-        );
+            functions, usertype,
+            std::make_index_sequence<
+                std::tuple_size_v<std::remove_cvref_t<decltype(functions)>>>());
     }
 
     return usertype;

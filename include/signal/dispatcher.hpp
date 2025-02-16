@@ -18,10 +18,18 @@ class dispatcher final {
     template <typename Target>
     using allocator_t = typename rebind_allocator<Allocator>::template to<Target>::type;
 
+    using sink_map_alloc_t = allocator_t<std::pair<const default_id_t, basic_sink*>>;
+    using events_alloc_t   = allocator_t<utils::compressed_pair<default_id_t, void*>>;
+
 public:
     using self_type = dispatcher;
 
-    dispatcher() = default;
+    template <concepts::rebindable_allocator Al = Allocator>
+    requires std::is_constructible_v<sink_map_alloc_t, Al> &&
+                 std::is_constructible_v<events_alloc_t, Al>
+    dispatcher(Al&& allocator = Allocator{})
+        : sink_map_(sink_map_alloc_t{ allocator }),
+          events_(events_alloc_t{ std::forward<Al>(allocator) }) {}
 
     ~dispatcher() {
         std::ranges::for_each(sink_map_, [](auto& pair) { delete pair.second; });
@@ -82,16 +90,11 @@ public:
      */
     template <typename EventType>
     void enqueue(EventType&& event) {
-        using sink_type    = ::atom::utils::sink<EventType>;
-        using decayed_type = std::decay_t<EventType>;
+        using sink_type = ::atom::utils::sink<EventType>;
+        using pure      = std::remove_cvref_t<EventType>;
 
-        default_id_t type_id =
-            utils::type<dispatcher>::template id<std::remove_const_t<decayed_type>>();
-
-        // auto ptr = new initializer<std::remove_const_t<decayed_type>, false, lazy>();
-        // ptr->template init<EventType>(std::forward<EventType>(event));
-
-        // events_.emplace_back(type_id, ptr);
+        default_id_t type_id = utils::type<dispatcher>::template id<pure>();
+        events_.emplace_back(type_id, new pure(std::forward<EventType>(event)));
     }
 
     template <typename EventType>
@@ -100,19 +103,26 @@ public:
 
         default_id_t type_id = ::atom::utils::type<dispatcher>::template id<EventType>();
 
+        // find the relative sink.
         if (auto iter = sink_map_.find(type_id); iter != sink_map_.cend()) {
-            auto events =
-                events_ |
-                std::views::filter([type_id](const auto& pair) { return pair.first == type_id; }) |
-                std::views::values;
-            std::ranges::for_each(events, [&iter](auto& event) {
-                static_cast<sink_type*>(iter->second)->trigger(event);
-                delete event;
-                event = nullptr;
-            });
-            std::ranges::remove_if(events_, [](const auto& pair) {
-                return pair.second == nullptr;
-            });
+            auto* sink = static_cast<sink_type*>(iter->second);
+            // update events for this sink.
+            // auto update_relative = [&sink,
+            //                         type_id](compressed_pair<const default_id_t, void*>& pair) {
+            //     if (pair.first() == type_id) {
+            //         sink->trigger(pair.second());
+            //         pair.second() = nullptr;
+            //     }
+            // };
+            // std::ranges::for_each(events_, update_relative);
+            for (auto& [id, ptr] : events_) {
+                if (id == type_id) {
+                    sink->trigger(ptr);
+                    ptr = nullptr;
+                }
+            }
+            std::ignore = std::ranges::remove_if(
+                events_, [](const auto& pair) { return pair.second() == nullptr; });
         }
     }
 
@@ -132,15 +142,11 @@ public:
 private:
     // wrapper
     std::unordered_map<
-        default_id_t,
-        basic_sink*,
-        std::hash<default_id_t>,
-        std::equal_to<default_id_t>,
+        default_id_t, basic_sink*, std::hash<default_id_t>, std::equal_to<default_id_t>,
         allocator_t<std::pair<const default_id_t, basic_sink*>>>
         sink_map_;
     std::list<
-        compressed_pair<default_id_t, basic_storage*>,
-        allocator_t<compressed_pair<default_id_t, basic_storage*>>>
+        compressed_pair<default_id_t, void*>, allocator_t<compressed_pair<default_id_t, void*>>>
         events_;
 };
 

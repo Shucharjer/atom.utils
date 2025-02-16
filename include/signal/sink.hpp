@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <functional>
 #include <type_traits>
+#include "concepts/allocator.hpp"
 #include "core.hpp"
 #include "core/type.hpp"
 #include "signal.hpp"
-#include "signal/delegate.hpp"
 
 namespace atom::utils {
 
@@ -27,7 +27,7 @@ public:
 
 template <typename EventType, typename Allocator>
 class sink final : public basic_sink {
-    template <typename>
+    template <::atom::utils::concepts::rebindable_allocator>
     friend class dispatcher;
 
     using default_id_t = utils::default_id_t;
@@ -37,18 +37,13 @@ public:
     using event_type    = EventType;
     using delegate_type = delegate<void(EventType&)>;
 
-    sink() = default;
-
-    template <typename Al>
+    template <typename Al = Allocator>
     requires std::is_constructible_v<
         std::unordered_map<
-            default_id_t,
-            delegate_type,
-            std::hash<default_id_t>,
-            std::equal_to<default_id_t>,
+            default_id_t, delegate_type, std::hash<default_id_t>, std::equal_to<default_id_t>,
             Allocator>,
         Al>
-    sink(Al&& allocator) : delegates_(std::forward<Al>(allocator)) {}
+    sink(Al&& allocator = Allocator{}) : delegates_(std::forward<Al>(allocator)) {}
 
     sink(const sink& that) : delegates_(that.delegates_) {}
 
@@ -108,11 +103,9 @@ public:
         });
     }
 
+private:
     std::unordered_map<
-        default_id_t,
-        delegate_type,
-        std::hash<default_id_t>,
-        std::equal_to<default_id_t>,
+        default_id_t, delegate_type, std::hash<default_id_t>, std::equal_to<default_id_t>,
         Allocator>
         delegates_;
 };

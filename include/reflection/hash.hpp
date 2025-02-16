@@ -24,7 +24,7 @@ constexpr inline std::size_t hash(std::string_view string) {
 /*! @endcond */
 
 template <tstring_v Str>
-constexpr inline size_t hash_of() {
+consteval inline size_t hash_of() {
     return internal::hash(Str.val);
 }
 

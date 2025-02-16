@@ -47,8 +47,7 @@ int main() {
             using allocator_t =
                 utils::allocator<std::pair<const int, int>, utils::synchronized_pool>;
             std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, allocator_t> map(
-                allocator_t{ allocator }
-            );
+                allocator_t{ allocator });
         }
     }
 

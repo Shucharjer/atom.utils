@@ -96,8 +96,7 @@ public:
         condvar_.wait(lock, [this] {
             bool expected = false;
             return !busy_.compare_exchange_strong(
-                expected, true, std::memory_order_acquire, std::memory_order_relaxed
-            );
+                expected, true, std::memory_order_acquire, std::memory_order_relaxed);
         });
     }
 
@@ -112,8 +111,7 @@ public:
     bool try_lock() noexcept {
         bool expected = false;
         return busy_.compare_exchange_strong(
-            expected, true, std::memory_order_acquire, std::memory_order_relaxed
-        );
+            expected, true, std::memory_order_acquire, std::memory_order_relaxed);
     }
 
 private:

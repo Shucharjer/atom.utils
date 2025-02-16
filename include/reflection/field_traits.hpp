@@ -1,8 +1,19 @@
 #pragma once
 #include <string_view>
-#include "reflection.hpp"
 
 namespace atom::utils {
+
+/**
+ * @brief Base of class template field_traits.
+ *
+ */
+struct basic_field_traits;
+
+/**
+ * @brief Traits of filed.
+ */
+template <typename = void>
+struct field_traits;
 
 struct basic_field_traits {
     explicit constexpr basic_field_traits(const char* name) : name_(name) {}
@@ -19,7 +30,7 @@ struct basic_field_traits {
         return *this;
     }
 
-    constexpr virtual ~basic_field_traits() = default;
+    constexpr ~basic_field_traits() = default;
 
     [[nodiscard]] constexpr auto name() const -> std::string_view { return name_; }
 

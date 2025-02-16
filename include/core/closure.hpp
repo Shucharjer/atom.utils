@@ -24,35 +24,35 @@ public:
 
     template <typename... ArgTypes>
     requires(std::same_as<std::decay_t<ArgTypes>, Args> && ...)
-    explicit constexpr closure(ArgTypes&&... args
-    ) noexcept(std::conjunction_v<std::is_nothrow_constructible<Args, ArgTypes>...>)
+    explicit constexpr closure(ArgTypes&&... args) noexcept(
+        std::conjunction_v<std::is_nothrow_constructible<Args, ArgTypes>...>)
         : args_(std::make_tuple(std::forward<ArgTypes>(args)...)) {}
 
     template <typename Ty>
     requires std::invocable<Fn, Ty, Args&...>
-    constexpr decltype(auto) operator()(Ty&& arg
-    ) & noexcept(noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
+    constexpr decltype(auto) operator()(Ty&& arg) & noexcept(
+        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
         return call(*this, std::forward<Ty>(arg), index_sequence{});
     }
 
     template <typename Ty>
     requires std::invocable<Fn, Ty, const Args&...>
-    constexpr decltype(auto) operator()(Ty&& arg
-    ) const& noexcept(noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
+    constexpr decltype(auto) operator()(Ty&& arg) const& noexcept(
+        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
         return call(*this, std::forward<Ty>(arg), index_sequence{});
     }
 
     template <typename Ty>
     requires std::invocable<Fn, Ty, Args...>
-    constexpr decltype(auto) operator()(Ty&& arg
-    ) && noexcept(noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
+    constexpr decltype(auto) operator()(Ty&& arg) && noexcept(
+        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
         return call(*this, std::forward<Ty>(arg), index_sequence{});
     }
 
     template <typename Ty>
     requires std::invocable<Fn, Ty, const Args...>
-    constexpr decltype(auto) operator()(Ty&& arg
-    ) const&& noexcept(noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
+    constexpr decltype(auto) operator()(Ty&& arg) const&& noexcept(
+        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
         return call(*this, std::forward<Ty>(arg), index_sequence{});
     }
 
@@ -60,8 +60,7 @@ private:
     template <typename SelfTy, typename Ty, size_t... Index>
     constexpr static decltype(auto)
         call(SelfTy&& self, Ty&& arg, std::index_sequence<Index...>) noexcept(noexcept(
-            Fn{}(std::forward<Ty>(arg), std::get<Index>(std::forward<SelfTy>(self).args_)...)
-        )) {
+            Fn{}(std::forward<Ty>(arg), std::get<Index>(std::forward<SelfTy>(self).args_)...))) {
         static_assert(std::same_as<std::index_sequence<Index...>, index_sequence>);
         return Fn{}(std::forward<Ty>(arg), std::get<Index>(std::forward<SelfTy>(self).args_)...);
     }

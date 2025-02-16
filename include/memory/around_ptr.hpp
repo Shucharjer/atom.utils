@@ -36,8 +36,7 @@ public:
     private:
         proxy(
             const std::shared_ptr<Ty>& ptr,
-            const compressed_pair<delegate_type, delegate_type>& pair
-        ) noexcept
+            const compressed_pair<delegate_type, delegate_type>& pair) noexcept
             : ptr_(ptr), pair_(std::addressof(pair)) {
             if (pair.first()) {
                 pair.first()(*ptr);

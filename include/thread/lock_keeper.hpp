@@ -7,7 +7,9 @@ template <size_t Count, typename Mutex, template <typename> typename Lock>
 class lock_keeper {
 public:
     template <typename... Mutexes>
-    explicit lock_keeper(Mutexes&... mutexes) noexcept : locks_{ Lock(mutexes)... } {}
+    requires(sizeof...(Mutexes) == Count)
+    explicit lock_keeper(Mutexes&... mutexes) noexcept
+        : locks_{ Lock(const_cast<Mutex&>(mutexes))... } {}
 
     lock_keeper(const lock_keeper&)            = delete;
     lock_keeper(lock_keeper&&)                 = delete;

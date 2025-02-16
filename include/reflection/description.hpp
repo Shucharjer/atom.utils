@@ -5,10 +5,11 @@
 
 namespace atom::utils {
 
-using description_bits_base = std::uint32_t;
+using description_bits_base = std::uint64_t;
 
+namespace bits {
 // clang-format off
-enum class description_bits : description_bits_base {
+enum description_bits : description_bits_base {
     is_integral                        = 0b0000000000000000000000000000000000000000000000000000000000000001,
     is_floating_point                  = 0b0000000000000000000000000000000000000000000000000000000000000010,
     is_enum                            = 0b0000000000000000000000000000000000000000000000000000000000000100,
@@ -44,9 +45,12 @@ enum class description_bits : description_bits_base {
 };
 // clang-format on
 
+} // namespace bits
+using description_bits = bits::description_bits;
+
 template <concepts::pure Ty>
-consteval static inline auto description_of() noexcept -> description_bits {
-    using enum description_bits;
+consteval inline auto description_of() noexcept -> description_bits {
+    using namespace bits;
     description_bits_base mask = 0;
     mask |= std::is_integral_v<Ty> ? is_integral : 0;
     mask |= std::is_floating_point_v<Ty> ? is_floating_point : 0;
@@ -92,8 +96,7 @@ constexpr inline bool authenticity_of(const description_bits bits) noexcept {
 }
 
 constexpr inline bool authenticity_of(
-    const description_bits description, const description_bits bits
-) noexcept {
+    const description_bits description, const description_bits bits) noexcept {
     auto mask   = static_cast<description_bits_base>(bits);
     auto result = static_cast<description_bits_base>(description) & mask;
     return result == mask;

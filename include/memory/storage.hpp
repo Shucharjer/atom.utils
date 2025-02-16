@@ -168,6 +168,7 @@ public:
     }
 
     template <typename... Args>
+    requires std::is_constructible_v<Ty, Args...>
     explicit unique_storage(Args&&... args, const Allocator& allocator = Allocator{})
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {
         Ty* ptr = nullptr;

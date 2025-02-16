@@ -58,7 +58,7 @@ SortUsingDeclarations: LexicographicNumeric
 # 权限修饰符的偏移
 AccessModifierOffset: -4
 
-AlignAfterOpenBracket: BlockIndent
+AlignAfterOpenBracket: AlwaysBreak
 
 # 大括号换行
 BraceWrapping:
@@ -121,3 +121,5 @@ AlwaysBreakTemplateDeclarations: Yes
 Cpp11BracedListStyle: false
 # 指针左对齐
 PointerAlignment: Left
+
+AllowAllArgumentsOnNextLine: true

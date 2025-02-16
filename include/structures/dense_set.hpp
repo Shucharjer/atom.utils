@@ -11,8 +11,7 @@
 
 namespace atom::utils {
 template <
-    std::unsigned_integral Ty,
-    ::atom::utils::concepts::rebindable_allocator Alloc,
+    std::unsigned_integral Ty, ::atom::utils::concepts::rebindable_allocator Alloc,
     std::size_t PageSize>
 class dense_set {
     template <typename Target>
@@ -62,9 +61,9 @@ public:
     const_iterator erase(const_iterator iter) noexcept {}
 
 private:
-    ::atom::utils::
-        compressed_pair<allocator_t<value_type>, std::vector<Ty, allocator_t<value_type>>>
-            alloc_n_dense_;
+    ::atom::utils::compressed_pair<
+        allocator_t<value_type>, std::vector<Ty, allocator_t<value_type>>>
+        alloc_n_dense_;
     std::vector<storage_t, allocator_t<storage_t>> sparse_;
     std::shared_mutex dense_mutex_;
     std::shared_mutex sparse_mutex_;

@@ -1,8 +1,19 @@
 #pragma once
 #include <string_view>
-#include "reflection.hpp"
 
 namespace atom::utils {
+
+/**
+ * @brief Base of class template function_traits.
+ *
+ */
+struct basic_function_traits;
+
+/**
+ * @brief Traits of function.
+ */
+template <typename>
+struct function_traits;
 
 struct basic_function_traits {
     explicit constexpr basic_function_traits(const char* name) : name_(name) {}

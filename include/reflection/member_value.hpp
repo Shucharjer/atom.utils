@@ -1,37 +1,22 @@
 #pragma once
-#include <algorithm>
-#include <ranges>
-#include <string>
-#include <string_view>
-#include <utility>
 #include "concepts/type.hpp"
 #include "member_count.hpp"
 #include "reflection/aggregate/tuple_view.hpp"
 
 namespace atom::utils {
 
-template <size_t Index, concepts::aggregate Ty>
-constexpr inline auto& get(Ty& obj) {
+template <size_t Index, concepts::default_reflectible_aggregate Ty>
+constexpr inline auto& get(Ty& obj) noexcept {
     static_assert(Index < member_count_v<Ty>);
     auto tuple = internal::object_to_tuple_view(obj);
     return std::get<Index>(tuple);
 }
 
-template <concepts::aggregate Ty>
-inline auto offsets_of() noexcept -> const std::array<size_t, member_count_v<Ty>>& {
-    auto& outline        = internal::get_object_outline<Ty>();
-    auto tuple           = internal::object_to_tuple_view(outline);
-    constexpr auto count = member_count_v<Ty>;
-
-    // why we couldn't use reinterpret_cast in constexpr?
-    [[maybe_unused]] static std::array<size_t, count> array = {
-        [&]<size_t... Is>(std::index_sequence<Is...>) {
-            std::array<size_t, count> arr;
-            ((arr[Is] = size_t((const char*)&std::get<Is>(tuple) - (char*)&outline)), ...);
-            return arr;
-        }(std::make_index_sequence<count>())
-    };
-    return array;
+template <size_t Index, concepts::has_field_traits Ty>
+constexpr inline auto& get(Ty& obj) noexcept {
+    static_assert(Index < member_count_v<Ty>);
+    auto tuple = std::remove_cvref_t<Ty>::field_traits();
+    return std::get<Index>(tuple).get(obj);
 }
 
 } // namespace atom::utils
@@ -39,37 +24,28 @@ inline auto offsets_of() noexcept -> const std::array<size_t, member_count_v<Ty>
 #if __has_include(<nlohmann/json.hpp>)
     #include <nlohmann/json.hpp>
 
-/**
- * @brief Serialization support for nlohmann-json.
- *
- */
-template <atom::utils::concepts::aggregate Ty>
-constexpr inline auto to_json(nlohmann::json& json, const Ty& obj) {
-    auto names = atom::utils::member_names_of<Ty>();
+template <::atom::utils::concepts::reflectible Ty>
+constexpr inline void to_json(nlohmann::json& json, const Ty& obj) {
+    constexpr auto names = atom::utils::member_names_of<Ty>();
     [&]<size_t... Is>(std::index_sequence<Is...>) {
-        ((json[names[Is]] = atom::utils::get<Is>(obj)), ...);
+        ((json[names[Is]] = ::atom::utils::get<Is>(obj)), ...);
     }(std::make_index_sequence<atom::utils::member_count_v<Ty>>());
 }
 
-/**
- * @brief Deserialization support for nlohmann-json.
- *
- */
-template <atom::utils::concepts::aggregate Ty>
-constexpr inline auto from_json(const nlohmann::json& json, Ty& obj) {
-    auto names = atom::utils::member_names_of<Ty>();
+template <::atom::utils::concepts::reflectible Ty>
+constexpr inline void from_json(const nlohmann::json& json, Ty& obj) {
+    constexpr auto names = atom::utils::member_names_of<Ty>();
     [&]<size_t... Is>(std::index_sequence<Is...>) {
-        ((json.at(names[Is]).get_to(atom::utils::get<Is>(obj))), ...);
-    }(std::make_index_sequence<::atom::utils::member_count_v<Ty>>());
+        ((json.at(names[Is]).get_to(::atom::utils::get<Is>(obj))), ...);
+    }(std::make_index_sequence<atom::utils::member_count_v<Ty>>());
 }
 
 #endif
 
-#ifndef __GNUC__
-    #if __has_include(<simdjson.h>)
-        #include <string>
-        #include <string_view>
-        #include <simdjson.h>
+#if !defined(__GNUC__) && __has_include(<simdjson.h>)
+    #include <string>
+    #include <string_view>
+    #include <simdjson.h>
 
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
@@ -88,8 +64,8 @@ inline auto tag_invoke_impl(Ty&& obj, Val& val) {
     else if constexpr (std::is_same_v<type, bool>) {
         return obj.get_bool(val);
     }
-    else if constexpr (std::is_same_v<type, std::string_view> ||
-                       std::is_same_v<type, std::string>) {
+    else if constexpr (
+        std::is_same_v<type, std::string_view> || std::is_same_v<type, std::string>) {
         return obj.get_string(val);
     }
     else if constexpr (std::is_same_v<type, simdjson::ondemand::object>) {
@@ -110,11 +86,10 @@ namespace simdjson {
  * @brief Deserialization support for simdjson
  *
  */
-template <typename simdjson_value, typename Ty>
-requires std::is_aggregate_v<Ty>
+template <typename simdjson_value, ::atom::utils::concepts::reflectible Ty>
 inline auto tag_invoke(
-    simdjson::deserialize_tag, simdjson_value& val, Ty& object
-) noexcept // it would return error code
+    simdjson::deserialize_tag, simdjson_value& val,
+    Ty& object) noexcept // it would return error code
 {
     ondemand::object obj;
     auto error = val.get_object().get(obj);
@@ -131,5 +106,33 @@ inline auto tag_invoke(
 }
 } // namespace simdjson
 
+#endif
+
+#if __has_include(<lua.hpp>) && __has_include(<sol/sol.hpp>)
+    #include <type_traits>
+    #include <sol/sol.hpp>
+    #include "reflection/name.hpp"
+
+template <::atom::utils::concepts::pure Ty>
+inline sol::usertype<Ty> bind_to_lua(sol::state& lua) noexcept {
+    constexpr auto name = ::atom::utils::name_of<Ty>();
+    auto usertype       = lua.new_usertype<Ty>();
+
+    if constexpr (std::is_default_constructible_v<Ty>) {
+        usertype["new"] = sol::constructors<Ty()>();
+    }
+
+    if constexpr (::atom::utils::concepts::reflectible<Ty>) {
+        // TODO:
+
+    #if __has_include(<nlohmann/json.hpp>)
+            // TODO:
     #endif
+    }
+
+    if constexpr (::atom::utils::concepts::has_function_traits<Ty>) {
+        // TODO:
+    }
+}
+
 #endif

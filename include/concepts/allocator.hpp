@@ -13,15 +13,15 @@ namespace atom::utils::concepts {
  * @tparam Ty
  */
 template <typename Ty>
-concept allocator = requires(Ty alloc) {
-    typename Ty::value_type;
-    typename Ty::size_type;
+concept allocator = requires(Ty& alloc) {
+    typename std::remove_cvref_t<Ty>::value_type;
+    typename std::remove_cvref_t<Ty>::size_type;
     {
-        alloc.allocate(std::declval<typename Ty::size_type>())
-    } -> ::std::same_as<typename Ty::value_type*>;
+        alloc.allocate(std::declval<typename std::remove_cvref_t<Ty>::size_type>())
+    } -> ::std::same_as<typename std::remove_cvref_t<Ty>::value_type*>;
     alloc.deallocate(
-        ::std::declval<typename Ty::value_type*>(), std::declval<typename Ty::size_type>()
-    );
+        ::std::declval<typename std::remove_cvref_t<Ty>::value_type*>(),
+        std::declval<typename std::remove_cvref_t<Ty>::size_type>());
 };
 
 /*! @cond TURN_OFF_DOXYGEN */

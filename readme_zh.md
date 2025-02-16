@@ -66,7 +66,7 @@ auto closure = make_closure<get_vector_fn>();
 auto vector = closure(10);
 ```
 
-你可以通过`pipeline_base`快速构建一个范围闭包，可以参考以下示例
+你可以通过 `pipeline_base`快速构建一个范围闭包，可以参考以下示例
 
 ```c++
 struct empty_view : public ::atom::utils::pipeline_base<empty_view> {
@@ -126,19 +126,9 @@ struct a {
     char member2;
 };
 
-BEGIN_TYPE(a)
-FIELDS(FIELD(member1))
-END_TYPE()
-
 // usage
 auto a = ::a{};
-auto reflected = utils::reflected<::a>{};
-auto& tuple = reflected.fields();
-auto& traits1 = std::get<index_of<"member1">(tuple)>(tuple);
-int value1 = traits1.get(a);
-
-auto& traits2 = std::get<index_of<"member2">(tuple)>(tuple);
-char value2 = traits1.get(a);
+auto& member1 = utils::get<0>(a);
 ```
 
 也支持了 `nlohmann-json`的序列化与反序列化

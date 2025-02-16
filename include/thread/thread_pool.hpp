@@ -70,8 +70,7 @@ public:
         }
 
         auto task = std::make_shared<std::packaged_task<return_type()>>(
-            std::bind(std::forward<Callable>(callable), std::forward<Args>(args)...)
-        );
+            std::bind(std::forward<Callable>(callable), std::forward<Args>(args)...));
 
         std::future<return_type> future = task->get_future();
 

@@ -1,5 +1,7 @@
 #pragma once
+#include <cstddef>
 #include <ranges>
+#include <type_traits>
 #include "ranges.hpp"
 
 namespace atom::utils {
@@ -26,6 +28,14 @@ struct phony_input_iterator {
 
     bool operator==(const phony_input_iterator&) const = delete;
     bool operator!=(const phony_input_iterator&) const = delete;
+};
+
+template <typename Derived, bool IsConst>
+struct iterator {
+    using value_type      = typename Derived::value_type;
+    using difference_type = typename Derived::difference_type;
+
+    constexpr iterator() = default;
 };
 
 } // namespace atom::utils

@@ -53,14 +53,23 @@ struct tuple_size;
 
 template <typename... Args, template <typename...> typename Tuple>
 struct tuple_size<Tuple<Args...>> {
-    constexpr static std::size_t value = sizeof...(Args);
+    [[maybe_unused]] constexpr static std::size_t value = sizeof...(Args);
 };
 
 template <typename Tuple>
 constexpr std::size_t tuple_size_v = tuple_size<std::remove_cvref_t<Tuple>>::value;
 
-template <typename Ty, typename Type>
-using cast_to_type = Type;
+template <typename To, typename From>
+using cast_to_type = To;
+
+template <typename To, auto From>
+using cast_arg_to_type = To;
+
+template <auto To, auto From>
+constexpr inline auto cast_to_arg = To;
+
+template <auto To, typename From>
+constexpr inline auto cast_type_to_arg = To;
 
 template <auto Candidate, typename... Args>
 using is_nothrow_invocable_member_function =

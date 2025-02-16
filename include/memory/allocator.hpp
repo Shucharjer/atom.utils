@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
@@ -40,7 +41,11 @@ struct basic_allocator {
 
     virtual auto dealloc(void* ptr, const std::size_t count = 1) noexcept -> void {}
 
-    virtual auto destroy(void* ptr) const -> void {}
+    virtual auto destroy(void* ptr) const -> void {
+        // You shouldn't call this function.
+        // Probably you need to call its overrided version.
+        assert(false);
+    }
 };
 
 template <typename Ty>
@@ -116,24 +121,23 @@ public:
     static_assert(!std::is_function_v<Ty>);
     static_assert(!std::is_reference_v<Ty>);
 
-    explicit constexpr allocator(const shared_type& pool
-    ) noexcept(std::is_nothrow_copy_constructible_v<shared_type>)
+    explicit constexpr allocator(const shared_type& pool) noexcept(
+        std::is_nothrow_copy_constructible_v<shared_type>)
         : pool_(pool) {}
 
-    template <typename = void>
+    explicit constexpr allocator(MemoryPool& pool) noexcept(
+        std::is_nothrow_copy_constructible_v<shared_type>)
     requires requires(MemoryPool pool) {
         pool.get();
         { pool.get() } -> std::same_as<shared_type>;
     }
-    explicit constexpr allocator(MemoryPool& pool
-    ) noexcept(std::is_nothrow_copy_constructible_v<shared_type>)
         : pool_(pool.get()) {}
 
     constexpr allocator(const allocator&) noexcept            = default;
     constexpr allocator(allocator&&) noexcept                 = default;
     constexpr allocator& operator=(const allocator&) noexcept = default;
-    constexpr allocator& operator=(allocator&& that
-    ) noexcept(std::is_nothrow_move_constructible_v<shared_type>) {
+    constexpr allocator& operator=(allocator&& that) noexcept(
+        std::is_nothrow_move_constructible_v<shared_type>) {
         if (this != &that) {
             pool_ = std::move(that.pool_);
         }
@@ -144,30 +148,28 @@ public:
     constexpr ~allocator() override = default;
 
     template <typename Other, ::atom::utils::concepts::mempool Pool = MemoryPool>
-    explicit constexpr allocator(const allocator<Other, Pool>& that
-    ) noexcept(std::is_nothrow_copy_constructible_v<shared_type>)
+    explicit constexpr allocator(const allocator<Other, Pool>& that) noexcept(
+        std::is_nothrow_copy_constructible_v<shared_type>)
         : pool_(that.pool_) {}
 
     // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
     template <typename Other, ::atom::utils::concepts::mempool Pool = MemoryPool>
-    explicit constexpr allocator(allocator<Other, Pool>&& that
-    ) noexcept(std::is_nothrow_move_constructible_v<shared_type>)
+    explicit constexpr allocator(allocator<Other, Pool>&& that) noexcept(
+        std::is_nothrow_move_constructible_v<shared_type>)
         : pool_(std::move(that.pool_)) {}
     // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
 
     [[nodiscard]] auto allocate(const size_t count = 1) -> Ty* {
         return pool_->template allocate<Ty>(
-            count,
-            static_cast<std::align_val_t>(std::min(alignof(Ty), ::atom::utils::internal::min_align))
-        );
+            count, static_cast<std::align_val_t>(
+                       std::min(alignof(Ty), ::atom::utils::internal::min_align)));
     }
 
     constexpr void deallocate(Ty* const ptr, const size_t count = 1) {
         pool_->template deallocate<Ty>(
-            ptr,
-            count,
-            static_cast<std::align_val_t>(std::min(alignof(Ty), ::atom::utils::internal::min_align))
-        );
+            ptr, count,
+            static_cast<std::align_val_t>(
+                std::min(alignof(Ty), ::atom::utils::internal::min_align)));
     }
 
     [[nodiscard]] bool operator==(const allocator& that) const noexcept {
@@ -227,22 +229,20 @@ public:
     constexpr ~allocator() noexcept override                  = default;
 
     template <typename Other, ::atom::utils::concepts::mempool Pool = MemoryPool>
-    explicit constexpr allocator(const allocator<Other, Pool>& that
-    ) noexcept(std::is_nothrow_copy_constructible_v<Ty>)
+    explicit constexpr allocator(const allocator<Other, Pool>& that) noexcept(
+        std::is_nothrow_copy_constructible_v<Ty>)
         : pool_(that.pool_) {}
 
     [[nodiscard]] auto allocate(const size_t count = 1) -> Ty** {
         static_assert(sizeof(Ty));
 
         return pool_->template allocate<Ty>(
-            count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align))
-        );
+            count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align)));
     }
 
     void deallocate(Ty** const ptr, const size_t count = 1) noexcept {
         return pool_->template deallocate<Ty>(
-            ptr, count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align))
-        );
+            ptr, count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align)));
     }
 
     [[nodiscard]] auto alloc(const size_type count = 1) -> void* override {

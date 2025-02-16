@@ -25,9 +25,8 @@ template <typename Ty>
 using sync_queue = std::queue<Ty, sync_deque<Ty>>;
 
 template <
-    typename Ty,
-    typename Container = sync_vector<Ty>,
-    typename Pr        = std::less<typename Container::value_type>>
+    typename Ty, typename Container = sync_vector<Ty>,
+    typename Pr = std::less<typename Container::value_type>>
 using sync_priority_queue = std::priority_queue<Ty, Container, Pr>;
 
 template <typename Ty, typename Container = sync_deque<Ty>>
@@ -49,9 +48,8 @@ template <typename Ty, typename Container = unsync_deque<Ty>>
 using unsync_queue = std::queue<Ty, Container>;
 
 template <
-    typename Ty,
-    typename Container = unsync_vector<Ty>,
-    typename Pr        = std::less<typename Container::value_type>>
+    typename Ty, typename Container = unsync_vector<Ty>,
+    typename Pr = std::less<typename Container::value_type>>
 using unsync_priority_queue = std::priority_queue<Ty, Container, Pr>;
 
 template <typename Ty, typename Container = unsync_deque<Ty>>

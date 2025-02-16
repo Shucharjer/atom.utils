@@ -27,50 +27,41 @@ struct pipeline_base {};
 template <typename First, typename Second>
 struct pipeline_result {
     template <typename Left, typename Right>
-    constexpr pipeline_result(
-        Left&& left, Right&& right
-    ) noexcept(std::is_nothrow_constructible_v<compressed_pair<First, Second>, Left, Right>)
+    constexpr pipeline_result(Left&& left, Right&& right) noexcept(
+        std::is_nothrow_constructible_v<compressed_pair<First, Second>, Left, Right>)
         : closures_(std::forward<Left>(left), std::forward<Right>(right)) {}
 
-    constexpr ~pipeline_result(
-    ) noexcept(std::is_nothrow_destructible_v<compressed_pair<First, Second>>) = default;
+    constexpr ~pipeline_result() noexcept(
+        std::is_nothrow_destructible_v<compressed_pair<First, Second>>) = default;
 
-    constexpr pipeline_result(const pipeline_result&) noexcept(std::is_nothrow_copy_constructible_v<
-                                                               compressed_pair<First, Second>>) =
-        default;
+    constexpr pipeline_result(const pipeline_result&) noexcept(
+        std::is_nothrow_copy_constructible_v<compressed_pair<First, Second>>) = default;
 
-    constexpr pipeline_result(pipeline_result&& that
-    ) noexcept(std::is_nothrow_move_constructible_v<compressed_pair<First, Second>>)
+    constexpr pipeline_result(pipeline_result&& that) noexcept(
+        std::is_nothrow_move_constructible_v<compressed_pair<First, Second>>)
         : closures_(std::move(that.closures_)) {}
 
-    constexpr pipeline_result&
-        operator=(const pipeline_result&) noexcept(std::is_nothrow_copy_assignable_v<
-                                                   compressed_pair<First, Second>>) = default;
+    constexpr pipeline_result& operator=(const pipeline_result&) noexcept(
+        std::is_nothrow_copy_assignable_v<compressed_pair<First, Second>>) = default;
 
-    constexpr pipeline_result& operator=(pipeline_result&& that
-    ) noexcept(std::is_nothrow_move_assignable_v<compressed_pair<First, Second>>) {
+    constexpr pipeline_result& operator=(pipeline_result&& that) noexcept(
+        std::is_nothrow_move_assignable_v<compressed_pair<First, Second>>) {
         closures_ = std::move(that.closures_);
     }
 
     template <std::ranges::range Rng>
-    [[nodiscard]] constexpr auto operator()(Rng&& range) noexcept(
-        noexcept(std::forward<Second>(closures_.second())(
-            std::forward<First>(closures_.first())(std::forward<Rng>(range))
-        ))
-    ) {
+    [[nodiscard]] constexpr auto operator()(Rng&& range) noexcept(noexcept(std::forward<Second>(
+        closures_.second())(std::forward<First>(closures_.first())(std::forward<Rng>(range))))) {
         return std::forward<Second>(closures_.second())(
-            std::forward<First>(closures_.first())(std::forward<Rng>(range))
-        );
+            std::forward<First>(closures_.first())(std::forward<Rng>(range)));
     }
 
     template <std::ranges::range Rng>
     [[nodiscard]] constexpr auto operator()(Rng&& range) const
         noexcept(noexcept(std::forward<Second>(closures_.second())(
-            std::forward<First>(closures_.first())(std::forward<Rng>(range))
-        ))) {
+            std::forward<First>(closures_.first())(std::forward<Rng>(range))))) {
         return std::forward<Second>(closures_.second())(
-            std::forward<First>(closures_.first())(std::forward<Rng>(range))
-        );
+            std::forward<First>(closures_.first())(std::forward<Rng>(range)));
     }
 
 private:
@@ -85,11 +76,9 @@ private:
  */
 template <std::ranges::range Rng, typename Closure>
 requires std::derived_from<
-    std::remove_cvref_t<Closure>,
-    atom::utils::pipeline_base<std::remove_cvref_t<Closure>>>
+    std::remove_cvref_t<Closure>, atom::utils::pipeline_base<std::remove_cvref_t<Closure>>>
 [[nodiscard]] constexpr inline auto operator|(Rng&& range, Closure&& closure) noexcept(
-    noexcept(std::forward<Closure>(closure)(std::forward<Rng>(range)))
-) {
+    noexcept(std::forward<Closure>(closure)(std::forward<Rng>(range)))) {
     return std::forward<Closure>(closure)(std::forward<Rng>(range));
 }
 
@@ -115,8 +104,7 @@ constexpr bool is_pipeline_result_t = is_pipeline_result<Result>::value;
 template <std::ranges::range Rng, typename Result>
 requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
 [[nodiscard]] constexpr inline auto operator|(Rng&& range, Result&& result) noexcept(
-    noexcept(std::forward<Result>(result)(std::forward<Rng>(range)))
-) {
+    noexcept(std::forward<Result>(result)(std::forward<Rng>(range)))) {
     return std::forward<Result>(result)(std::forward<Rng>(range));
 }
 
@@ -157,6 +145,5 @@ requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Resul
             Closure>) {
     // clang-format on
     return UTILS pipeline_result<Result, Closure>(
-        std::forward<Result>(closure), std::forward<Closure>(another)
-    );
+        std::forward<Result>(closure), std::forward<Closure>(another));
 }

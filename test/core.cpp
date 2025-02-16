@@ -25,17 +25,29 @@ struct empty_view : utils::pipeline_base<empty_view> {
 constexpr inline empty_view empty;
 
 int main() {
-    auto construct_arg = 10;
-    auto get_vector    = utils::make_closure<get_vector_fn>();
-    auto result        = get_vector(construct_arg);
-    assert(result.size() == construct_arg);
+    // pair
+    {
+        auto pair      = utils::compressed_pair<int, int>{};
+        auto& reversed = utils::reverse(pair);
+        auto another   = utils::compressed_pair<int, std::string>{};
+        // cause error: std::string is not trivial type.
+        // auto& another_reversed = utils::reverse(another);
+    }
+    // pipeline
+    {
+        auto construct_arg = 10;
+        auto get_vector    = utils::make_closure<get_vector_fn>();
+        auto result        = get_vector(construct_arg);
+        assert(result.size() == construct_arg);
 
-    std::vector vector = { 2, 3, 4, 6 };
-    auto empty_vector  = vector | empty;
-    assert(empty_vector.empty());
+        std::vector vector = { 2, 3, 4, 6 };
+        auto empty_vector  = vector | empty;
+        assert(empty_vector.empty());
 
-    auto closure              = empty | std::views::reverse;
-    auto another_empty_vector = vector | closure;
-    assert(another_empty_vector.empty());
+        auto closure              = empty | std::views::reverse;
+        auto another_closure      = closure | std::views::reverse;
+        auto another_empty_vector = vector | closure;
+        assert(another_empty_vector.empty());
+    }
     return 0;
 }

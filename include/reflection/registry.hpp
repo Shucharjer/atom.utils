@@ -4,8 +4,6 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include "core.hpp"
-#include "reflection/field_traits.hpp"
-#include "reflection/function_traits.hpp"
 #include "reflection/hash.hpp"
 #include "reflection/reflected.hpp"
 
@@ -18,14 +16,10 @@ namespace atom::utils {
  * @tparam BasicConstexprExtend
  * @tparam ConstexprExtend
  */
-template <typename BasicConstexprExtend, template <typename> typename ConstexprExtend>
+template <typename Placeholder>
 class registry {
-public:
-    using basic_reflected_type = ::atom::utils::basic_reflected<BasicConstexprExtend>;
-
-private:
     using self_type = registry;
-    using pointer   = std::shared_ptr<basic_reflected_type>;
+    using pointer   = std::shared_ptr<basic_reflected>;
 
 public:
     registry() = delete;
@@ -53,7 +47,7 @@ public:
     template <typename Ty>
     static void enroll() {
         using pure_t     = typename std::remove_cvref_t<Ty>;
-        const auto hash  = UTILS hash<pure_t>();
+        const auto hash  = UTILS hash_of<pure_t>();
         const auto ident = identity(hash);
 
         auto& registered = self_type::registered();
@@ -62,9 +56,7 @@ public:
         if (!registered.contains(ident)) [[likely]] {
             shared_lock.unlock();
             std::unique_lock<std::shared_mutex> unique_lock{ mutex };
-            registered.emplace(
-                ident, std::make_shared<reflected<pure_t, BasicConstexprExtend, ConstexprExtend>>()
-            );
+            registered.emplace(ident, std::make_shared<reflected<pure_t>>());
             unique_lock.unlock();
             shared_lock.lock();
         }
@@ -76,8 +68,7 @@ public:
      * @param ident Unique identity of a type.
      * @return auto Shared pointer.
      */
-    static auto find(const default_id_t ident)
-        -> std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>> {
+    static auto find(const default_id_t ident) -> std::shared_ptr<::atom::utils::basic_reflected> {
         auto& registered = self_type::registered();
         auto& mutex      = self_type::mutex();
         std::shared_lock<std::shared_mutex> shared_lock{ mutex };
@@ -95,9 +86,9 @@ public:
     }
 
     template <typename Ty>
-    static auto find() -> std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>> {
+    static auto find() -> std::shared_ptr<basic_reflected> {
         using pure_t     = std::remove_cvref_t<Ty>;
-        const auto hash  = UTILS hash<pure_t>();
+        const auto hash  = UTILS hash_of<pure_t>();
         const auto ident = identity(hash);
         return find(ident);
     }
@@ -108,9 +99,8 @@ public:
     }
 
 protected:
-    static inline auto registered() -> std::unordered_map<
-        default_id_t,
-        std::shared_ptr<::atom::utils::basic_reflected<BasicConstexprExtend>>>& {
+    static inline auto registered()
+        -> std::unordered_map<default_id_t, std::shared_ptr<basic_reflected>>& {
         static std::unordered_map<default_id_t, pointer> registered;
         return registered;
     }

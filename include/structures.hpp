@@ -16,8 +16,7 @@ template <
 class dense_set;
 
 template <
-    std::unsigned_integral Key,
-    typename Val,
+    std::unsigned_integral Key, typename Val,
     ::atom::utils::concepts::rebindable_allocator Alloc =
         ::atom::utils::standard_allocator<::atom::utils::compressed_pair<Key, Val>>,
     std::size_t = k_default_page_size>

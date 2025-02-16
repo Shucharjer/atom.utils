@@ -94,8 +94,7 @@ public:
 
         thread_safe_coroutine get_return_object() {
             return thread_safe_coroutine(
-                handle_type::from_promise(*this), std::make_shared<control_block>(this)
-            );
+                handle_type::from_promise(*this), std::make_shared<control_block>(this));
         }
 
         std::suspend_always initial_suspend() { return {}; }
@@ -185,9 +184,8 @@ public:
         auto& state = cb_->promise->state;
 
         // 等待协程进入可恢复状态
-        cb_->promise->cv.wait(lk, [&] {
-            return state == status::suspended || state == status::completed;
-        });
+        cb_->promise->cv.wait(
+            lk, [&] { return state == status::suspended || state == status::completed; });
 
         if (state == status::completed) {
             if (cb_->promise->eptr_) {

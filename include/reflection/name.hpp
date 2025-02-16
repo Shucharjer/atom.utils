@@ -3,12 +3,21 @@
 
 namespace atom::utils {
 
+template <typename Ty>
+struct nickname;
+
+namespace internal {
+template <typename Ty>
+concept has_nickname = requires { nickname<Ty>::value; };
+} // namespace internal
+
 /**
  * @brief Get the name of a type.
  *
  */
 template <typename Ty>
-consteval inline std::string_view name_of() {
+requires(!internal::has_nickname<Ty>)
+[[nodiscard]] consteval inline std::string_view name_of() {
 #ifdef _MSC_VER
     constexpr std::string_view funcname = __FUNCSIG__;
 #else
@@ -28,6 +37,12 @@ consteval inline std::string_view name_of() {
 #else
     static_assert(false, "Unsupportted compiler");
 #endif
+}
+
+template <typename Ty>
+requires internal::has_nickname<Ty>
+[[nodiscard]] consteval inline std::string_view name_of() {
+    return nickname<Ty>::value;
 }
 
 } // namespace atom::utils

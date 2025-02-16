@@ -12,9 +12,7 @@
 namespace atom::utils {
 
 template <
-    std::unsigned_integral Key,
-    typename Val,
-    ::atom::utils::concepts::rebindable_allocator Alloc,
+    std::unsigned_integral Key, typename Val, ::atom::utils::concepts::rebindable_allocator Alloc,
     std::size_t PageSize>
 class dense_map {
     template <typename Target>
@@ -71,8 +69,7 @@ public:
     template <typename Iter, typename Al>
     explicit dense_map(Iter first, Iter last, Al&& allocator)
         : alloc_n_dense_(
-              allocator, std::vector<value_type, allocator_t<value_type>>(first, last, allocator)
-          ),
+              allocator, std::vector<value_type, allocator_t<value_type>>(first, last, allocator)),
           sparse_(allocator_t<storage_t>(std::forward<Al>(allocator))) {
         for (const auto& [key, val] : alloc_n_dense_.second()) {
             auto page   = page_of(key);
@@ -98,8 +95,7 @@ public:
     template <typename Al>
     explicit dense_map(const std::initializer_list<std::pair<Key, Val>>& list, Al&& allocator)
         : alloc_n_dense_(
-              allocator, std::vector<value_type, allocator_t<value_type>>(list, allocator)
-          ),
+              allocator, std::vector<value_type, allocator_t<value_type>>(list, allocator)),
           sparse_(allocator_t<storage_t>(std::forward<Al>(allocator))) {
         for (const auto& [key, val] : alloc_n_dense_.second()) {
             auto page   = page_of(key);
@@ -117,8 +113,7 @@ public:
     explicit dense_map(std::initializer_list<std::pair<Key, Val>>&& list, Al&& allocator)
         : alloc_n_dense_(
               allocator,
-              std::vector<value_type, allocator_t<value_type>>(std::move(list), allocator)
-          ),
+              std::vector<value_type, allocator_t<value_type>>(std::move(list), allocator)),
           sparse_(allocator_t<storage_t>(std::forward<Al>(allocator))) {
         const auto size = alloc_n_dense_.second().size();
         for (auto i = 0; i < size; ++i) {
@@ -164,8 +159,7 @@ public:
         //
         for (const auto& page : that.sparse_) {
             sparse_.emplace_back(
-                unique_storage<array_t, allocator_t<array_t>>(page, alloc_n_dense_.first())
-            );
+                unique_storage<array_t, allocator_t<array_t>>(page, alloc_n_dense_.first()));
         }
     }
 
@@ -229,7 +223,7 @@ public:
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
-        shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         if (contains_impl(key, page, offset)) {
             keeper.run_away();
             erase_without_check_impl(page, offset);
@@ -239,7 +233,8 @@ public:
     auto erase_without_check(const key_type key) {
         auto page   = page_of(key);
         auto offset = offset_of(key);
-        erase_without_check(page, offset);
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        erase_without_check_impl(page, offset);
     }
 
     auto contains(const key_type key) const -> bool {
@@ -254,8 +249,7 @@ public:
 
         shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         if (contains_impl(key, page, offset)) {
-            return alloc_n_dense_.second().begin() + alloc_n_dense_[sparse_[page]->at(offset)] -
-                   alloc_n_dense_.second().front();
+            return alloc_n_dense_.second().begin() + sparse_[page]->at(offset);
         }
         else {
             return alloc_n_dense_.second().end();
@@ -265,11 +259,10 @@ public:
     [[nodiscard]] auto find(const key_type key) const noexcept -> const_iterator {
         auto page   = page_of(key);
         auto offset = offset_of(key);
+
         shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         if (contains_impl(key, page, offset)) {
-            return alloc_n_dense_.second().cbegin() +
-                   alloc_n_dense_.second()[sparse_[page]->at(offset)] -
-                   alloc_n_dense_.second().front();
+            return alloc_n_dense_.second().cbegin() + sparse_[page]->at(offset);
         }
         else {
             return alloc_n_dense_.second().cend();
@@ -334,8 +327,7 @@ private:
         try {
             while (page >= sparse_.size()) {
                 storage_t storage(
-                    utils::construct_at_once, allocator_t<array_t>{ alloc_n_dense_.first() }
-                );
+                    utils::construct_at_once, allocator_t<array_t>{ alloc_n_dense_.first() });
                 sparse_.emplace_back(std::move(storage));
             }
         }
@@ -351,8 +343,7 @@ private:
         }
     }
     [[nodiscard]] auto contains_impl(
-        const key_type key, const size_type page, const size_type offset
-    ) const noexcept -> bool {
+        const key_type key, const size_type page, const size_type offset) const noexcept -> bool {
         auto& dense = alloc_n_dense_.second();
         return dense.size() && sparse_.size() > page
                    ? sparse_[page]->at(offset) ? true

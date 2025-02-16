@@ -35,21 +35,9 @@ constexpr inline auto member_count_of_impl() {
  * @brief Get the member count of a type.
  *
  */
-template <concepts::aggregate Ty>
-consteval inline auto member_count() {
-    return internal::member_count_of_impl<std::remove_cvref_t<Ty>>();
-}
-
-/**
- * @brief Get the member count of a type.
- *
- */
-template <concepts::aggregate Ty>
+template <concepts::default_reflectible_aggregate Ty>
 consteval inline auto member_count_of() {
     return internal::member_count_of_impl<std::remove_cvref_t<Ty>>();
 }
-
-template <concepts::aggregate Ty>
-constexpr inline auto member_count_v = member_count<Ty>();
 
 } // namespace atom::utils
