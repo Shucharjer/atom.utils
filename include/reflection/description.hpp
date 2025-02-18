@@ -41,7 +41,9 @@ enum description_bits : description_bits_base {
     is_nothrow_move_assignable         = 0b0000000000000000000000000000000000010000000000000000000000000000,
     is_destructible                    = 0b0000000000000000000000000000000000100000000000000000000000000000,
     is_trivially_destructible          = 0b0000000000000000000000000000000001000000000000000000000000000000,
-    is_nothrow_destructible            = 0b0000000000000000000000000000000010000000000000000000000000000000
+    is_nothrow_destructible            = 0b0000000000000000000000000000000010000000000000000000000000000000,
+    // reserve
+    _reserve                           = 0xFFFFFFFFFFFFFFFF
 };
 // clang-format on
 
@@ -78,7 +80,7 @@ consteval inline auto description_of() noexcept -> description_bits {
     mask |= std::is_copy_assignable_v<Ty> ? is_copy_assignable : 0;
     mask |= std::is_trivially_copy_assignable_v<Ty> ? is_trivially_copy_assignable : 0;
     mask |= std::is_nothrow_copy_assignable_v<Ty> ? is_nothrow_copy_assignable : 0;
-    mask |= std::is_move_constructible_v<Ty> ? is_move_constructible : 0;
+    mask |= std::is_move_assignable_v<Ty> ? is_move_assignable : 0;
     mask |= std::is_trivially_move_assignable_v<Ty> ? is_trivially_move_assignable : 0;
     mask |= std::is_nothrow_move_assignable_v<Ty> ? is_nothrow_move_assignable : 0;
     mask |= std::is_destructible_v<Ty> ? is_destructible : 0;
