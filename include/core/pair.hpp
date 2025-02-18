@@ -85,14 +85,14 @@ public:
     using const_reference = const Ty*&;
 
     constexpr compressed_element() noexcept : value_(nullptr) {}
-    explicit constexpr compressed_element(nullptr_t) noexcept : value_(nullptr) {}
+    explicit constexpr compressed_element(std::nullptr_t) noexcept : value_(nullptr) {}
     template <typename T>
     explicit constexpr compressed_element(T* value) noexcept : value_(value) {}
     constexpr compressed_element(const compressed_element&) noexcept            = default;
     constexpr compressed_element& operator=(const compressed_element&) noexcept = default;
     constexpr ~compressed_element() noexcept                                    = default;
 
-    constexpr compressed_element& operator=(nullptr_t) noexcept {
+    constexpr compressed_element& operator=(std::nullptr_t) noexcept {
         value_ = nullptr;
         return *this;
     }
@@ -162,10 +162,10 @@ public:
 
     constexpr explicit compressed_element(const value_type value = nullptr) noexcept
         : value_(value) {}
-    constexpr explicit compressed_element(nullptr_t) noexcept : value_(nullptr) {}
+    constexpr explicit compressed_element(std::nullptr_t) noexcept : value_(nullptr) {}
     constexpr compressed_element(const compressed_element&) noexcept = default;
     constexpr compressed_element(compressed_element&&) noexcept      = default;
-    constexpr compressed_element& operator=(nullptr_t) noexcept {
+    constexpr compressed_element& operator=(std::nullptr_t) noexcept {
         value_ = nullptr;
         return *this;
     }
