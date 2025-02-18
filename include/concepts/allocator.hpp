@@ -1,6 +1,5 @@
 #pragma once
 #include <concepts>
-#include "uconceptdef.hpp"
 
 namespace atom::utils::concepts {
 
@@ -50,9 +49,9 @@ concept rebindable = requires { typename Allocator::template rebind_t<RebindType
  */
 template <typename Ty>
 concept rebindable_allocator = ::atom::utils::concepts::allocator<Ty> && requires() {
-    ::atom::utils::concepts::internal::rebindable<Ty, int>;
-    ::atom::utils::concepts::internal::rebindable<Ty, float>;
-    ::atom::utils::concepts::internal::rebindable<Ty, double>;
+    requires ::atom::utils::concepts::internal::rebindable<Ty, int>;
+    requires ::atom::utils::concepts::internal::rebindable<Ty, float>;
+    requires ::atom::utils::concepts::internal::rebindable<Ty, double>;
 };
 
 } // namespace atom::utils::concepts
