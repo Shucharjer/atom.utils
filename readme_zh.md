@@ -5,6 +5,44 @@
 atom.utils是atom引擎中所使用到的一系列基础工具的集合，它是一个headers-only的现代C++库，以便于在各种项目中链接。现在它包括一些数据结构(比如sparse_map、compressed_pair、spin_lock等)以及反射和它对应的序列化。
 这个库的宗旨是提供易用的现代C++基础工具，帮助用户快速在现代C++中构建内容。
 
+## 快速开始
+
+### 编译器要求
+
+这个库只支持C++20或者更高版本，所以确保你的编译器支持C++20.
+
+- g++ 10 above;
+- clang++13 above;
+- msvc 14.29 above.
+
+### 安装与编译
+
+#### 手动安装
+
+1. 克隆这个仓库
+
+    ```shell
+    git clone https://github.com/Shucahrjer/atom.utils
+    cd atom.utils
+    ```
+
+2. 构建
+
+    ```shell
+    cmake -B build
+    # or you could add other args, such as cmake -DCMAKE_C_COMPILER="clang" -DCMAKE_CXX_COMPILER="clang++" -DCMAKE_MAKE_PROGRAM="ninja" -G "Ninja" -B build
+    cd build
+    cmake --build . --config debug
+    ```
+
+3. 安装
+
+```shell
+cmake --install . # --prefix
+```
+
+4. 开始开发
+
 ## 简介
 
 接下来的内容是基于这样一条语句的
@@ -14,39 +52,6 @@ using namespace atom::utils;
 ```
 
 ### 核心
-
-#### pair
-
-`core/pair.hpp`提供了 `compressed_pair`、`reversed_compressed_pair`和 `reversed_pair`，
-其中，`compressed_pair`是利用编译器的空基类优化来节约内存使用的一个结构，
-其余两个是对 `compressed_pair`和 `std::pair`的逆转
-
-```c++
-struct empty {};
-// 声明
-compressed_pair<int, empty> compressed_pair;
-std::pair<int, empty> pair;
-
-// 不同处在于first和second是函数
-compressed_pair.first() = 114514;
-pair.first = 114514;
-
-// 4
-std::cout << sizeof(compressed_pair);
-// 5
-std::cout << sizeof(pair);
-```
-
-可以通过 `reverse`函数来实现逆转
-
-```c++
-auto& reversed_compressed = reverse(compressed_pair);
-// 现在second()才是int类型的那个了
-reversed_compressed.second() = 1919810;
-// 同理
-auto& reversed = reverse(pair);
-reversed.second = 1919810;
-```
 
 #### `pipeline_base`&`pipline_result`&`closure`
 
@@ -69,7 +74,7 @@ auto vector = closure(10);
 你可以通过 `pipeline_base`快速构建一个范围闭包，可以参考以下示例
 
 ```c++
-struct empty_view : public ::atom::utils::pipeline_base<empty_view> {
+struct empty_fn : public ::atom::utils::pipeline_base<empty_view> {
     template <std::ranges::range Rng>
     requires std::is_default_constructible_v<Rng>
     constexpr auto operator()(Rng&& range) const {
@@ -77,7 +82,7 @@ struct empty_view : public ::atom::utils::pipeline_base<empty_view> {
     }
 };
 
-constexpr inline empty_view empty;
+constexpr inline empty_fn empty;
 
 ...
 
@@ -189,5 +194,3 @@ std::vector<int, decltype(allocator)> vector{allocator};
 #### 槽
 
 #### 调度器
-
-## 快速开始

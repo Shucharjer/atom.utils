@@ -4,10 +4,45 @@
 
 atom.utils is a collection of basic tools used in the atom engine.
 
-It is a headers-only modern C++ library that is easy to link in various projects. 
+It is a headers-only modern C++ library that is easy to link in various projects.
 
 Now it includes some data structures (such as sparse_map, compressed_pair, spin_lock, etc.) as well as reflection and its corresponding serialization.
 The purpose of this library is to provide easy-to-use modern C++ basic tools to help users quickly build content in modern C++.
+
+## Quick start
+
+### Compiler requirements
+
+This library only supports C++20 or higher, so, make sure your compiler supports C++20.
+
+- g++ 10 above;
+- clang++13 above;
+- msvc 14.29 above.
+
+### Install & Compile
+
+#### Manually Install
+
+1. Clone this repo
+
+   ```shell
+   git clone https://github.com/Shucahrjer/atom.utils
+   cd atom.utils
+   ```
+2. build
+
+   ```shell
+   cmake -B build
+   # or you could add other args, such as cmake -DCMAKE_C_COMPILER="clang" -DCMAKE_CXX_COMPILER="clang++" -DCMAKE_MAKE_PROGRAM="ninja" -G "Ninja" -B build
+   cd build
+   cmake --build . --config debug
+   ```
+3. install
+
+   ```shell
+   cmake --install . # --prefix
+   ```
+4. start dev
 
 ## Intro
 
@@ -18,39 +53,6 @@ using namespace atom::utils;
 ```
 
 ### Core
-
-#### pair
-
-`core/pair.hpp` provides `compressed_pair`, `reversed_compressed_pair` and `reversed_pair`,
-Among them, `compressed_pair` is a structure that uses the compiler's empty base class optimization to save memory usage,
-The other two are the reversals of `compressed_pair` and `std::pair`
-
-```c++
-struct empty {};
-// Declaration
-compressed_pair<int, empty> compressed_pair;
-std::pair<int, empty> pair;
-
-// The difference is that first and second are functions
-compressed_pair.first() = 114514;
-pair.first = 114514;
-
-// 4
-std::cout << sizeof(compressed_pair);
-// 5
-std::cout << sizeof(pair);
-```
-
-Reversal can be achieved through the `reverse` function
-
-```c++
-auto& reversed_compressed = reverse(compressed_pair);
-// Now second() is the int type
-reversed_compressed.second() = 1919810;
-// Similarly
-auto& reversed = reverse(pair);
-reversed.second = 1919810;
-```
 
 #### `pipeline_base`&`pipline_result`&`closure`
 
@@ -202,5 +204,3 @@ It should be noted that this copy-on-write is only effective when `=` is used.
 #### Sink
 
 #### Dispatcher
-
-## Quick start
