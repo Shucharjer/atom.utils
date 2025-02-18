@@ -40,26 +40,19 @@ requires(!std::ranges::view<Container>)
         } */
         else if constexpr (UCONCEPTS common_constructible<Rng, Container, Args...>) {
             return Container(
-                std::ranges::begin(range), std::ranges::end(range), std::forward<Args>(args)...
-            );
+                std::ranges::begin(range), std::ranges::end(range), std::forward<Args>(args)...);
         }
         else if constexpr (UCONCEPTS constructible_appendable<Rng, Container, Args...>) {
             Container cnt(std::forward<Args>(args)...);
-            if constexpr (std::ranges::sized_range<Rng> && std::ranges::sized_range<Container> &&
-                          requires(
-                              Container& cnt, const std::ranges::range_size_t<Container> count
-                          ) {
-                              cnt.reserve(count);
-                              {
-                                  cnt.capacity()
-                              } -> std::same_as<std::ranges::range_size_t<Container>>;
-                              {
-                                  cnt.max_size()
-                              } -> std::same_as<std::ranges::range_size_t<Container>>;
-                          }) {
+            if constexpr (
+                std::ranges::sized_range<Rng> && std::ranges::sized_range<Container> &&
+                requires(Container& cnt, const std::ranges::range_size_t<Container> count) {
+                    cnt.reserve(count);
+                    { cnt.capacity() } -> std::same_as<std::ranges::range_size_t<Container>>;
+                    { cnt.max_size() } -> std::same_as<std::ranges::range_size_t<Container>>;
+                }) {
                 cnt.reserve(
-                    static_cast<std::ranges::range_size_t<Container>>(std::ranges::size(range))
-                );
+                    static_cast<std::ranges::range_size_t<Container>>(std::ranges::size(range)));
             }
             for (auto&& elem : range) {
                 using element_type = decltype(elem);
@@ -83,8 +76,7 @@ requires(!std::ranges::view<Container>)
                 false,
                 "ranges::to requires the result to be constructible from the source range, "
                 "either by using a suitable constructor, or by inserting each element of the range "
-                "into the default-constructed object."
-            );
+                "into the default-constructed object.");
         }
     }
     else if constexpr (std::ranges::input_range<std::ranges::range_reference_t<Rng>>) {
@@ -92,16 +84,15 @@ requires(!std::ranges::view<Container>)
             return to<std::ranges::range_value_t<Container>>(std::forward<decltype(elem)>(elem));
         };
         return to<Container>(
-            std::views::transform(std::ranges::ref_view{ range }, form), std::forward<Args>(args)...
-        );
+            std::views::transform(std::ranges::ref_view{ range }, form),
+            std::forward<Args>(args)...);
     }
     else {
         static_assert(
             false,
             "ranges::to requires the elements of the source range to be either implicitly "
             "convertible to the elements of the destination container, or be ranges themselves "
-            "for ranges::to to be applied recursively."
-        );
+            "for ranges::to to be applied recursively.");
     }
 #endif // CPP23
 }
@@ -135,8 +126,8 @@ template <typename Container, typename... Args>
 #ifdef CPP23
     return std::ranges::to<Container>(std::forward<Args>(args)...);
 #else
-    return UTILS make_closure<URANGES internal::to_class_fn<Container>>(std::forward<Args>(args)...
-    );
+    return UTILS make_closure<URANGES internal::to_class_fn<Container>>(
+        std::forward<Args>(args)...);
 #endif
 }
 
@@ -157,22 +148,19 @@ auto to_helper() {
             decltype(Cnt(std::from_range, std::declval<Rng>(), std::declval<Args>()...))*>(nullptr);
     } */
     else if constexpr (requires {
-                           Cnt(std::declval<UTILS phony_input_iterator<Rng>>(),
-                               std::declval<UTILS phony_input_iterator<Rng>>(),
+                           Cnt(std::declval<URANGES phony_input_iterator<Rng>>(),
+                               std::declval<URANGES phony_input_iterator<Rng>>(),
                                std::declval<Args>()...);
                        }) {
         return static_cast<decltype(Cnt(
-            std::declval<UTILS phony_input_iterator<Rng>>(),
-            std::declval<UTILS phony_input_iterator<Rng>>(),
-            std::declval<Args>()...
-        ))*>(nullptr);
+            std::declval<URANGES phony_input_iterator<Rng>>(),
+            std::declval<URANGES phony_input_iterator<Rng>>(), std::declval<Args>()...))*>(nullptr);
     }
     else {
         static_assert(
             false,
             "No suitable way to deduce the type of the container, please provide more information "
-            "about the container to use other 'to' function template."
-        );
+            "about the container to use other 'to' function template.");
     }
 }
 
@@ -195,9 +183,7 @@ auto to_helper() {
  * @return Deduced In most times, it could be deduced to as a completed type.
  */
 template <
-    template <typename...> typename Container,
-    std::ranges::input_range Rng,
-    typename... Args,
+    template <typename...> typename Container, std::ranges::input_range Rng, typename... Args,
     typename Deduced = std::remove_pointer_t<
         decltype(::atom::utils::ranges::internal::to_helper<Container, Rng, Args...>())>>
 [[nodiscard]] constexpr auto to(Rng&& range, Args&&... args) -> Deduced {
@@ -214,8 +200,7 @@ namespace internal {
 template <template <typename...> typename Container>
 struct to_template_fn {
     template <
-        std::ranges::input_range Rng,
-        typename... Args,
+        std::ranges::input_range Rng, typename... Args,
         typename Deduced =
             std::remove_pointer_t<decltype(URANGES internal::to_helper<Container, Rng, Args...>())>>
     [[nodiscard]] constexpr auto operator()(Rng&& range, Args&&... args) {
@@ -233,8 +218,8 @@ template <template <typename...> typename Container, typename... Args>
 #ifdef CPP23
     return std::ranges::to<Container>(std::forward<Args>(args)...);
 #else
-    return UTILS make_closure<URANGES internal::to_template_fn<Container>>(std::forward<Args>(args
-    )...);
+    return UTILS make_closure<URANGES internal::to_template_fn<Container>>(
+        std::forward<Args>(args)...);
 #endif
 }
 
