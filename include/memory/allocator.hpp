@@ -23,7 +23,7 @@ static bool is_aligned(void* ptr, const std::size_t alignment) {
     return !(addr & (alignment - 1));
 }
 
-constexpr const auto min_align = 16ui64;
+constexpr const auto min_align = 16ULL;
 
 } // namespace internal
 
@@ -40,16 +40,10 @@ struct basic_allocator {
     [[nodiscard]] virtual auto alloc(const std::size_t count = 1) -> void* { return nullptr; }
 
     virtual auto dealloc(void* ptr, const std::size_t count = 1) noexcept -> void {}
-
-    virtual auto destroy(void* ptr) const -> void {
-        // You shouldn't call this function.
-        // Probably you need to call its overrided version.
-        assert(false);
-    }
 };
 
 template <typename Ty>
-struct standard_allocator final : public basic_allocator {
+struct standard_allocator : public basic_allocator {
     using value_type      = Ty;
     using size_type       = typename basic_allocator::size_type;
     using pointer         = Ty*;
@@ -100,7 +94,7 @@ template <typename Ty, ::atom::utils::concepts::mempool MemoryPool>
 class allocator;
 
 template <typename Ty, ::atom::utils::concepts::mempool MemoryPool>
-class allocator final : public basic_allocator {
+class allocator : public basic_allocator {
     template <typename, ::atom::utils::concepts::mempool>
     friend class allocator;
 
@@ -263,7 +257,7 @@ template <::atom::utils::concepts::completed Ty, size_t Count = 1>
 class builtin_storage_allocator;
 
 template <::atom::utils::concepts::completed Ty, size_t Count>
-class builtin_storage_allocator final : public basic_allocator {
+class builtin_storage_allocator : public basic_allocator {
 public:
     using value_type      = Ty;
     using pointer         = Ty*;
@@ -309,11 +303,6 @@ public:
 
     constexpr auto dealloc(void* ptr, const size_type count = 1) noexcept -> void override {}
 
-    constexpr auto destroy(void* ptr) const noexcept(std::is_nothrow_destructible_v<Ty>)
-        -> void override {
-        static_cast<Ty*>(ptr)->~Ty();
-    }
-
 private:
     // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
     // NOLINTBEGIN(modernize-avoid-c-arrays)
@@ -325,11 +314,22 @@ private:
 template <typename>
 struct rebind_allocator;
 
+template <template <typename> typename Allocator, typename Ty>
+struct rebind_allocator<Allocator<Ty>> {
+    template <typename Other>
+    struct to {
+        using type = Allocator<Other>;
+    };
+
+    template <typename Other>
+    using to_t = typename to<Other>::type;
+};
+
 template <template <typename...> typename Allocator, typename Ty, typename... Others>
 struct rebind_allocator<Allocator<Ty, Others...>> {
-    template <typename Another>
+    template <typename Other>
     struct to {
-        using type = Allocator<Another, Others...>;
+        using type = Allocator<Other, Others...>;
     };
 
     template <typename Other>
