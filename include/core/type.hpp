@@ -1,6 +1,5 @@
 #pragma once
-#include <iostream>
-#include <memory>
+#include <atomic>
 #include <type_traits>
 #include "core.hpp"
 
@@ -50,7 +49,7 @@ public:
 private:
     template <typename Ty>
     static default_id_t id_() {
-        static default_id_t type_id = current_id_++;
+        static default_id_t type_id = current_id_.fetch_add(1, std::memory_order_acquire);
         return type_id;
     }
     static inline ::std::atomic<default_id_t> current_id_;
