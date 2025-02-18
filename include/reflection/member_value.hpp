@@ -6,14 +6,14 @@
 namespace atom::utils {
 
 template <size_t Index, concepts::default_reflectible_aggregate Ty>
-constexpr inline auto& get(Ty& obj) noexcept {
+[[nodiscard]] constexpr inline auto& get(Ty& obj) noexcept {
     static_assert(Index < member_count_v<Ty>);
     auto tuple = internal::object_to_tuple_view(obj);
     return std::get<Index>(tuple);
 }
 
 template <size_t Index, concepts::has_field_traits Ty>
-constexpr inline auto& get(Ty& obj) noexcept {
+[[nodiscard]] constexpr inline auto& get(Ty& obj) noexcept {
     static_assert(Index < member_count_v<Ty>);
     auto tuple = std::remove_cvref_t<Ty>::field_traits();
     return std::get<Index>(tuple).get(obj);
@@ -42,6 +42,7 @@ constexpr inline void from_json(const nlohmann::json& json, Ty& obj) {
 
 #endif
 
+// some errors would be caused when compile simdjson.h with gcc
 #if !defined(__GNUC__) && __has_include(<simdjson.h>)
     #include <string>
     #include <string_view>
