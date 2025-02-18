@@ -6,6 +6,7 @@
 
 namespace atom::utils {
 
+namespace ranges {
 /**
  * @brief Phony input iterator, for lazy construction with ranges.
  *
@@ -29,6 +30,8 @@ struct phony_input_iterator {
     bool operator==(const phony_input_iterator&) const = delete;
     bool operator!=(const phony_input_iterator&) const = delete;
 };
+
+} // namespace ranges
 
 template <typename Derived, bool IsConst>
 struct iterator {
