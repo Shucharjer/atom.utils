@@ -1,5 +1,6 @@
 #pragma once
 #include <string_view>
+#include "concepts/type.hpp"
 #include "reflection/name.hpp"
 #include "structures/tstring.hpp"
 
@@ -28,7 +29,7 @@ consteval inline size_t hash_of() {
     return internal::hash(Str.val);
 }
 
-template <typename Ty>
+template <concepts::pure Ty>
 constexpr inline size_t hash_of() {
     constexpr auto name = name_of<Ty>();
     return internal::hash(name);
