@@ -1,6 +1,4 @@
 #pragma once
-#include <algorithm>
-#include <barrier>
 #include <functional>
 #include <future>
 #include <memory>

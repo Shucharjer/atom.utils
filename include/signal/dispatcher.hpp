@@ -1,14 +1,11 @@
 #pragma once
 #include <algorithm>
-#include <ranges>
+#include <list>
 #include "concepts/allocator.hpp"
 #include "core.hpp"
 #include "core/pair.hpp"
-#include "memory.hpp"
 #include "memory/allocator.hpp"
-#include "memory/storage.hpp"
 #include "signal.hpp"
-#include "signal/delegate.hpp"
 #include "signal/sink.hpp"
 
 namespace atom::utils {
@@ -107,14 +104,6 @@ public:
         if (auto iter = sink_map_.find(type_id); iter != sink_map_.cend()) {
             auto* sink = static_cast<sink_type*>(iter->second);
             // update events for this sink.
-            // auto update_relative = [&sink,
-            //                         type_id](compressed_pair<const default_id_t, void*>& pair) {
-            //     if (pair.first() == type_id) {
-            //         sink->trigger(pair.second());
-            //         pair.second() = nullptr;
-            //     }
-            // };
-            // std::ranges::for_each(events_, update_relative);
             for (auto& [id, ptr] : events_) {
                 if (id == type_id) {
                     sink->trigger(ptr);
