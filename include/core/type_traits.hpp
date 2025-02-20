@@ -218,4 +218,47 @@ struct last_of_tparams<Template<Args...>> {
 template <typename Template>
 using last_of_tparams_t = typename last_of_tparams<Template>::type;
 
+template <typename, typename>
+struct concat_seq;
+
+template <std::size_t... S1, std::size_t... S2>
+struct concat_seq<std::index_sequence<S1...>, std::index_sequence<S2...>> {
+    using type = std::index_sequence<S1..., S2...>;
+};
+
+template <typename Seq1, typename Seq2>
+using concat_seq_t = typename concat_seq<Seq1, Seq2>::type;
+
+template <typename, std::size_t>
+struct append_seq;
+
+template <std::size_t I, std::size_t Val>
+struct append_seq<std::index_sequence<I>, Val> {
+    using type = std::index_sequence<I, Val>;
+};
+
+template <std::size_t... Is, std::size_t Val>
+struct append_seq<std::index_sequence<Is...>, Val> {
+    using type = std::index_sequence<Is..., Val>;
+};
+
+template <typename Seq, std::size_t Val>
+using append_seq_t = typename append_seq<Seq, Val>::type;
+
+template <std::size_t N>
+struct index_seq;
+
+template <>
+struct index_seq<1U> {
+    using type = std::index_sequence<0>;
+};
+
+template <std::size_t N>
+struct index_seq {
+    using type = append_seq_t<typename index_seq<N - 1>::type, N - 1>;
+};
+
+template <std::size_t N>
+using index_seq_t = typename index_seq<N>::type;
+
 } // namespace atom::utils
