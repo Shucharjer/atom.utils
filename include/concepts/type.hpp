@@ -1,7 +1,5 @@
 #pragma once
 #include <type_traits>
-#include "core/type_traits.hpp"
-#include "uconceptdef.hpp"
 
 namespace atom::utils::concepts {
 
@@ -16,10 +14,6 @@ concept pure = std::is_same_v<Ty, std::remove_cvref_t<Ty>>;
 // concept: pointer
 template <typename Ty>
 concept pointer = requires { std::is_pointer_v<std::remove_cvref_t<Ty>>; };
-
-// concept: tuple
-template <typename Ty>
-concept tuple = ::atom::utils::is_tuple_v<std::remove_cvref_t<Ty>>;
 
 template <typename Ty>
 concept optional = requires(Ty optional) {
