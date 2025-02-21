@@ -1,6 +1,7 @@
 #pragma once
 #include <ranges>
 #include <type_traits>
+#include "core/langdef.hpp"
 
 namespace atom::utils {
 template <typename Ty>
@@ -9,7 +10,7 @@ struct default_destroyer;
 namespace internal {
 
 template <typename Begin, typename End>
-constexpr inline void destroy_range(Begin begin, End end) noexcept(
+ATOM_FORCE_INLINE constexpr void destroy_range(Begin begin, End end) noexcept(
     std::is_nothrow_destructible_v<std::iter_value_t<Begin>>) {
     using value_type = std::iter_value_t<Begin>;
     if constexpr (!std::is_trivially_destructible_v<value_type>) {
@@ -20,7 +21,7 @@ constexpr inline void destroy_range(Begin begin, End end) noexcept(
 }
 
 template <typename Ty>
-constexpr inline void destroy(Ty* ptr) noexcept(std::is_nothrow_destructible_v<Ty>) {
+ATOM_FORCE_INLINE constexpr void destroy(Ty* ptr) noexcept(std::is_nothrow_destructible_v<Ty>) {
     if constexpr (!std::is_destructible_v<Ty>) {
         return;
     }
@@ -34,8 +35,7 @@ constexpr inline void destroy(Ty* ptr) noexcept(std::is_nothrow_destructible_v<T
 }
 
 template <typename Ty>
-constexpr inline void wrapped_destroy(void* ptr) noexcept(
-    noexcept(destroy(static_cast<Ty*>(ptr)))) {
+constexpr void wrapped_destroy(void* ptr) noexcept(noexcept(destroy(static_cast<Ty*>(ptr)))) {
     destroy(static_cast<Ty*>(ptr));
 }
 
