@@ -67,4 +67,15 @@ private:
     static inline ::std::atomic<default_id_t> type_id_;
 };
 
+/**
+ * @brief Universal type for deducing.
+ *
+ * If you define the operator, you may make things confusing!
+ * like this: std::vector<int> vec(universal{});
+ */
+struct universal {
+    template <typename Ty>
+    operator Ty();
+};
+
 } // namespace atom::utils
