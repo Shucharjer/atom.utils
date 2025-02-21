@@ -2,6 +2,7 @@
 #include <concepts>
 #include <functional>
 #include <type_traits>
+#include <utility>
 #include "core.hpp"
 
 namespace atom::utils {
@@ -245,12 +246,23 @@ struct append_seq<std::index_sequence<Is...>, Val> {
 template <typename Seq, std::size_t Val>
 using append_seq_t = typename append_seq<Seq, Val>::type;
 
+template <typename, typename>
+struct merge_seq;
+
+template <std::size_t... S1, std::size_t... S2>
+struct merge_seq<std::index_sequence<S1...>, std::index_sequence<S2...>> {
+    using type = std::index_sequence<S1..., (sizeof...(S1) + S2)...>;
+};
+
+template <typename Seq1, typename Seq2>
+using merge_seq_t = typename merge_seq<Seq1, Seq2>::type;
+
 template <std::size_t N>
 struct index_seq;
 
 template <>
-struct index_seq<1U> {
-    using type = std::index_sequence<0>;
+struct index_seq<0U> {
+    using type = std::index_sequence<>;
 };
 
 template <std::size_t N>
@@ -260,5 +272,16 @@ struct index_seq {
 
 template <std::size_t N>
 using index_seq_t = typename index_seq<N>::type;
+
+template <typename, typename>
+struct remake_seq;
+
+template <std::size_t... S1, std::size_t... S2>
+struct remake_seq<std::index_sequence<S1...>, std::index_sequence<S2...>> {
+    using type = index_seq_t<sizeof...(S1) + sizeof...(S2)>;
+};
+
+template <typename Seq1, typename Seq2>
+using remake_seq_t = typename remake_seq<Seq1, Seq2>::type;
 
 } // namespace atom::utils
