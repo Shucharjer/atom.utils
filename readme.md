@@ -46,6 +46,40 @@ This library only supports C++20 or higher, so, make sure your compiler supports
 
 ## Intro
 
+### Table of Contents
+
+<pre>
+<a href="#Core">Core</a>
+    <a href="#Pair">Pair</a>
+    <a href="#Pipeline-and-closure">Pipeline and Closure</a>
+        <a href="#Adaptor-closure">Adaptor Closure</a>
+        <a href="#Closure">Closure</a>
+<a href="#Range">Range</a>
+<a href="#Reflection">Reflection</a>
+    <a href="#No-Macro-Reflection">No Macro Reflection</a>
+    <a href="#Custom-Reflection">Custom Reflection</a>
+    <a href="#Support-for-Serialization">Support for Serialization</a>
+<a href="#Structures">Structures</a>
+    <a href="#dense_map">dense_map</a>
+    <a href="#dense_set">dense_set</a>
+<a href="#Thread">Thread</a>
+    <a href="#Thread-Pool">Thread Pool</a>
+    <a href="#Coroutine">Coroutine</a>
+    <a href="#Spin-Lock">Spin Lock</a>
+    <a href="#Hybrid-Lock">Hybrid Lock</a>
+<a href="#Signal">Signal</a>
+    <a href="#Lambda">Lambda</a>
+    <a href="#Delegate">Delegate</a>
+    <a href="#Sink">Sink</a>
+    <a href="#Dispatcher">Dispatcher</a>
+<a href="#Memory">Memory</a>
+    <a href="#Memory-Pool">Memory Pool</a>
+    <a href="#Allocator">Allocator</a>
+    <a href="#Destroyer">Destroyer</a>
+    <a href="#Storage">Storage</a>
+    <a href="#around_ptr">around_ptr</a>
+</pre>
+
 The following content is based on such a statement
 
 ```c++
