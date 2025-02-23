@@ -377,7 +377,7 @@ constexpr inline auto member_count_of_impl() {
  *
  */
 template <concepts::reflectible Ty>
-consteval inline auto member_count_of() {
+consteval auto member_count_of() {
     using pure_t = std::remove_cvref_t<Ty>;
     if constexpr (concepts::default_reflectible_aggregate<Ty>) {
         return internal::member_count_of_impl<pure_t>();
@@ -1071,7 +1071,7 @@ namespace atom::utils {
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 template <auto Ptr> // name
-FORCE_INLINE consteval std::string_view member_name_of() {
+consteval std::string_view member_name_of() {
 #ifdef _MSC_VER
     constexpr std::string_view funcname = __FUNCSIG__;
 #else
@@ -1139,7 +1139,7 @@ constexpr inline std::array<std::string_view, member_count_v<Ty>> member_names_o
 namespace atom::utils {
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
-constexpr inline std::size_t hash(std::string_view string) {
+FORCE_INLINE constexpr std::size_t hash(std::string_view string) {
     // DJB2 Hash
 
     const size_t magic_initial_value = 5381;
@@ -1156,12 +1156,15 @@ constexpr inline std::size_t hash(std::string_view string) {
 /*! @endcond */
 
 template <concepts::pure Ty>
-constexpr inline size_t hash_of() {
+consteval size_t hash_of() {
     constexpr auto name = name_of<Ty>();
     return internal::hash(name);
 }
 
-inline size_t hash_of(std::string_view str) { return internal::hash(str); }
+template <concepts::pure Ty>
+constexpr inline std::size_t hash_v = hash_of<Ty>;
+
+size_t hash_of(std::string_view str) { return internal::hash(str); }
 
 } // namespace atom::utils
 
@@ -1268,8 +1271,8 @@ template <concepts::reflectible Ty>
  *
  */
 template <size_t Index, concepts::reflectible Ty>
-[[nodiscard]] consteval inline auto name_of() {
-    constexpr auto count = member_count_v<Ty>;
+[[nodiscard]] consteval auto name_of() {
+    constexpr auto count = member_count_of<Ty>;
     static_assert(Index < count, "Index out of range");
     constexpr auto names = member_names_of<Ty>();
     return names[Index];
@@ -1345,7 +1348,7 @@ enum description_bits : description_bits_base {
 using description_bits = bits::description_bits;
 
 template <concepts::pure Ty>
-consteval inline auto description_of() noexcept -> description_bits {
+consteval auto description_of() noexcept -> description_bits {
     using namespace bits;
     description_bits_base mask = 0;
     mask |= std::is_integral_v<Ty> ? is_integral : 0;
@@ -1933,7 +1936,7 @@ namespace simdjson {
  *
  */
 template <typename simdjson_value, ::atom::utils::concepts::reflectible Ty>
-inline auto tag_invoke(
+auto tag_invoke(
     simdjson::deserialize_tag, simdjson_value& val,
     Ty& object) noexcept // it would return error code
 {
@@ -1957,19 +1960,17 @@ inline auto tag_invoke(
 #if __has_include(<lua.hpp>) && __has_include(<sol/sol.hpp>)
     #include <type_traits>
     #include <sol/sol.hpp>
-    #include "reflection/name.hpp"
-    #include "reflection/reflected.hpp"
 
 namespace internal {
 template <::atom::utils::concepts::reflectible Ty>
-inline nlohmann::json to_json(const Ty& obj) {
+nlohmann::json to_json(const Ty& obj) {
     nlohmann::json json;
     ::to_json(json, obj);
     return json;
 }
 
 template <::atom::utils::concepts::reflectible Ty>
-inline void from_json(Ty& obj, const nlohmann::json& json) {
+void from_json(Ty& obj, const nlohmann::json& json) {
     ::from_json(json, obj);
 }
 } // namespace internal
