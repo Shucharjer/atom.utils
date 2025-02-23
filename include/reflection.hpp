@@ -1164,7 +1164,7 @@ consteval size_t hash_of() {
 template <concepts::pure Ty>
 constexpr inline std::size_t hash_v = hash_of<Ty>;
 
-size_t hash_of(std::string_view str) { return internal::hash(str); }
+size_t inline hash_of(std::string_view str) { return internal::hash(str); }
 
 } // namespace atom::utils
 
@@ -1554,6 +1554,7 @@ consteval std::size_t index_of(const Tuple& tuple) {
 // registry & register
 ///////////////////////////////////////////////////////////////////////////////
 
+#include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
 
