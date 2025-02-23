@@ -10,11 +10,6 @@
 namespace atom::utils {
 
 namespace internal {
-#ifdef _WIN32
-    #define ALLOCATOR_DECLSPEC __declspec(allocator)
-#else
-    #define ALLOCATOR_DECLSPEC
-#endif
 
 static bool is_aligned(void* ptr, const std::size_t alignment) {
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -156,14 +151,14 @@ public:
     [[nodiscard]] auto allocate(const size_t count = 1) -> Ty* {
         return pool_->template allocate<Ty>(
             count, static_cast<std::align_val_t>(
-                       std::min(alignof(Ty), ::atom::utils::internal::min_align)));
+                       std::min<std::size_t>(alignof(Ty), ::atom::utils::internal::min_align)));
     }
 
     constexpr void deallocate(Ty* const ptr, const size_t count = 1) {
         pool_->template deallocate<Ty>(
             ptr, count,
             static_cast<std::align_val_t>(
-                std::min(alignof(Ty), ::atom::utils::internal::min_align)));
+                std::min<std::size_t>(alignof(Ty), ::atom::utils::internal::min_align)));
     }
 
     [[nodiscard]] bool operator==(const allocator& that) const noexcept {
@@ -231,12 +226,12 @@ public:
         static_assert(sizeof(Ty));
 
         return pool_->template allocate<Ty>(
-            count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align)));
+            count, static_cast<std::align_val_t>(std::min<std::size_t>(alignof(Ty), internal::min_align)));
     }
 
     void deallocate(Ty** const ptr, const size_t count = 1) noexcept {
         return pool_->template deallocate<Ty>(
-            ptr, count, static_cast<std::align_val_t>(std::min(alignof(Ty), internal::min_align)));
+            ptr, count, static_cast<std::align_val_t>(std::min<std::size_t>(alignof(Ty), internal::min_align)));
     }
 
     [[nodiscard]] auto alloc(const size_type count = 1) -> void* override {
