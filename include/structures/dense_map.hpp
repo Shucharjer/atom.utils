@@ -37,6 +37,10 @@ public:
     using iterator = typename std::vector<value_type, allocator_t<value_type>>::iterator;
     using const_iterator =
         typename std::vector<value_type, allocator_t<value_type>>::const_iterator;
+    using reverse_iterator =
+        typename std::vector<value_type, allocator_t<value_type>>::reverse_iterator;
+    using const_reverse_iterator =
+        typename std::vector<value_type, allocator_t<value_type>>::const_reverse_iterator;
 
 private:
     using array_t            = std::array<size_type, PageSize>;
@@ -305,19 +309,19 @@ public:
         return alloc_n_dense_.second().cend();
     }
 
-    auto rbegin() noexcept -> iterator { return alloc_n_dense_.second().rbegin(); }
-    [[nodiscard]] auto rbegin() const noexcept -> const_iterator {
+    auto rbegin() noexcept -> reverse_iterator { return alloc_n_dense_.second().rbegin(); }
+    [[nodiscard]] auto rbegin() const noexcept -> const_reverse_iterator {
         return alloc_n_dense_.second().rbegin();
     }
-    [[nodiscard]] auto crbegin() const noexcept -> const_iterator {
+    [[nodiscard]] auto crbegin() const noexcept -> const_reverse_iterator {
         return alloc_n_dense_.second().crbegin();
     }
 
-    auto rend() noexcept -> iterator { return alloc_n_dense_.second().rend(); }
-    [[nodiscard]] auto rend() const noexcept -> const_iterator {
+    auto rend() noexcept -> reverse_iterator { return alloc_n_dense_.second().rend(); }
+    [[nodiscard]] auto rend() const noexcept -> const_reverse_iterator {
         return alloc_n_dense_.second().rend();
     }
-    [[nodiscard]] auto crend() const noexcept -> const_iterator {
+    [[nodiscard]] auto crend() const noexcept -> const_reverse_iterator {
         return alloc_n_dense_.second().crend();
     }
 
@@ -393,8 +397,10 @@ public:
     using reference       = value_type&;
     using const_reference = const value_type&;
 
-    using iterator       = typename std::pmr::vector<value_type>::iterator;
-    using const_iterator = typename std::pmr::vector<value_type>::const_iterator;
+    using iterator               = typename std::pmr::vector<value_type>::iterator;
+    using const_iterator         = typename std::pmr::vector<value_type>::const_iterator;
+    using reverse_iterator       = typename std::pmr::vector<value_type>::reverse_iterator;
+    using const_reverse_iterator = typename std::pmr::vector<value_type>::const_reverse_iterator;
 
 private:
     using array_t            = std::array<size_type, PageSize>;
@@ -560,7 +566,7 @@ public:
         }
     }
 
-    [[nodiscard]] auto find(const key_type key) const noexcept -> const_iterator {
+    [[nodiscard]] auto find(const key_type key) const noexcept -> const_iterator{
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
@@ -597,13 +603,13 @@ public:
     [[nodiscard]] auto end() const noexcept -> const_iterator { return dense_.cend(); }
     [[nodiscard]] auto cend() const noexcept -> const_iterator { return dense_.cend(); }
 
-    auto rbegin() noexcept -> iterator { return dense_.rbegin(); }
-    [[nodiscard]] auto rbegin() const noexcept -> const_iterator { return dense_.rbegin(); }
-    [[nodiscard]] auto crbegin() const noexcept -> const_iterator { return dense_.crbegin(); }
+    auto rbegin() noexcept -> reverse_iterator { return dense_.rbegin(); }
+    [[nodiscard]] auto rbegin() const noexcept -> const_reverse_iterator { return dense_.rbegin(); }
+    [[nodiscard]] auto crbegin() const noexcept -> const_reverse_iterator { return dense_.crbegin(); }
 
-    auto rend() noexcept -> iterator { return dense_.rend(); }
-    [[nodiscard]] auto rend() const noexcept -> const_iterator { return dense_.rend(); }
-    [[nodiscard]] auto crend() const noexcept -> const_iterator { return dense_.crend(); }
+    auto rend() noexcept -> reverse_iterator { return dense_.rend(); }
+    [[nodiscard]] auto rend() const noexcept -> const_reverse_iterator { return dense_.rend(); }
+    [[nodiscard]] auto crend() const noexcept -> const_reverse_iterator { return dense_.crend(); }
 
 private:
     static size_type page_of(const key_type key) noexcept { return key / PageSize; }
