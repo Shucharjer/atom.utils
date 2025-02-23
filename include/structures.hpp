@@ -22,6 +22,13 @@ template <
     std::size_t = k_default_page_size>
 class dense_map;
 
+namespace pmr {
+
+template <std::unsigned_integral Key, typename Val, std::size_t = k_default_page_size>
+class dense_map;
+
+}
+
 template <typename Ty>
 using sync_allocator = allocator<Ty, synchronized_pool>;
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <concepts>
 #include <initializer_list>
+#include <vector>
 #include "core.hpp"
 #include "core/pair.hpp"
 #include "memory/allocator.hpp"
@@ -158,8 +159,9 @@ public:
         : alloc_n_dense_(that.alloc_n_dense_), sparse_(that.sparse_.size()) {
         //
         for (const auto& page : that.sparse_) {
-            sparse_.emplace_back(
-                unique_storage<array_t, allocator_t<array_t>>(page, alloc_n_dense_.first()));
+            unique_storage<array_t, allocator_t<array_t>> storage{ alloc_n_dense_.first() };
+            storage = *page;
+            sparse_.emplace_back(std::move(storage));
         }
     }
 
@@ -361,7 +363,7 @@ private:
         // return ret;
     }
 
-    UTILS compressed_pair<allocator_t<value_type>, std::vector<value_type, allocator_t<value_type>>>
+    compressed_pair<allocator_t<value_type>, std::vector<value_type, allocator_t<value_type>>>
         alloc_n_dense_;
     std::vector<storage_t, allocator_t<storage_t>> sparse_;
     std::shared_mutex dense_mutex_;
@@ -373,5 +375,281 @@ using sync_dense_map = dense_map<Key, Val, sync_allocator<std::pair<Key, Val>>, 
 
 template <std::unsigned_integral Key, typename Val, std::size_t PageSize = k_default_page_size>
 using unsync_dense_map = dense_map<Key, Val, unsync_allocator<std::pair<Key, Val>>, PageSize>;
+
+namespace pmr {
+
+template <std::unsigned_integral Key, typename Val, std::size_t PageSize>
+class dense_map {
+public:
+    using key_type    = Key;
+    using mapped_type = Val;
+    using value_type  = std::pair<key_type, mapped_type>;
+
+    using size_type       = std::size_t;
+    using difference_type = std::ptrdiff_t;
+
+    using pointer         = value_type*;
+    using const_pointer   = const value_type*;
+    using reference       = value_type&;
+    using const_reference = const value_type&;
+
+    using iterator       = typename std::pmr::vector<value_type>::iterator;
+    using const_iterator = typename std::pmr::vector<value_type>::const_iterator;
+
+private:
+    using array_t            = std::array<size_type, PageSize>;
+    using storage_t          = ::atom::utils::unique_storage<array_t>;
+    using shared_lock_keeper = ::atom::utils::lock_keeper<2, std::shared_mutex, std::shared_lock>;
+    using unique_lock_keeper = ::atom::utils::lock_keeper<2, std::shared_mutex, std::unique_lock>;
+
+public:
+    /**
+     * @brief Default constructor.
+     *
+     */
+    dense_map() : dense_(), sparse_() {}
+
+    /**
+     * @brief Construct by iterators.
+     *
+     */
+    template <typename Iter>
+    explicit dense_map(Iter first, Iter last) : dense_(first, last), sparse_() {
+        for (const auto& [key, val] : dense_) {
+            auto page   = page_of(key);
+            auto offset = offset_of(key);
+            check_page(page);
+            sparse_[page]->at(offset) = dense_.size();
+        }
+    }
+
+    /**
+     * @brief Construct by initializer list.
+     *
+     */
+    explicit dense_map(const std::initializer_list<std::pair<Key, Val>>& list)
+        : dense_(list), sparse_() {
+        for (const auto& [key, val] : dense_) {
+            auto page   = page_of(key);
+            auto offset = offset_of(key);
+            check_page(page);
+            sparse_[page]->at(offset) = dense_.size();
+        }
+    }
+
+    /**
+     * @brief Construct by initializer list.
+     *
+     */
+    explicit dense_map(std::initializer_list<std::pair<Key, Val>>&& list)
+        // delegate consturctor
+        : dense_map(std::move(list)) {}
+
+    dense_map(dense_map&& that) noexcept
+        : dense_(std::move(that.dense_)), sparse_(std::move(that.sparse_)) {}
+
+    dense_map& operator=(dense_map&& that) noexcept {
+        if (this != &that) {
+            unique_lock_keeper that_keeper{ that.dense_mutex_, that.sparse_mutex_ };
+            unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+            dense_  = std::move(that.dense_);
+            sparse_ = std::move(that.sparse_);
+        }
+        return *this;
+    }
+
+    dense_map(const dense_map& that) : dense_(that.dense_), sparse_(that.sparse_.size()) {
+        //
+        for (const auto& page : that.sparse_) {
+            unique_storage<array_t> storage{};
+            storage = *page;
+            sparse_.emplace_back(std::move(storage));
+        }
+    }
+
+    // TODO:
+    dense_map& operator=(const dense_map&) = delete;
+
+    ~dense_map() noexcept = default;
+
+    auto at(const key_type key) -> Val& {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+        shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
+        return dense_[sparse_[page]->at(offset)].second;
+    }
+
+    [[nodiscard]] auto at(const key_type key) const -> const Val& {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+        shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
+        return dense_[sparse_[page]->at(offset)].second;
+    }
+
+    auto operator[](const key_type key) -> Val& {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+        shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
+        return dense_[sparse_[page]->at(offset)].second;
+    }
+
+    auto operator[](const key_type key) const -> const Val& {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+        shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
+        return dense_[sparse_[page]->at(offset)].second;
+    }
+
+    template <typename ValTy>
+    void emplace(const key_type& key, ValTy&& val) {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        auto current_page_count = sparse_.size();
+        try {
+            check_page(page);
+            sparse_[page]->at(offset) = dense_.size();
+            try {
+                dense_.emplace_back(key, std::forward<ValTy>(val));
+            }
+            catch (...) {
+                sparse_[page]->at(offset) = 0;
+                throw;
+            }
+        }
+        catch (...) {
+            pop_page_to(current_page_count);
+        }
+    }
+
+    auto erase(const key_type key) {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        if (contains_impl(key, page, offset)) {
+            keeper.run_away();
+            erase_without_check_impl(page, offset);
+        }
+    }
+
+    auto erase_without_check(const key_type key) {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        erase_without_check_impl(page, offset);
+    }
+
+    auto contains(const key_type key) const -> bool {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+        return contains_impl(key, page, offset);
+    }
+
+    [[nodiscard]] auto find(const key_type key) noexcept -> iterator {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+
+        shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        if (contains_impl(key, page, offset)) {
+            return dense_.begin() + sparse_[page]->at(offset);
+        }
+        else {
+            return dense_.end();
+        }
+    }
+
+    [[nodiscard]] auto find(const key_type key) const noexcept -> const_iterator {
+        auto page   = page_of(key);
+        auto offset = offset_of(key);
+
+        shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        if (contains_impl(key, page, offset)) {
+            return dense_.cbegin() + sparse_[page]->at(offset);
+        }
+        else {
+            return dense_.cend();
+        }
+    }
+
+    [[nodiscard]] bool empty() const noexcept { return dense_.empty(); }
+
+    [[nodiscard]] size_type size() const noexcept { return dense_.size(); }
+
+    void clear() noexcept {
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        sparse_.clear();
+        dense_.clear();
+    }
+
+    auto front() -> mapped_type& { return dense_.front(); }
+    [[nodiscard]] auto front() const -> const mapped_type& { return dense_.front(); }
+
+    auto back() -> mapped_type& { return dense_.back(); }
+    [[nodiscard]] auto back() const -> const mapped_type& { return dense_.back(); }
+
+    auto begin() noexcept -> iterator { return dense_.begin(); }
+    [[nodiscard]] auto begin() const noexcept -> const_iterator { return dense_.cbegin(); }
+    [[nodiscard]] auto cbegin() const noexcept -> const_iterator { return dense_.cbegin(); }
+
+    auto end() noexcept -> iterator { return dense_.end(); }
+    [[nodiscard]] auto end() const noexcept -> const_iterator { return dense_.cend(); }
+    [[nodiscard]] auto cend() const noexcept -> const_iterator { return dense_.cend(); }
+
+    auto rbegin() noexcept -> iterator { return dense_.rbegin(); }
+    [[nodiscard]] auto rbegin() const noexcept -> const_iterator { return dense_.rbegin(); }
+    [[nodiscard]] auto crbegin() const noexcept -> const_iterator { return dense_.crbegin(); }
+
+    auto rend() noexcept -> iterator { return dense_.rend(); }
+    [[nodiscard]] auto rend() const noexcept -> const_iterator { return dense_.rend(); }
+    [[nodiscard]] auto crend() const noexcept -> const_iterator { return dense_.crend(); }
+
+private:
+    static size_type page_of(const key_type key) noexcept { return key / PageSize; }
+    static size_type offset_of(const key_type key) noexcept { return key % PageSize; }
+    void check_page(const size_type page) {
+        const auto current_page = sparse_.size();
+        try {
+            while (page >= sparse_.size()) {
+                storage_t storage(utils::construct_at_once);
+                sparse_.emplace_back(std::move(storage));
+            }
+        }
+        catch (...) {
+            while (sparse_.size() != current_page) {
+                sparse_.pop_back();
+            }
+        }
+    }
+    void pop_page_to(const size_type page) noexcept {
+        while (sparse_.size() != page) {
+            sparse_.pop_back();
+        }
+    }
+    [[nodiscard]] auto contains_impl(
+        const key_type key, const size_type page, const size_type offset) const noexcept -> bool {
+        return dense_.size() && sparse_.size() > page
+                   ? sparse_[page]->at(offset) ? true
+                                               : dense_[sparse_[page]->at(offset)].first == key
+                   : false;
+    }
+    auto erase_without_check_impl(const size_type page, const size_type offset) {
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        const size_type index = sparse_[page]->at(offset);
+        // UTILS compressed_pair<mapped_type, bool> ret { std::move(alloc_n_dense_.back()), true };
+        std::swap(dense_[index], dense_.back());
+        dense_.pop_back();
+        sparse_[page]->at(offset) = 0;
+        // return ret;
+    }
+
+    std::pmr::vector<value_type> dense_;
+    std::pmr::vector<storage_t> sparse_;
+    std::shared_mutex dense_mutex_;
+    std::shared_mutex sparse_mutex_;
+};
+
+} // namespace pmr
 
 } // namespace atom::utils
