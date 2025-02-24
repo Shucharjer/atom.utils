@@ -78,4 +78,15 @@ int main() {
         REQUIRES(utils::authenticity_of(description_a, is_aggregate))
         REQUIRES_FALSE(utils::authenticity_of(description_na, is_aggregate))
     }
+
+    // offsets
+    {
+        auto offsets = utils::offsets_of<aggregate>();
+        auto ptr = std::get<1>(offsets);
+        auto a = aggregate{};
+        a.member2 = 'c';
+        REQUIRES(a.*ptr == 'c');
+        a.*ptr = 'b';
+        REQUIRES(a.member2 == 'b');
+    }
 }
