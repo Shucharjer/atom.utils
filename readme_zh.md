@@ -21,20 +21,18 @@ atom.utils是atom引擎中所使用到的一系列基础工具的集合，它是
 
 1. 克隆这个仓库
 
-    ```shell
-    git clone https://github.com/Shucahrjer/atom.utils
-    cd atom.utils
-    ```
-
+   ```shell
+   git clone https://github.com/Shucahrjer/atom.utils
+   cd atom.utils
+   ```
 2. 构建
 
-    ```shell
-    cmake -B build
-    # or you could add other args, such as cmake -DCMAKE_C_COMPILER="clang" -DCMAKE_CXX_COMPILER="clang++" -DCMAKE_MAKE_PROGRAM="ninja" -G "Ninja" -B build
-    cd build
-    cmake --build . --config debug
-    ```
-
+   ```shell
+   cmake -B build
+   # or you could add other args, such as cmake -DCMAKE_C_COMPILER="clang" -DCMAKE_CXX_COMPILER="clang++" -DCMAKE_MAKE_PROGRAM="ninja" -G "Ninja" -B build
+   cd build
+   cmake --build . --config debug
+   ```
 3. 安装
 
 ```shell
@@ -84,7 +82,6 @@ using namespace atom::utils;
     <a href="#存储">存储</a>
     <a href="#around_ptr">around_ptr</a>
 </pre>
-
 
 ### 核心
 
@@ -141,7 +138,7 @@ assert(another_empty_vector.empty());
 ```
 
 需要指出的是，它不仅仅是范围适配器闭包，它是真的适配器闭包。
-这意味着你可以将对其它类型进行管道操作符，只要提供了合适的`operator()`。
+这意味着你可以将对其它类型进行管道操作符，只要提供了合适的 `operator()`。
 
 ##### 闭包
 
@@ -213,6 +210,7 @@ auto name = name_of<a>();
 ```
 
 ##### 成员数量
+
 ```c++
 auto count = member_count_v<a>();
 
@@ -221,15 +219,26 @@ auto count = member_count_v<a>();
 ```
 
 ##### 成员名
+
 ```c++
 auto names = member_names_of<a>();
 ```
 
 ##### 获取成员
+
 ```c++
 a inst {};
 auto& m1 = get<0>(inst);
 auto& m2 = get<"m2">(inst);
+```
+
+##### 成员偏移（成员指针）
+
+```c++
+a inst {};
+auto& offsets = offsets_of<a>();
+inst.*(std::get<0>(offsets)) = 114514;
+inst.*(std::get<1>(offsets)) = 'b';
 ```
 
 #### 自定义反射
@@ -287,7 +296,23 @@ std::cout << inst.m1 << '\n';
 
 #### lambda
 
+带有捕获列表的lambda表达式无法隐式转换为指针。
+现在，我们能通过一个函数快速获取到指针。
+
+```c++
+auto lambda = [&](){};
+auto ptr = make_function_ptr<lambda>(); 
+// void(*ptr)() = make_function_ptr<lambda>();
+```
+
 #### 委托
+
+```c++
+delegate<void()> d;
+d.bind<lambda>();
+// 或者一步到位
+delegate<void()> d2 { spread_arg<lambda> };
+```
 
 #### 槽
 
