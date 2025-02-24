@@ -49,19 +49,42 @@ struct pipeline_result {
         closures_ = std::move(that.closures_);
     }
 
-    template <std::ranges::range Rng>
-    [[nodiscard]] constexpr auto operator()(Rng&& range) noexcept(noexcept(std::forward<Second>(
-        closures_.second())(std::forward<First>(closures_.first())(std::forward<Rng>(range))))) {
+    /**
+     * @brief Get out of the pipeline.
+     *
+     * Usually, the tparam will be a range, but not only.
+     * It depends on the closure.
+     * @tparam Arg This tparam could be deduced.
+     */
+    template <typename Arg>
+    requires requires {
+        std::forward<First>(std::declval<First>())(std::declval<Arg>());
+        std::forward<Second>(std::declval<Second>())(
+            std::forward<First>(std::declval<First>())(std::declval<Arg>()));
+    }
+    [[nodiscard]] constexpr auto operator()(Arg&& arg) noexcept(noexcept(std::forward<Second>(
+        closures_.second())(std::forward<First>(closures_.first())(std::forward<Arg>(arg))))) {
         return std::forward<Second>(closures_.second())(
-            std::forward<First>(closures_.first())(std::forward<Rng>(range)));
+            std::forward<First>(closures_.first())(std::forward<Arg>(arg)));
     }
 
-    template <std::ranges::range Rng>
-    [[nodiscard]] constexpr auto operator()(Rng&& range) const
-        noexcept(noexcept(std::forward<Second>(closures_.second())(
-            std::forward<First>(closures_.first())(std::forward<Rng>(range))))) {
+    /**
+     * @brief Get out of the pipeline.
+     *
+     * Usually, the tparam will be a range, but not only.
+     * It depends on the closure.
+     * @tparam Arg This tparam could be deduced.
+     */
+    template <typename Arg>
+    requires requires {
+        std::forward<First>(std::declval<First>())(std::declval<Arg>());
+        std::forward<Second>(std::declval<Second>())(
+            std::forward<First>(std::declval<First>())(std::declval<Arg>()));
+    }
+    [[nodiscard]] constexpr auto operator()(Arg&& arg) const noexcept(noexcept(std::forward<Second>(
+        closures_.second())(std::forward<First>(closures_.first())(std::forward<Arg>(arg))))) {
         return std::forward<Second>(closures_.second())(
-            std::forward<First>(closures_.first())(std::forward<Rng>(range)));
+            std::forward<First>(closures_.first())(std::forward<Arg>(arg)));
     }
 
 private:
@@ -73,13 +96,19 @@ private:
 /**
  * @brief Consturct a range
  * from a range and a closure.
+ *
+ * @tparam Arg Usually, this tparam will be a range, but not only.
  */
-template <std::ranges::range Rng, typename Closure>
+template <typename Arg, typename Closure>
 requires std::derived_from<
-    std::remove_cvref_t<Closure>, atom::utils::pipeline_base<std::remove_cvref_t<Closure>>>
-[[nodiscard]] constexpr inline auto operator|(Rng&& range, Closure&& closure) noexcept(
-    noexcept(std::forward<Closure>(closure)(std::forward<Rng>(range)))) {
-    return std::forward<Closure>(closure)(std::forward<Rng>(range));
+             std::remove_cvref_t<Closure>,
+             atom::utils::pipeline_base<std::remove_cvref_t<Closure>>> &&
+         requires {
+             std::forward<Closure>(std::declval<Closure>())(std::forward<Arg>(std::declval<Arg>()));
+         }
+[[nodiscard]] constexpr inline auto operator|(Arg&& arg, Closure&& closure) noexcept(
+    noexcept(std::forward<Closure>(closure)(std::forward<Arg>(arg)))) {
+    return std::forward<Closure>(closure)(std::forward<Arg>(arg));
 }
 
 /*! @cond TURN_OFF_DOXYGEN */
@@ -100,12 +129,16 @@ constexpr bool is_pipeline_result_t = is_pipeline_result<Result>::value;
 /**
  * @brief Construct a range
  * from a range and a pipeline result.
+ *
+ * @tparam Arg Usually, this tparam will be a range, but not only.
  */
-template <std::ranges::range Rng, typename Result>
-requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
-[[nodiscard]] constexpr inline auto operator|(Rng&& range, Result&& result) noexcept(
-    noexcept(std::forward<Result>(result)(std::forward<Rng>(range)))) {
-    return std::forward<Result>(result)(std::forward<Rng>(range));
+template <typename Arg, typename Result>
+requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>> && requires {
+    std::forward<Result>(std::declval<Result>())(std::forward<Arg>(std::declval<Arg>()));
+}
+[[nodiscard]] constexpr inline auto operator|(Arg&& arg, Result&& result) noexcept(
+    noexcept(std::forward<Result>(result)(std::forward<Arg>(arg)))) {
+    return std::forward<Result>(result)(std::forward<Arg>(arg));
 }
 
 // clang-format off
