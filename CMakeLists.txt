@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.05)
 set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
+if (NOT CMAKE_CXX_STANDARD)
 set(CMAKE_CXX_STANDARD 20)
+endif()
 
 set(CMAKE_NAMESPACE "Atom::")
 
@@ -62,15 +64,6 @@ if (Utils_INCLUDE_HEADERS)
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges/iterator.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges/to.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/constexpr_extend.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/extend.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/field_traits.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/function_triats.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/hash.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/macros.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/reflected.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/register.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection/registry.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/delegate.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/sink.hpp>
@@ -206,6 +199,7 @@ endfunction()
 BUILD_EXECUTABLE_FOR(core ${UTILS_TEST_DIR}/core.cpp)
 BUILD_EXECUTABLE_FOR(memory ${UTILS_TEST_DIR}/memory.cpp)
 BUILD_EXECUTABLE_FOR(ranges ${UTILS_TEST_DIR}/ranges.cpp)
+BUILD_EXECUTABLE_FOR(reflection ${UTILS_TEST_DIR}/reflection.cpp)
 BUILD_EXECUTABLE_FOR(signal ${UTILS_TEST_DIR}/signal.cpp)
 BUILD_EXECUTABLE_FOR(structures ${UTILS_TEST_DIR}/structures.cpp)
 BUILD_EXECUTABLE_FOR(thread ${UTILS_TEST_DIR}/thread.cpp)
