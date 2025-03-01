@@ -21,3 +21,14 @@
     #define ATOM_NOINLINE
     #define ALLOCATOR
 #endif
+
+#if defined(_DEBUG)
+    #define ATOM_RELEASE_INLINE 
+#else
+    #define ATOM_RELEASE_INLINE ATOM_FORCE_INLINE
+#endif
+
+constexpr auto num_eight = 8;
+constexpr auto num_sixteen = 16;
+constexpr auto num_thirty_two = 32;
+
