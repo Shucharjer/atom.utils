@@ -1,6 +1,6 @@
 #pragma once
 #include <utility>
-#include "core/type_traits.hpp"
+#include "meta/sequence.hpp"
 
 namespace atom::utils {
 
@@ -37,7 +37,7 @@ public:
 template <
     auto Lambda, typename LambdaTraits = lambda_traits<decltype(&decltype(Lambda)::operator())>>
 constexpr inline auto make_function_ptr() noexcept -> typename LambdaTraits::function_type {
-    return &lambda_wrapper<Lambda>::template invoker<index_seq_t<LambdaTraits::num_args>>::invoke;
+    return &lambda_wrapper<Lambda>::template invoker<integer_seq_t<LambdaTraits::num_args>>::invoke;
 }
 
 } // namespace atom::utils

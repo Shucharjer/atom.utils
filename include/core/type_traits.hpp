@@ -219,69 +219,19 @@ struct last_of_tparams<Template<Args...>> {
 template <typename Template>
 using last_of_tparams_t = typename last_of_tparams<Template>::type;
 
-template <typename, typename>
-struct concat_seq;
-
-template <std::size_t... S1, std::size_t... S2>
-struct concat_seq<std::index_sequence<S1...>, std::index_sequence<S2...>> {
-    using type = std::index_sequence<S1..., S2...>;
+template <typename Ty>
+struct is_trivially_relocatable {
+    constexpr static bool value =
+        std::is_trivially_copyable_v<Ty> && std::is_trivially_destructible_v<Ty>;
 };
 
-template <typename Seq1, typename Seq2>
-using concat_seq_t = typename concat_seq<Seq1, Seq2>::type;
+template <typename Ty, std::size_t N>
+struct is_trivially_relocatable<Ty[N]> : is_trivially_relocatable<Ty> {};
 
-template <typename, std::size_t>
-struct append_seq;
+template <typename Ty>
+struct is_trivially_relocatable<Ty[]> : is_trivially_relocatable<Ty> {};
 
-template <std::size_t I, std::size_t Val>
-struct append_seq<std::index_sequence<I>, Val> {
-    using type = std::index_sequence<I, Val>;
-};
-
-template <std::size_t... Is, std::size_t Val>
-struct append_seq<std::index_sequence<Is...>, Val> {
-    using type = std::index_sequence<Is..., Val>;
-};
-
-template <typename Seq, std::size_t Val>
-using append_seq_t = typename append_seq<Seq, Val>::type;
-
-template <typename, typename>
-struct merge_seq;
-
-template <std::size_t... S1, std::size_t... S2>
-struct merge_seq<std::index_sequence<S1...>, std::index_sequence<S2...>> {
-    using type = std::index_sequence<S1..., (sizeof...(S1) + S2)...>;
-};
-
-template <typename Seq1, typename Seq2>
-using merge_seq_t = typename merge_seq<Seq1, Seq2>::type;
-
-template <std::size_t N>
-struct index_seq;
-
-template <>
-struct index_seq<0U> {
-    using type = std::index_sequence<>;
-};
-
-template <std::size_t N>
-struct index_seq {
-    using type = append_seq_t<typename index_seq<N - 1>::type, N - 1>;
-};
-
-template <std::size_t N>
-using index_seq_t = typename index_seq<N>::type;
-
-template <typename, typename>
-struct remake_seq;
-
-template <std::size_t... S1, std::size_t... S2>
-struct remake_seq<std::index_sequence<S1...>, std::index_sequence<S2...>> {
-    using type = index_seq_t<sizeof...(S1) + sizeof...(S2)>;
-};
-
-template <typename Seq1, typename Seq2>
-using remake_seq_t = typename remake_seq<Seq1, Seq2>::type;
+template <typename Ty>
+constexpr bool is_trivially_relocatable_v = is_trivially_relocatable<Ty>::value;
 
 } // namespace atom::utils
