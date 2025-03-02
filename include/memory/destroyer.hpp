@@ -1,6 +1,5 @@
 #pragma once
-#include <ranges>
-#include <type_traits>
+#include <memory>
 #include "core/langdef.hpp"
 
 namespace atom::utils {
@@ -9,29 +8,10 @@ struct default_destroyer;
 
 namespace internal {
 
-template <typename Begin, typename End>
-ATOM_FORCE_INLINE constexpr void destroy_range(Begin begin, End end) noexcept(
-    std::is_nothrow_destructible_v<std::iter_value_t<Begin>>) {
-    using value_type = std::iter_value_t<Begin>;
-    if constexpr (!std::is_trivially_destructible_v<value_type>) {
-        for (; begin != end; ++begin) {
-            (*begin)->~value_type();
-        }
-    }
-}
-
 template <typename Ty>
-ATOM_FORCE_INLINE constexpr void destroy(Ty* ptr) noexcept(std::is_nothrow_destructible_v<Ty>) {
-    if constexpr (!std::is_destructible_v<Ty>) {
-        return;
-    }
-
-    if constexpr (std::is_array_v<Ty>) {
-        destroy_range(std::begin(*ptr), std::end(*ptr));
-    }
-    else if constexpr (!std::is_trivially_destructible_v<Ty>) {
-        ptr->~Ty();
-    }
+ATOM_FORCE_INLINE constexpr void destroy(Ty* ptr) noexcept(
+    noexcept(std::destroy_at(ptr))) {
+    std::destroy_at(ptr);
 }
 
 template <typename Ty>
