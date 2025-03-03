@@ -72,7 +72,7 @@ struct universal {
 namespace atom::utils {
 template <std::size_t N>
 struct tstring_v {
-    constexpr tstring_v(const char (&arr)[N]) noexcept { std::copy(arr, arr + N, val); }
+    constexpr tstring_v(const char (&arr)[N]) noexcept { std::memcpy(val, arr, N); }
 
     template <std::size_t Num>
     constexpr auto operator<=>(const tstring_v<Num>& obj) const noexcept {
@@ -105,34 +105,9 @@ struct tstring_v {
 /*! @cond TURN_OFF_DOXYGEN */
 namespace atom::utils::internal {
 
-template <typename Begin, typename End>
-FORCE_INLINE constexpr void destroy_range(Begin begin, End end) noexcept(
-    std::is_nothrow_destructible_v<std::iter_value_t<Begin>>) {
-    using value_type = std::iter_value_t<Begin>;
-    if constexpr (!std::is_trivially_destructible_v<value_type>) {
-        for (; begin != end; ++begin) {
-            (*begin)->~value_type();
-        }
-    }
-}
-
-template <typename Ty>
-FORCE_INLINE constexpr void destroy(Ty* ptr) noexcept(std::is_nothrow_destructible_v<Ty>) {
-    if constexpr (!std::is_destructible_v<Ty>) {
-        return;
-    }
-
-    if constexpr (std::is_array_v<Ty>) {
-        destroy_range(std::begin(*ptr), std::end(*ptr));
-    }
-    else if constexpr (!std::is_trivially_destructible_v<Ty>) {
-        ptr->~Ty();
-    }
-}
-
 template <typename Ty>
 constexpr void wrapped_destroy(void* ptr) noexcept(noexcept(destroy(static_cast<Ty*>(ptr)))) {
-    destroy(static_cast<Ty*>(ptr));
+    std::destroy_at(static_cast<Ty*>(ptr));
 }
 
 } // namespace atom::utils::internal
@@ -171,7 +146,7 @@ struct basic_field_traits {
         return *this;
     }
 
-    constexpr ~basic_field_traits() noexcept = default;
+    constexpr virtual ~basic_field_traits() noexcept = default;
 
     [[nodiscard]] constexpr auto name() const noexcept -> std::string_view { return name_; }
 
@@ -1141,19 +1116,52 @@ constexpr inline std::array<std::string_view, member_count_v<Ty>> member_names_o
 // module: hash_of
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef ATOM_VECTORIZABLE
+#if defined(__i386__) || defined(__x86_64__)
+#define ATOM_VECTORIZABLE true
+#else
+#define ATOM_VECTORIZABLE false
+#endif
+#endif
+
+#if ATOM_VECTORIZABLE
+    #include <immintrin.h>
+#endif
+
 namespace atom::utils {
 /*! @cond TURN_OFF_DOXYGEN */
 namespace internal {
 FORCE_INLINE constexpr std::size_t hash(std::string_view string) noexcept {
     // DJB2 Hash
+    // NOTE: This hash algorithm is not friendly to parallelization support
+    // TODO: Another hash algrorithm, which is friendly to parallelization.
+
+#if ATOM_VECTORIZABLE && false
+    // bytes
+    const size_t parallel_request = 16;
+
+    #if defined(__AVX2__)
+    const size_t group_size  = 8;
+    #elif defined(__SSE2__)
+    const size_t group_size  = 4;
+    #endif
+#endif
 
     const size_t magic_initial_value = 5381;
     const size_t magic               = 5;
 
     std::size_t value = magic_initial_value;
-    for (const char c : string) {
-        value = ((value << magic) + value) + c;
+#if ATOM_VECTORIZABLE && false
+    if (string.length() < group_size) {
+#endif
+        for (const char c : string) {
+            value = ((value << magic) + value) + c;
+        }
+#if ATOM_VECTORIZABLE && false
     }
+    else {
+    }
+#endif
     return value;
 }
 
@@ -1394,8 +1402,8 @@ consteval auto description_of() noexcept -> description_bits {
 template <concepts::pure Ty>
 constexpr inline bool authenticity_of(const description_bits bits) noexcept {
     constexpr auto description = static_cast<description_bits_base>(description_of<Ty>());
-    auto mask                  = static_cast<description_bits_base>(bits);
-    auto result                = description & mask;
+    const auto mask            = static_cast<description_bits_base>(bits);
+    const auto result          = description & mask;
     return result == mask;
 }
 
@@ -9698,40 +9706,25 @@ inline auto offset_of() noexcept {
     return offset_of<index, Ty>();
 }
 
-#if __cplusplus >= 202302L
 template <concepts::has_field_traits Ty>
-constexpr inline const auto& offsets_of() noexcept {
-#else
-template <concepts::has_field_traits Ty>
-constexpr inline auto offsets_of() noexcept {
-#endif
-    constexpr auto traits = Ty::field_traits();
-#if __cplusplus >= 202302L
-    constexpr static auto offsets = [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-        return std::make_tuple(std::get<Is>(traits).pointer()...);
-    }(std::make_index_sequence<member_count_v<Ty>>());
-#else
+[[nodiscard]] consteval inline auto offsets_of() noexcept {
+    constexpr auto traits  = Ty::field_traits();
     constexpr auto offsets = [&]<std::size_t... Is>(std::index_sequence<Is...>) {
         return std::make_tuple(std::get<Is>(traits).pointer()...);
     }(std::make_index_sequence<member_count_v<Ty>>());
-#endif
     return offsets;
 }
 
-#if __cplusplus >= 202302L
 template <std::size_t Index, concepts::has_field_traits Ty>
-constexpr inline const auto& offset_of() noexcept {
-#else
-template <std::size_t Index, concepts::has_field_traits Ty>
-constexpr inline auto offset_of() noexcept {
-#endif
+[[nodiscard]] consteval inline auto offset_of() noexcept {
     static_assert(Index < member_count_v<Ty>);
-#if __cplusplus >= 202302L
-    constexpr static auto offsets = offsets_of<Ty>();
-#else
-    constexpr auto offsets = offsets_of<Ty>();
-#endif
-    return std::get<Index>(offsets);
+    return std::get<Index>(offsets_of<Ty>());
+}
+
+template <tstring_v Name, concepts::has_field_traits Ty>
+requires(existance_of<Name, Ty>())
+[[nodiscard]] constexpr inline auto offset_of() noexcept {
+    return offset_of<index_of<Name, Ty>()>();
 }
 
 } // namespace atom::utils
@@ -9792,11 +9785,7 @@ public:
         return description_;
     }
 
-    constexpr void destroy(void* ptr) const {
-        if (destroy_) {
-            destroy_(ptr);
-        }
-    }
+    constexpr void destroy(void* ptr) const { destroy_(ptr); }
 
 protected:
     constexpr explicit basic_reflected(
@@ -9887,17 +9876,24 @@ constexpr void find_traits(const Tuple& tuple, std::size_t& result) {
         result = Index;
     }
 }
-} // namespace internal
-/*! @endcond */
 
-template <::atom::utils::tstring_v Name, typename Tuple>
-consteval std::size_t index_of(const Tuple& tuple) {
-    auto index_sequence = std::make_index_sequence<std::tuple_size_v<Tuple>>();
-    std::size_t result  = std::tuple_size_v<Tuple>;
+template <tstring_v Name, typename Tuple>
+consteval std::size_t index_of(const Tuple& tuple) noexcept {
+    constexpr auto index_sequence = std::make_index_sequence<std::tuple_size_v<Tuple>>();
+    std::size_t result            = std::tuple_size_v<Tuple>;
     []<std::size_t... Is>(const Tuple& tuple, std::size_t& result, std::index_sequence<Is...>) {
         (internal::find_traits<Name, Is>(tuple, result), ...);
     }(tuple, result, index_sequence);
     return result;
+}
+} // namespace internal
+/*! @endcond */
+
+template <tstring_v Name, typename Tuple>
+consteval std::size_t index_of(const Tuple& tuple) noexcept {
+    constexpr auto index = index_of<Name, Tuple>(tuple);
+    static_assert(index <= std::tuple_size_v<Tuple>, "there is no member named as expceted.");
+    return index;
 }
 
 } // namespace atom::utils
@@ -9907,6 +9903,7 @@ consteval std::size_t index_of(const Tuple& tuple) {
 ///////////////////////////////////////////////////////////////////////////////
 
 #include <mutex>
+#include <ranges>
 #include <shared_mutex>
 #include <unordered_map>
 
@@ -10222,6 +10219,41 @@ protected:
 
 // NOLINTEND(cppcoreguidelines-macro-usage)
 
+namespace atom::utils {
+template <typename Format>
+struct serialization {
+    static_assert(false, "You need to create a specific version.");
+
+    template <typename Ty>
+    auto operator()(const Ty& obj, Format& ser) const -> Format& {
+        return ser;
+    }
+    template <typename Ty>
+    auto operator()(Ty& obj, Format& ser) const -> Format& {
+        return ser;
+    }
+};
+
+template <typename Format>
+struct deserialization {
+    static_assert(false, "You need to create a specific version.");
+
+    template <typename Ty>
+    auto operator()(Ty& obj, const Format& fmt) const -> Ty& {
+        return obj;
+    }
+    template <typename Ty>
+    auto operator()(Ty& obj, Format& fmt) const -> Ty& {
+        return obj;
+    }
+};
+
+} // namespace atom::utils
+
+///////////////////////////////////////////////////////////////////////////////
+// support for thirdparty
+///////////////////////////////////////////////////////////////////////////////
+
 #if __has_include(<nlohmann/json.hpp>)
     #include <nlohmann/json.hpp>
 
@@ -10240,6 +10272,43 @@ inline void from_json(const nlohmann::json& json, Ty& obj) {
         ((json.at(names[Is]).get_to(::atom::utils::get<Is>(obj))), ...);
     }(std::make_index_sequence<atom::utils::member_count_v<Ty>>());
 }
+
+    #define NLOHMANN_JSON_SUPPORT                                                                  \
+        template <::atom::utils::concepts::reflectible Ty>                                         \
+        inline void to_json(nlohmann::json& json, const Ty& obj) {                                 \
+            ::to_json(json, obj);                                                                  \
+        }                                                                                          \
+        template <::atom::utils::concepts::reflectible Ty>                                         \
+        inline void from_json(const nlohmann::json& json, Ty& obj) {                               \
+            ::from_json(json, obj);                                                                \
+        }                                                                                          \
+        //
+
+template <>
+struct ::atom::utils::serialization<nlohmann::json> {
+    template <typename Ty>
+    auto operator()(const Ty& obj, nlohmann::json& json) const {
+        if constexpr (::atom::utils::concepts::reflectible<Ty>) {
+            ::to_json(json, obj);
+        }
+        else {
+            json = obj;
+        }
+    }
+};
+
+template <>
+struct ::atom::utils::deserialization<nlohmann::json> {
+    template <typename Ty>
+    auto operator()(Ty& obj, const nlohmann::json& json) const {
+        if constexpr (::atom::utils::concepts::reflectible<Ty>) {
+            ::from_json(json, obj);
+        }
+        else {
+            obj = json;
+        }
+    }
+};
 
 #endif
 
@@ -10308,6 +10377,14 @@ auto tag_invoke(
 }
 } // namespace simdjson
 
+template <>
+struct ::atom::utils::deserialization<simdjson::fallback::ondemand::document> {
+    template <typename Ty>
+    auto operator()(Ty& obj, simdjson::fallback::ondemand::document& doc) const {
+        ::simdjson::deserialize(doc, obj);
+    }
+};
+
 #endif
 
 #if __has_include(<lua.hpp>) && __has_include(<sol/sol.hpp>)
@@ -10367,3 +10444,37 @@ inline sol::usertype<Ty> bind_to_lua(sol::state& lua) noexcept {
 }
 
 #endif
+
+///////////////////////////////////////////////////////////////////////////////
+// uniform serialization & deserialization interface
+///////////////////////////////////////////////////////////////////////////////
+
+namespace atom::utils {
+
+/*! @cond TURN_OFF_DOXYGEN */
+namespace internal {
+struct serialize_fn {
+    template <typename Ty, typename Format>
+    void operator()(const Ty& obj, Format& fmt) const {
+        serialization<Format>{}(obj, fmt);
+    }
+};
+
+struct deserialize_fn {
+    template <typename Format>
+    void operator()(auto& obj, const Format& fmt) const {
+        deserialization<Format>{}(obj, fmt);
+    }
+
+    template <typename Format>
+    void operator()(auto& obj, Format& fmt) const {
+        deserialization<Format>{}(obj, fmt);
+    }
+};
+} // namespace internal
+/*! @endcond */
+
+constexpr inline internal::serialize_fn serialize;
+constexpr inline internal::deserialize_fn deserialize;
+
+} // namespace atom::utils
