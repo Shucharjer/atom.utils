@@ -78,7 +78,7 @@ public:
         int spin_count        = 0;
         while (spin_count++ < spin_limit) {
             // pre-check
-            if (!busy_.load(std::memory_order_relaxed)) {
+            if (!busy_.load(std::memory_order_acquire)) {
                 if (try_lock()) {
                     return;
                 }
@@ -103,7 +103,7 @@ public:
     void unlock() noexcept {
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            busy_.store(false, std::memory_order_release);
+            busy_.store(false, std::memory_order_relaxed);
         }
         condvar_.notify_one();
     }
@@ -111,7 +111,7 @@ public:
     bool try_lock() noexcept {
         bool expected = false;
         return busy_.compare_exchange_strong(
-            expected, true, std::memory_order_acquire, std::memory_order_relaxed);
+            expected, true, std::memory_order_acquire, std::memory_order_acquire);
     }
 
 private:
