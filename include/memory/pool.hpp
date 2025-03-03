@@ -3,6 +3,7 @@
 #include <memory>
 #include <stack>
 #include "core.hpp"
+#include "core/langdef.hpp"
 
 namespace atom::utils {
 
@@ -40,8 +41,8 @@ public:
     auto get() -> shared_type { return this; }
 
     template <typename Ty>
-    auto allocate(const size_type count = 1, const std::align_val_t align = std::align_val_t{ 16 })
-        -> Ty* {
+    ALLOCATOR auto allocate(
+        const size_type count = 1, const std::align_val_t align = std::align_val_t{ 16 }) -> Ty* {
         return static_cast<Ty*>(operator new(sizeof(Ty) * count, align));
     }
 
@@ -76,7 +77,7 @@ public:
         using size_type = unsynchronized_pool::size_type;
 
         template <typename Ty>
-        auto allocate(
+        ALLOCATOR auto allocate(
             const size_type count = 1, const std::align_val_t align = std::align_val_t{ 16 })
             -> Ty* {
             // TODO: allocate impl
