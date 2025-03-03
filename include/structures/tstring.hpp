@@ -51,7 +51,7 @@ private:
  */
 template <std::size_t N>
 struct tstring_v {
-    constexpr tstring_v(const char (&arr)[N]) { std::copy(arr, arr + N, val); }
+    constexpr tstring_v(const char (&arr)[N]) { std::memcpy(val, arr, N); }
 
     template <std::size_t Num>
     constexpr auto operator<=>(const tstring_v<Num>& obj) const {
