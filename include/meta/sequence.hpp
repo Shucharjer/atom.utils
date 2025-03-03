@@ -1,13 +1,11 @@
 #pragma once
 #include <utility>
+#include "meta.hpp"
 
 namespace atom::utils {
 
 template <typename Elem, Elem...>
 struct sequence {};
-
-template <typename Seq>
-struct sequence_element;
 
 template <typename Elem, Elem... vals, template <typename, auto...> typename Sequence>
 struct sequence_element<Sequence<Elem, vals...>> {
@@ -17,9 +15,6 @@ struct sequence_element<Sequence<Elem, vals...>> {
 template <typename Seq>
 using sequence_element_t = typename sequence_element<Seq>::type;
 
-template <typename Seq>
-struct sequence_size;
-
 template <typename Elem, Elem... vals, template <typename, auto...> typename Sequence>
 struct sequence_size<Sequence<Elem, vals...>> {
     constexpr static std::size_t value = sizeof...(vals);
@@ -27,9 +22,6 @@ struct sequence_size<Sequence<Elem, vals...>> {
 
 template <typename Seq>
 constexpr inline auto sequence_size_v = sequence_size<Seq>::value;
-
-template <typename, typename>
-struct concat_sequence;
 
 template <typename Elem, Elem... S1, Elem... S2, template <typename, auto...> typename Sequence>
 struct concat_sequence<Sequence<Elem, S1...>, Sequence<Elem, S2...>> {
@@ -39,9 +31,6 @@ struct concat_sequence<Sequence<Elem, S1...>, Sequence<Elem, S2...>> {
 template <typename Seq1, typename Seq2>
 using concat_sequence_t = typename concat_sequence<Seq1, Seq2>::type;
 
-template <typename, auto>
-struct append_sequence;
-
 template <typename Elem, Elem... Is, Elem Val, template <typename, auto...> typename Sequence>
 struct append_sequence<Sequence<Elem, Is...>, Val> {
     using type = Sequence<Elem, Is..., Val>;
@@ -50,9 +39,6 @@ struct append_sequence<Sequence<Elem, Is...>, Val> {
 template <typename Seq, auto Val>
 using append_sequence_t = typename append_sequence<Seq, Val>::type;
 
-template <typename, typename>
-struct merge_sequence;
-
 template <typename Elem, Elem... S1, Elem... S2, template <typename, auto...> typename Sequence>
 struct merge_sequence<Sequence<Elem, S1...>, Sequence<Elem, S2...>> {
     using type = Sequence<Elem, S1..., (sizeof...(S1) + S2)...>;
@@ -60,9 +46,6 @@ struct merge_sequence<Sequence<Elem, S1...>, Sequence<Elem, S2...>> {
 
 template <typename Seq1, typename Seq2>
 using merge_sequence_t = typename merge_sequence<Seq1, Seq2>::type;
-
-template <std::size_t N, typename Ty = std::size_t>
-struct integer_seq;
 
 template <typename Ty>
 struct integer_seq<0U, Ty> {
@@ -76,9 +59,6 @@ struct integer_seq {
 
 template <std::size_t N, typename Ty = std::size_t>
 using integer_seq_t = typename integer_seq<N, Ty>::type;
-
-template <typename, typename>
-struct remake_sequence;
 
 template <typename Elem, Elem... S1, Elem... S2, template <typename, auto...> typename Sequence>
 struct remake_sequence<Sequence<Elem, S1...>, Sequence<Elem, S2...>> {
@@ -109,9 +89,6 @@ struct pop_front<Sequence<Elem, head, tail...>> {
 
 template <typename Seq>
 using pop_front_t = typename pop_front<Seq>::type;
-
-template <typename Seq>
-struct empty_sequence;
 
 template <typename Elem, Elem... vals, template <typename, auto...> typename Sequence>
 struct empty_sequence<Sequence<Elem, vals...>> {
