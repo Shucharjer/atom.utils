@@ -219,19 +219,4 @@ struct last_of_tparams<Template<Args...>> {
 template <typename Template>
 using last_of_tparams_t = typename last_of_tparams<Template>::type;
 
-template <typename Ty>
-struct is_trivially_relocatable {
-    constexpr static bool value =
-        std::is_trivially_copyable_v<Ty> && std::is_trivially_destructible_v<Ty>;
-};
-
-template <typename Ty, std::size_t N>
-struct is_trivially_relocatable<Ty[N]> : is_trivially_relocatable<Ty> {};
-
-template <typename Ty>
-struct is_trivially_relocatable<Ty[]> : is_trivially_relocatable<Ty> {};
-
-template <typename Ty>
-constexpr bool is_trivially_relocatable_v = is_trivially_relocatable<Ty>::value;
-
 } // namespace atom::utils
