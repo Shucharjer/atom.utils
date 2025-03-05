@@ -19,13 +19,17 @@ inline void cpu_relax() { __asm__ volatile("yield"); }
 inline void cpu_relax() {}
 #endif
 
+const auto max_spin_time = 1024;
+
 } // namespace internal
 /*! @endcond */
+
+#if defined(__cpp_lib_atomic_wait) && __cpp_lib_atomic_wait >= 201907L
 
 /**
  * @class spin_lock
  * @brief Spin lock, suitable for high-frequency task scenarios.
- *
+ * @details This implementation will detech notifications from other threads instead of simply spin.
  */
 class spin_lock {
 public:
@@ -40,21 +44,118 @@ public:
      * @brief Try get the lock.
      *
      */
-    auto try_lock() noexcept -> bool { return !busy_.exchange(true, std::memory_order_acquire); }
+    auto try_lock() noexcept -> bool { return flag_.test_and_set(std::memory_order_acquire); }
 
     void lock() noexcept {
-        while (busy_.exchange(true, std::memory_order_acquire)) {
-            while (busy_.load(std::memory_order_relaxed)) {
-                internal::cpu_relax();
-            }
+        while (flag_.test_and_set(std::memory_order_acquire)) {
+    #if defined(__cpp_lib_atomic_wait) && __cpp_lib_atomic_wait >= 201907L
+            flag_.wait(true, std::memory_order_relaxed);
+    #endif
         }
     }
 
-    void unlock() noexcept { busy_.store(false, std::memory_order_release); }
+    void unlock() noexcept {
+        flag_.clear(std::memory_order_release);
+        flag_.notify_one();
+    }
 
 private:
-    std::atomic<bool> busy_{ false };
+    #if defined(__cpp_lib_atomic_value_initialization) &&                                          \
+        __cpp_lib_atomic_value_initialization >= 201911L
+    std::atomic_flag flag_{};
+    #else
+    std::atomic_flag flag_ = ATOMIC_FLAG_INIT;
+    #endif
 };
+
+#endif
+
+/**
+ * @class triditional_spin_lock
+ * @brief Triditional spin lock, suitable for high-frequency task scenarios.
+ * @details Normal spin lock, spin when calling `lock()`, which means low latency.
+ */
+class triditional_spin_lock {
+public:
+    triditional_spin_lock()                                        = default;
+    triditional_spin_lock(const triditional_spin_lock&)            = delete;
+    triditional_spin_lock(triditional_spin_lock&&)                 = delete;
+    triditional_spin_lock& operator=(const triditional_spin_lock&) = delete;
+    triditional_spin_lock& operator=(triditional_spin_lock&&)      = delete;
+    ~triditional_spin_lock()                                       = default;
+
+    /**
+     * @brief Try get the lock.
+     *
+     */
+    auto try_lock() noexcept -> bool { return flag_.test_and_set(std::memory_order_acquire); }
+
+    void lock() noexcept {
+        while (flag_.test_and_set(std::memory_order_acquire)) {
+            internal::cpu_relax();
+        }
+    }
+
+    void unlock() noexcept { flag_.clear(std::memory_order_release); }
+
+private:
+#if defined(__cpp_lib_atomic_value_initialization) &&                                              \
+    __cpp_lib_atomic_value_initialization >= 201911L
+    std::atomic_flag flag_{};
+#else
+    std::atomic_flag flag_ = ATOMIC_FLAG_INIT;
+#endif
+};
+
+#if defined(__cpp_lib_atomic_wait) && __cpp_lib_atomic_wait >= 201907L
+
+/**
+ * @class hybrid_spin_lock
+ * @brief A new implementation of spin lock inspired by atomic_wiat in c++20
+ * @details It will first try triditional spinning and wait for notification if it cannot lock for a
+ * long time, which means versatility.
+ */
+class hybrid_spin_lock {
+public:
+    hybrid_spin_lock()                                   = default;
+    hybrid_spin_lock(const hybrid_spin_lock&)            = delete;
+    hybrid_spin_lock(hybrid_spin_lock&&)                 = delete;
+    hybrid_spin_lock& operator=(const hybrid_spin_lock&) = delete;
+    hybrid_spin_lock& operator=(hybrid_spin_lock&&)      = delete;
+    ~hybrid_spin_lock()                                  = default;
+
+    auto try_lock() noexcept -> bool { return flag_.test_and_set(std::memory_order_acquire); }
+
+    void lock() noexcept {
+        for (auto i = 0;
+             i < internal::max_spin_time && flag_.test_and_set(std::memory_order_acquire); ++i) {
+            internal::cpu_relax();
+        }
+
+        while (flag_.test_and_set(std::memory_order_acquire)) {
+            flag_.wait(true, std::memory_order_relaxed);
+        }
+    }
+
+    void unlock() noexcept {
+        flag_.clear(std::memory_order_release);
+        flag_.notify_one();
+    }
+
+private:
+    #if defined(__cpp_lib_atomic_value_initialization) &&                                          \
+        __cpp_lib_atomic_value_initialization >= 201911L
+    std::atomic_flag flag_{};
+    #else
+    std::atomic_flag flag_ = ATOMIC_FLAG_INIT;
+    #endif
+};
+
+#else
+
+using spin_lock = triditional_spin_lock;
+
+#endif
 
 /**
  * @class hybrid_lock
