@@ -125,9 +125,27 @@ public:
         }
     }
 
+    template <typename... Args>
+    requires std::is_constructible_v<Ty, Args...>
+    constexpr explicit unique_storage(Args&&... args)
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), Allocator{}), val_(nullptr) {
+        Ty* ptr = nullptr;
+        try {
+            ptr = pair_.second().allocate(1);
+            ::new (ptr) Ty(std::forward<Args>(args)...);
+            val_ = std::launder(ptr);
+        }
+        catch (...) {
+            if (ptr) {
+                pair_.second().deallocate(ptr, 1);
+            }
+            throw;
+        }
+    }
+
     template <typename... Args, typename Alloc>
     requires std::is_constructible_v<Ty, Args...> && std::is_constructible_v<Allocator, Alloc>
-    constexpr explicit unique_storage(Args&&... args, const Alloc& allocator = Allocator{})
+    constexpr explicit unique_storage(Args&&... args, const Alloc& allocator)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {
         Ty* ptr = nullptr;
         try {
