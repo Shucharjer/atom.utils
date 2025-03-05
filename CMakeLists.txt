@@ -198,6 +198,7 @@ endfunction()
 
 BUILD_EXECUTABLE_FOR(core ${UTILS_TEST_DIR}/core.cpp)
 BUILD_EXECUTABLE_FOR(memory ${UTILS_TEST_DIR}/memory.cpp)
+BUILD_EXECUTABLE_FOR(meta ${UTILS_TEST_DIR}/meta.cpp)
 BUILD_EXECUTABLE_FOR(ranges ${UTILS_TEST_DIR}/ranges.cpp)
 BUILD_EXECUTABLE_FOR(reflection ${UTILS_TEST_DIR}/reflection.cpp)
 BUILD_EXECUTABLE_FOR(signal ${UTILS_TEST_DIR}/signal.cpp)
