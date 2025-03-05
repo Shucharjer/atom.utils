@@ -73,7 +73,11 @@ private:
 /**
  * @class triditional_spin_lock
  * @brief Triditional spin lock, suitable for high-frequency task scenarios.
+<<<<<<< HEAD
  * @details Normal spin lock, spin when calling `lock()`, which means low latency.
+=======
+ * @details Normal spin lock, spin when in `lock()`, which means low latency.
+>>>>>>> 3912dbef686cf8b93f99e60e4dda248681331e64
  */
 class triditional_spin_lock {
 public:
@@ -137,10 +141,14 @@ public:
         }
     }
 
+<<<<<<< HEAD
     void unlock() noexcept {
         flag_.clear(std::memory_order_release);
         flag_.notify_one();
     }
+=======
+    void unlock() noexcept { flag_.clear(std::memory_order_release); }
+>>>>>>> 3912dbef686cf8b93f99e60e4dda248681331e64
 
 private:
     #if defined(__cpp_lib_atomic_value_initialization) &&                                          \
