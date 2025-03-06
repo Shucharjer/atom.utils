@@ -72,7 +72,11 @@ struct universal {
 namespace atom::utils {
 template <std::size_t N>
 struct tstring_v {
-    constexpr tstring_v(const char (&arr)[N]) noexcept { std::memcpy(val, arr, N); }
+    constexpr tstring_v(const char (&arr)[N]) noexcept {
+        // memcpy is not a compile-time function
+        // std::memcpy(val, arr, N);
+        std::copy(arr, arr + N, val);
+    }
 
     template <std::size_t Num>
     constexpr auto operator<=>(const tstring_v<Num>& obj) const noexcept {
@@ -1117,11 +1121,11 @@ constexpr inline std::array<std::string_view, member_count_v<Ty>> member_names_o
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifndef ATOM_VECTORIZABLE
-#if defined(__i386__) || defined(__x86_64__)
-#define ATOM_VECTORIZABLE true
-#else
-#define ATOM_VECTORIZABLE false
-#endif
+    #if defined(__i386__) || defined(__x86_64__)
+        #define ATOM_VECTORIZABLE true
+    #else
+        #define ATOM_VECTORIZABLE false
+    #endif
 #endif
 
 #if ATOM_VECTORIZABLE
@@ -1141,9 +1145,9 @@ FORCE_INLINE constexpr std::size_t hash(std::string_view string) noexcept {
     const size_t parallel_request = 16;
 
     #if defined(__AVX2__)
-    const size_t group_size  = 8;
+    const size_t group_size = 8;
     #elif defined(__SSE2__)
-    const size_t group_size  = 4;
+    const size_t group_size = 4;
     #endif
 #endif
 
@@ -1159,8 +1163,7 @@ FORCE_INLINE constexpr std::size_t hash(std::string_view string) noexcept {
         }
 #if ATOM_VECTORIZABLE && false
     }
-    else {
-    }
+    else {}
 #endif
     return value;
 }
@@ -1304,7 +1307,7 @@ template <concepts::reflectible Ty>
 template <tstring_v Name, typename Ty>
 constexpr inline auto& get(Ty& obj) noexcept {
     constexpr auto index = index_of<Name, Ty>();
-    static_assert(index < member_count_v<Ty>());
+    static_assert(index < member_count_v<Ty>);
     return get<index>(obj);
 }
 
