@@ -1,4 +1,6 @@
 #include "reflection.hpp"
+#include <cstdlib>
+#include <type_traits>
 #include "require.hpp"
 
 using namespace atom;
@@ -61,8 +63,10 @@ int main() {
         auto description_a  = utils::description_of<aggregate>();
         auto description_na = utils::description_of<not_aggregate>();
 
-        REQUIRES(utils::authenticity_of(description_a, utils::bits::is_aggregate));
-        REQUIRES(!utils::authenticity_of(description_na, utils::bits::is_aggregate));
+        using namespace utils::bits;
+
+        REQUIRES(utils::authenticity_of({ .desc = description_a, .bits = is_aggregate }));
+        REQUIRES(!utils::authenticity_of({ .desc = description_na, .bits = is_aggregate }));
     }
 
     // reflected
@@ -75,16 +79,16 @@ int main() {
         auto description_a  = reflected_a.description();
         auto description_na = reflected_na.description();
 
-        REQUIRES(utils::authenticity_of(description_a, is_aggregate))
-        REQUIRES_FALSE(utils::authenticity_of(description_na, is_aggregate))
+        REQUIRES(utils::authenticity_of({ .desc = description_a, .bits = is_aggregate }))
+        REQUIRES_FALSE(utils::authenticity_of({ .desc = description_na, .bits = is_aggregate }))
     }
 
     // offsets
     {
         auto offsets = utils::offsets_of<aggregate>();
-        auto ptr = std::get<1>(offsets);
-        auto a = aggregate{};
-        a.member2 = 'c';
+        auto ptr     = std::get<1>(offsets);
+        auto a       = aggregate{};
+        a.member2    = 'c';
         REQUIRES(a.*ptr == 'c');
         a.*ptr = 'b';
         REQUIRES(a.member2 == 'b');
