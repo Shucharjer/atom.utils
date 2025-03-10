@@ -10164,7 +10164,7 @@ static inline auto offset_tuple() noexcept {
 
 template <concepts::default_reflectible_aggregate Ty>
 inline const auto& offsets_of() noexcept {
-    static const auto tuple = internal::offset_tuple<Ty>();
+    [[maybe_unused]] static const auto tuple = internal::offset_tuple<Ty>();
     return tuple;
 }
 
