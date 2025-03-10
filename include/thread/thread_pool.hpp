@@ -12,23 +12,17 @@ namespace atom::utils {
 
 class thread_pool final {
 public:
-    thread_pool(const std::size_t num_threads = std::thread::hardware_concurrency()) {
-        for (auto i = 0; i < num_threads; ++i) {
-            threads_.emplace_back([this]() {
-                while (true) {
-                    std::unique_lock<std::mutex> lock(mutex_);
-                    condvar_.wait(lock, [this]() { return stop_ || !tasks_.empty(); });
-
-                    if (stop_ && tasks_.empty()) {
-                        return;
-                    }
-
-                    auto task{ std::move(tasks_.front()) };
-                    tasks_.pop();
-                    lock.unlock();
-                    task();
-                }
-            });
+    thread_pool(const std::size_t num_threads = std::thread::hardware_concurrency())
+        : num_threads_(num_threads) {
+        try {
+            for (auto i = 0; i < num_threads / 2; ++i) {
+                emplace_thread();
+            }
+        }
+        catch (...) {
+            threads_.clear();
+            num_threads_ = 0;
+            throw;
         }
     }
 
@@ -67,6 +61,10 @@ public:
             throw std::runtime_error("enqueue on stopped thread pool");
         }
 
+        if (threads_.size() ^ num_threads_) {
+            emplace_thread();
+        }
+
         auto task = std::make_shared<std::packaged_task<return_type()>>(
             std::bind(std::forward<Callable>(callable), std::forward<Args>(args)...));
 
@@ -82,9 +80,28 @@ public:
     }
 
 private:
+    void emplace_thread() {
+        threads_.emplace_back([this]() {
+            while (true) {
+                std::unique_lock<std::mutex> lock(mutex_);
+                condvar_.wait(lock, [this]() { return stop_ || !tasks_.empty(); });
+
+                if (stop_ && tasks_.empty()) {
+                    return;
+                }
+
+                auto task{ std::move(tasks_.front()) };
+                tasks_.pop();
+                lock.unlock();
+                task();
+            }
+        });
+    }
+
     std::atomic<bool> stop_{ false };
-    std::vector<std::jthread> threads_;
+    uint32_t num_threads_;
     std::mutex mutex_;
+    std::vector<std::jthread> threads_;
     std::condition_variable condvar_;
     std::queue<std::function<void()>> tasks_;
 };
