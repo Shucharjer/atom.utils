@@ -141,42 +141,33 @@ requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Resul
     return std::forward<Result>(result)(std::forward<Arg>(arg));
 }
 
-// clang-format off
 /**
  * @brief Construct a pipeline result
  * from two closures.
  */
 template <typename Closure, typename Another>
-requires std::derived_from<std::remove_cvref_t<Closure>,
-            ::atom::utils::pipeline_base<std::remove_cvref_t<Closure>>> ||
-         std::derived_from<std::remove_cvref_t<Another>,
-            ::atom::utils::pipeline_base<std::remove_cvref_t<Another>>>
-[[nodiscard]] constexpr inline auto operator|(
-    Closure&& closure, Another&& another
-) noexcept(std::is_nothrow_constructible_v<
-            atom::utils::pipeline_result<Closure, Another>,
-            Closure,
-            Another>) {
-    return UTILS pipeline_result<Closure, Another>(
-        std::forward<Closure>(closure), std::forward<Another>(another)
-    );
+requires std::derived_from<
+             std::remove_cvref_t<Closure>,
+             ::atom::utils::pipeline_base<std::remove_cvref_t<Closure>>> ||
+         std::derived_from<
+             std::remove_cvref_t<Another>,
+             ::atom::utils::pipeline_base<std::remove_cvref_t<Another>>>
+[[nodiscard]] constexpr inline auto operator|(Closure&& closure, Another&& another) noexcept(
+    std::is_nothrow_constructible_v<
+        atom::utils::pipeline_result<Closure, Another>, Closure, Another>) {
+    return ::atom::utils::pipeline_result<Closure, Another>(
+        std::forward<Closure>(closure), std::forward<Another>(another));
 }
-// clang-format on
 
-// clang-format off
 /**
  * @brief Construct a pipeline_result
  * from a pipeline_result and a closure.
  */
 template <typename Result, typename Closure>
 requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
-[[nodiscard]] constexpr inline auto operator|(
-    Result&& closure, Closure&& another
-) noexcept(std::is_nothrow_constructible_v<
-            ::atom::utils::pipeline_result<Result, Closure>,
-            Result,
-            Closure>) {
-    // clang-format on
-    return UTILS pipeline_result<Result, Closure>(
-        std::forward<Result>(closure), std::forward<Closure>(another));
+[[nodiscard]] constexpr inline auto operator|(Result&& result, Closure&& closure) noexcept(
+    std::is_nothrow_constructible_v<
+        ::atom::utils::pipeline_result<Result, Closure>, Result, Closure>) {
+    return ::atom::utils::pipeline_result<Result, Closure>(
+        std::forward<Result>(result), std::forward<Closure>(closure));
 }
