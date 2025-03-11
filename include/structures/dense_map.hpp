@@ -243,6 +243,12 @@ public:
         erase_without_check_impl(page, offset);
     }
 
+    void reserve(const size_type size) {
+        auto page = page_of(size);
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        check_page(page);
+    }
+
     auto contains(const key_type key) const -> bool {
         auto page   = page_of(key);
         auto offset = offset_of(key);
@@ -547,6 +553,12 @@ public:
         erase_without_check_impl(page, offset);
     }
 
+    void reserve(const size_type size) {
+        auto page = page_of(size);
+        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        check_page(page);
+    }
+
     auto contains(const key_type key) const -> bool {
         auto page   = page_of(key);
         auto offset = offset_of(key);
@@ -566,7 +578,7 @@ public:
         }
     }
 
-    [[nodiscard]] auto find(const key_type key) const noexcept -> const_iterator{
+    [[nodiscard]] auto find(const key_type key) const noexcept -> const_iterator {
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
@@ -605,7 +617,9 @@ public:
 
     auto rbegin() noexcept -> reverse_iterator { return dense_.rbegin(); }
     [[nodiscard]] auto rbegin() const noexcept -> const_reverse_iterator { return dense_.rbegin(); }
-    [[nodiscard]] auto crbegin() const noexcept -> const_reverse_iterator { return dense_.crbegin(); }
+    [[nodiscard]] auto crbegin() const noexcept -> const_reverse_iterator {
+        return dense_.crbegin();
+    }
 
     auto rend() noexcept -> reverse_iterator { return dense_.rend(); }
     [[nodiscard]] auto rend() const noexcept -> const_reverse_iterator { return dense_.rend(); }
