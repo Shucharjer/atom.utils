@@ -229,7 +229,7 @@ public:
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
-        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         if (contains_impl(key, page, offset)) {
             keeper.run_away();
             erase_without_check_impl(page, offset);
@@ -239,7 +239,6 @@ public:
     auto erase_without_check(const key_type key) {
         auto page   = page_of(key);
         auto offset = offset_of(key);
-        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         erase_without_check_impl(page, offset);
     }
 
@@ -247,6 +246,7 @@ public:
         auto page = page_of(size);
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         check_page(page);
+        alloc_n_dense_.second().reserve(size);
     }
 
     auto contains(const key_type key) const -> bool {
@@ -365,12 +365,12 @@ private:
     auto erase_without_check_impl(const size_type page, const size_type offset) {
         auto& dense = alloc_n_dense_.second();
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
-        const size_type index = sparse_[page]->at(offset);
-        // UTILS compressed_pair<mapped_type, bool> ret { std::move(alloc_n_dense_.back()), true };
-        std::swap(dense[index], dense.back());
+        auto& index                                             = sparse_[page]->at(offset);
+        auto& back                                              = dense.back();
+        sparse_[page_of(back.first)]->at(offset_of(back.first)) = index;
+        std::swap(dense[index], back);
         dense.pop_back();
-        sparse_[page]->at(offset) = 0;
-        // return ret;
+        index = 0;
     }
 
     compressed_pair<allocator_t<value_type>, std::vector<value_type, allocator_t<value_type>>>
@@ -539,7 +539,7 @@ public:
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
-        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         if (contains_impl(key, page, offset)) {
             keeper.run_away();
             erase_without_check_impl(page, offset);
@@ -549,7 +549,6 @@ public:
     auto erase_without_check(const key_type key) {
         auto page   = page_of(key);
         auto offset = offset_of(key);
-        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         erase_without_check_impl(page, offset);
     }
 
@@ -557,6 +556,7 @@ public:
         auto page = page_of(size);
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         check_page(page);
+        dense_.reserve(size);
     }
 
     auto contains(const key_type key) const -> bool {
@@ -649,18 +649,19 @@ private:
     }
     [[nodiscard]] auto contains_impl(
         const key_type key, const size_type page, const size_type offset) const noexcept -> bool {
-        return dense_.size() && sparse_.size() > page
+        return dense_.size() && (sparse_.size() > page)
                    ? sparse_[page]->at(offset) ? true
                                                : dense_[sparse_[page]->at(offset)].first == key
                    : false;
     }
     auto erase_without_check_impl(const size_type page, const size_type offset) {
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
-        const size_type index = sparse_[page]->at(offset);
-        // UTILS compressed_pair<mapped_type, bool> ret { std::move(alloc_n_dense_.back()), true };
-        std::swap(dense_[index], dense_.back());
+        auto& index                                             = sparse_[page]->at(offset);
+        auto& back                                              = dense_.back();
+        sparse_[page_of(back.first)]->at(offset_of(back.first)) = index;
+        std::swap(dense_[index], back);
         dense_.pop_back();
-        sparse_[page]->at(offset) = 0;
+        index = 0;
         // return ret;
     }
 
