@@ -36,7 +36,7 @@
     #define ATOM_DEBUG_SHOW_FUNC constexpr std::string_view _this_func = ATOM_FUNCNAME;
 #else
     #define ATOM_RELEASE_INLINE ATOM_FORCE_INLINE
-    #define ATOM_BEBUG_SHOW_FUNC
+    #define ATOM_DEBUG_SHOW_FUNC
 #endif
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -48,3 +48,6 @@
 constexpr auto num_eight      = 8;
 constexpr auto num_sixteen    = 16;
 constexpr auto num_thirty_two = 32;
+constexpr auto num_sixty_four = 64;
+constexpr auto num_f_half     = 0.5F;
+constexpr auto num_d_half     = 0.5;
