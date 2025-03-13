@@ -1,5 +1,6 @@
 #pragma once
 #include <concepts>
+#include <cstdint>
 #include <functional>
 #include <type_traits>
 #include <utility>
@@ -48,6 +49,33 @@ struct is_tuple<Tuple<Args...>> : std::true_type {};
 
 template <typename Ty>
 constexpr bool is_tuple_v = ::atom::utils::is_tuple<Ty>::value;
+
+template <typename Ty>
+struct is_std_tuple : std::false_type {};
+
+template <typename... Args>
+struct is_std_tuple<std::tuple<Args...>> : std::true_type {};
+
+template <typename Ty>
+constexpr bool is_std_tuple_v = is_std_tuple<Ty>::value;
+
+template <typename Ty>
+struct is_pair : std::false_type {};
+
+template <typename First, typename Second>
+struct is_pair<std::pair<First, Second>> : std::true_type {};
+
+template <typename First, typename Second>
+struct is_pair<compressed_pair<First, Second>> : std::true_type {};
+
+template <typename First, typename Second>
+struct is_pair<reversed_compressed_pair<First, Second>> : std::true_type {};
+
+template <typename First, typename Second>
+struct is_pair<reversed_pair<First, Second>> : std::true_type {};
+
+template <typename Ty>
+constexpr bool is_pair_v = is_pair<Ty>::value;
 
 template <typename>
 struct tuple_size;
@@ -218,5 +246,41 @@ struct last_of_tparams<Template<Args...>> {
 
 template <typename Template>
 using last_of_tparams_t = typename last_of_tparams<Template>::type;
+
+template <typename Ty>
+struct half_size;
+
+template <typename Ty>
+using half_size_t = typename half_size<Ty>::type;
+
+template <>
+struct half_size<uint64_t> {
+    using type = uint32_t;
+};
+
+template <>
+struct half_size<int64_t> {
+    using type = int32_t;
+};
+
+template <>
+struct half_size<uint32_t> {
+    using type = uint16_t;
+};
+
+template <>
+struct half_size<int32_t> {
+    using type = int16_t;
+};
+
+template <>
+struct half_size<uint16_t> {
+    using type = uint8_t;
+};
+
+template <>
+struct half_size<int16_t> {
+    using type = int8_t;
+};
 
 } // namespace atom::utils
