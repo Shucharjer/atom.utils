@@ -10404,7 +10404,7 @@ public:
      */
     static default_id_t identity(const size_t hash) {
         static std::unordered_map<size_t, default_id_t> map;
-        if (!map.contains(hash)) {
+        if (!map.contains(hash)) [[unlikely]] {
             map[hash] = next_id();
         }
 
