@@ -146,14 +146,14 @@ template <typename Iter, typename Container>
 constexpr bool operator==(
     const ::__gnu_cxx::__normal_iterator<Iter, Container>& lhs,
     const ::__gnu_cxx::__normal_iterator<const Iter, Container>& rhs) noexcept {
-    return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Iter, Conainter>&>(lhs) == rhs;
+    return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Iter, Container>&>(lhs) == rhs;
 }
 
 template <typename Iter, typename Container>
 constexpr bool operator!=(
     const ::__gnu_cxx::__normal_iterator<Iter, Container>& lhs,
     const ::__gnu_cxx::__normal_iterator<const Iter, Container>& rhs) noexcept {
-    return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Iter, Conainter>&>(lhs) != rhs;
+    return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Iter, Container>&>(lhs) != rhs;
 }
 
 #endif
