@@ -109,7 +109,9 @@ auto vector = closure(10);
 You can use `pipeline_base` to quickly build a scope closure. For example:
 
 ```c++
-struct empty_view : public ::atom::utils::pipeline_base<empty_view> {
+struct empty_view {
+    using pipeline_tag = pipeline_tag;
+
     template <std::ranges::range Rng>
     requires std::is_default_constructible_v<Rng>
     constexpr auto operator()(Rng&& range) const {

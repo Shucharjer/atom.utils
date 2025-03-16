@@ -113,7 +113,9 @@ auto& rpair = reverse(pair);
 你可以通过 `pipeline_base`快速构建一个范围闭包，可以参考以下示例
 
 ```c++
-struct empty_fn : public ::atom::utils::pipeline_base<empty_view> {
+struct empty_fn {
+    using pipeline_tag = pipeline_tag;
+
     template <std::ranges::range Rng>
     requires std::is_default_constructible_v<Rng>
     constexpr auto operator()(Rng&& range) const {
