@@ -14,11 +14,13 @@ namespace atom::utils {
  * @tparam Args Arguments that
  */
 template <typename Fn, typename... Args>
-class closure : public pipeline_base<closure<Fn, Args...>> {
+class closure {
     using index_sequence = std::index_sequence_for<Args...>;
     using self_type      = closure;
 
 public:
+    using pipeline_tag = pipeline_tag;
+
     static_assert((std::same_as<std::decay_t<Args>, Args> && ...));
     static_assert(std::is_empty_v<Fn> || std::is_default_constructible_v<Fn>);
 
