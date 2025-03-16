@@ -1,6 +1,4 @@
 #pragma once
-#include <concepts>
-#include <ranges>
 #include <type_traits>
 #include "core/pair.hpp"
 
@@ -11,12 +9,13 @@
 namespace atom::utils {
 
 /**
- * @brief Construct a range closure quickly by CRTP.
+ * @brief Construct a range closure quickly by alias.
  *
+ * using pipeline_tag = pipeline_tag;
  */
-template <typename Derived>
-requires(!std::ranges::range<Derived>)
-struct pipeline_base {};
+struct pipeline_tag {
+    pipeline_tag() = delete;
+};
 
 /**
  * @brief The custom result of pipeline operators.
@@ -93,23 +92,12 @@ private:
 
 } // namespace atom::utils
 
-/**
- * @brief Consturct a range
- * from a range and a closure.
- *
- * @tparam Arg Usually, this tparam will be a range, but not only.
- */
-template <typename Arg, typename Closure>
-requires std::derived_from<
-             std::remove_cvref_t<Closure>,
-             atom::utils::pipeline_base<std::remove_cvref_t<Closure>>> &&
-         requires {
-             std::forward<Closure>(std::declval<Closure>())(std::forward<Arg>(std::declval<Arg>()));
-         }
-[[nodiscard]] constexpr inline auto operator|(Arg&& arg, Closure&& closure) noexcept(
-    noexcept(std::forward<Closure>(closure)(std::forward<Arg>(arg)))) {
-    return std::forward<Closure>(closure)(std::forward<Arg>(arg));
-}
+namespace concepts {
+
+template <typename Ty>
+concept has_pipeline_tag = requires { typename Ty::pipeline_tag; };
+
+} // namespace concepts
 
 /*! @cond TURN_OFF_DOXYGEN */
 namespace atom::utils::internal {
@@ -128,7 +116,7 @@ constexpr bool is_pipeline_result_t = is_pipeline_result<Result>::value;
 
 /**
  * @brief Construct a range
- * from a range and a pipeline result.
+ * from a arg and a pipeline result.
  *
  * @tparam Arg Usually, this tparam will be a range, but not only.
  */
@@ -143,20 +131,33 @@ requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Resul
 
 /**
  * @brief Construct a pipeline result
- * from two closures.
+ * from two closures or a arg and a closure.
  */
-template <typename Closure, typename Another>
-requires std::derived_from<
-             std::remove_cvref_t<Closure>,
-             ::atom::utils::pipeline_base<std::remove_cvref_t<Closure>>> ||
-         std::derived_from<
-             std::remove_cvref_t<Another>,
-             ::atom::utils::pipeline_base<std::remove_cvref_t<Another>>>
-[[nodiscard]] constexpr inline auto operator|(Closure&& closure, Another&& another) noexcept(
+template <typename Arg, typename Closure>
+requires(concepts::has_pipeline_tag<std::remove_cvref_t<Arg>> ||
+         concepts::has_pipeline_tag<std::remove_cvref_t<Closure>>) &&
+        (requires {std::forward<Closure>(std::declval<Closure>())(std::forward<Arg>(std::declval<Arg>()));} || requires {
+            ::atom::utils::pipeline_result<Arg, Closure>(std::declval<Arg>(), std::declval<Closure>());
+        })
+[[nodiscard]] constexpr inline auto operator|(Arg&& arg, Closure&& closure) noexcept(
     std::is_nothrow_constructible_v<
-        atom::utils::pipeline_result<Closure, Another>, Closure, Another>) {
-    return ::atom::utils::pipeline_result<Closure, Another>(
-        std::forward<Closure>(closure), std::forward<Another>(another));
+        atom::utils::pipeline_result<Arg, Closure>, Arg, Closure>) {
+    if constexpr (requires {
+                      std::forward<Closure>(std::declval<Closure>())(
+                          std::forward<Arg>(std::declval<Arg>()));
+                  }) {
+        return std::forward<Closure>(closure)(std::forward<Arg>(arg));
+    }
+    else if constexpr (requires {
+                           ::atom::utils::pipeline_result<Arg, Closure>(
+                               std::declval<Arg>(), std::declval<Closure>());
+                       }) {
+        return ::atom::utils::pipeline_result<Arg, Closure>(
+            std::forward<Arg>(arg), std::forward<Closure>(closure));
+    }
+    else {
+        static_assert(false);
+    }
 }
 
 /**
@@ -164,7 +165,10 @@ requires std::derived_from<
  * from a pipeline_result and a closure.
  */
 template <typename Result, typename Closure>
-requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>>
+requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>> && requires {
+    ::atom::utils::pipeline_result<Result, Closure>(
+        std::declval<Result>(), std::declval<Closure>());
+}
 [[nodiscard]] constexpr inline auto operator|(Result&& result, Closure&& closure) noexcept(
     std::is_nothrow_constructible_v<
         ::atom::utils::pipeline_result<Result, Closure>, Result, Closure>) {
