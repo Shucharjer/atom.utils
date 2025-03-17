@@ -10151,6 +10151,8 @@ static inline auto offset_tuple() noexcept {
     constexpr auto vw   = struct_to_tuple_view<Ty>();
     auto tuple          = make_offset_tuple<Ty>(vw);
     const auto& offsets = offsets_of<Ty>();
+
+    // set offsets in tuple
     [&]<std::size_t... Is>(std::index_sequence<Is...>) {
         ((std::get<Is>(tuple) =
               (std::tuple_element_t<Is, decltype(tuple)>)offset_mapping_(offsets[Is])),
@@ -10161,6 +10163,16 @@ static inline auto offset_tuple() noexcept {
 
 } // namespace internal
 /*! @endcond */
+
+template <concepts::default_reflectible_aggregate Ty>
+inline const auto& offset_array_of() noexcept {
+    return internal::offsets_of<Ty>();
+}
+
+template <std::size_t Index, concepts::default_reflectible_aggregate Ty>
+inline auto offset_value_of() noexcept {
+    return internal::offsets_of<Ty>()[Index];
+}
 
 template <concepts::default_reflectible_aggregate Ty>
 inline const auto& offsets_of() noexcept {
@@ -10201,6 +10213,23 @@ requires(existance_of<Name, Ty>())
 [[nodiscard]] constexpr inline auto offset_of() noexcept {
     return offset_of<index_of<Name, Ty>()>();
 }
+
+} // namespace atom::utils
+
+///////////////////////////////////////////////////////////////////////////////
+// module: member_names_of <typename>
+///////////////////////////////////////////////////////////////////////////////
+
+namespace atom::utils {
+
+template <std::size_t Index, concepts::aggregate Ty>
+struct member_type_of {
+    using type = std::remove_pointer_t<
+        std::tuple_element_t<Index, decltype(internal::struct_to_tuple_view<Ty>())>>;
+};
+
+template <std::size_t Index, concepts::aggregate Ty>
+using member_type_of_t = typename member_type_of<Index, Ty>::type;
 
 } // namespace atom::utils
 
