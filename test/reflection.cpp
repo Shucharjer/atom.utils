@@ -3,7 +3,7 @@
 #include <type_traits>
 #include "require.hpp"
 
-using namespace atom;
+using namespace atom::utils;
 
 struct aggregate {
     int member1;
@@ -28,8 +28,8 @@ private:
 int main() {
     // member_count_of
     {
-        REQUIRES(utils::member_count_of<aggregate>() == 2);
-        REQUIRES(utils::member_count_of<not_aggregate>() == 2);
+        REQUIRES(member_count_of<aggregate>() == 2);
+        REQUIRES(member_count_of<not_aggregate>() == 2);
     }
 
     // get
@@ -39,17 +39,17 @@ int main() {
         auto a         = aggregate{ .member1 = num, .member2 = ch };
         auto na        = not_aggregate{ num, ch };
 
-        REQUIRES(utils::get<0>(a) == num);
-        REQUIRES(utils::get<1>(a) == ch);
+        REQUIRES(get<0>(a) == num);
+        REQUIRES(get<1>(a) == ch);
 
-        REQUIRES(utils::get<0>(na) == num);
-        REQUIRES(utils::get<1>(na) == ch);
+        REQUIRES(get<0>(na) == num);
+        REQUIRES(get<1>(na) == ch);
     }
 
     // member_names_of
     {
-        auto names_a  = utils::member_names_of<aggregate>();
-        auto names_na = utils::member_names_of<not_aggregate>();
+        auto names_a  = member_names_of<aggregate>();
+        auto names_na = member_names_of<not_aggregate>();
 
         REQUIRES(names_a[0] == "member1");
         REQUIRES(names_a[1] == "member2");
@@ -60,37 +60,56 @@ int main() {
 
     // description_of
     {
-        auto description_a  = utils::description_of<aggregate>();
-        auto description_na = utils::description_of<not_aggregate>();
+        auto description_a  = description_of<aggregate>();
+        auto description_na = description_of<not_aggregate>();
 
-        using namespace utils::bits;
+        using namespace bits;
 
-        REQUIRES(utils::authenticity_of({ .desc = description_a, .bits = is_aggregate }));
-        REQUIRES(!utils::authenticity_of({ .desc = description_na, .bits = is_aggregate }));
+        REQUIRES(authenticity_of({ .desc = description_a, .bits = is_aggregate }))
+        REQUIRES(!authenticity_of({ .desc = description_na, .bits = is_aggregate }))
     }
 
     // reflected
     {
-        auto reflected_a  = utils::reflected<aggregate>();
-        auto reflected_na = utils::reflected<not_aggregate>();
+        auto reflected_a  = reflected<aggregate>();
+        auto reflected_na = reflected<not_aggregate>();
 
-        using namespace utils::bits;
+        using namespace bits;
 
         auto description_a  = reflected_a.description();
         auto description_na = reflected_na.description();
 
-        REQUIRES(utils::authenticity_of({ .desc = description_a, .bits = is_aggregate }))
-        REQUIRES_FALSE(utils::authenticity_of({ .desc = description_na, .bits = is_aggregate }))
+        REQUIRES(authenticity_of({ .desc = description_a, .bits = is_aggregate }))
+        REQUIRES_FALSE(authenticity_of({ .desc = description_na, .bits = is_aggregate }))
     }
 
     // offsets
     {
-        auto offsets = utils::offsets_of<aggregate>();
+        auto offsets = offsets_of<aggregate>();
         auto ptr     = std::get<1>(offsets);
         auto a       = aggregate{};
         a.member2    = 'c';
-        REQUIRES(a.*ptr == 'c');
+        REQUIRES(a.*ptr == 'c')
         a.*ptr = 'b';
-        REQUIRES(a.member2 == 'b');
+        REQUIRES(a.member2 == 'b')
+    }
+
+    // offset value
+    {
+        REQUIRES((offset_value_of<0, aggregate>() == 0))
+        REQUIRES((offset_value_of<1, aggregate>() == 4))
+
+        // TODO:
+        // REQUIRES((offset_value_of<0, not_aggregate>() == 0))
+        // REQUIRES((offset_value_of<1, not_aggregate>() == 4))
+    }
+
+    // member_type_of
+    {
+        REQUIRES((std::same_as<int, member_type_of_t<0, aggregate>>))
+        REQUIRES((std::same_as<char, member_type_of_t<1, aggregate>>))
+
+        REQUIRES((std::same_as<int, member_type_of_t<0, not_aggregate>>))
+        REQUIRES((std::same_as<char, member_type_of_t<1, not_aggregate>>))
     }
 }
