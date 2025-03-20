@@ -3,7 +3,43 @@
 #include <cstddef>
 #include <new>
 #include <type_traits>
-#include "memory/copy.hpp"
+
+#if __has_include(<memory/copy.hpp>)
+    #include "memory/copy.hpp"
+#else
+    #if __has_include(<core/langdef.hpp>)
+        #include "core/langdef.hpp"
+    #else
+constexpr auto num_sixteen = 16;
+    #endif
+
+namespace atom::utils {
+
+/**
+ * @brief Memcpy on runtime, used to assign to trivially assignable type.
+ *
+ * @param[out] dst Destination.
+ * @param[in] src Source.
+ */
+template <typename Ty, typename T = Ty>
+requires std::is_trivially_assignable_v<Ty, T>
+constexpr void rtmemcpy(Ty& dst, T&& src) noexcept {
+    if (std::is_constant_evaluated()) [[unlikely]] {
+        dst = std::forward<T>(src);
+    }
+    else [[likely]] {
+        if constexpr (sizeof(Ty) > num_sixteen) {
+            std::memcpy(std::addressof(dst), std::addressof(src), sizeof(Ty));
+        }
+        else {
+            dst = std::forward<T>(src);
+        }
+    }
+}
+
+} // namespace atom::utils
+
+#endif
 
 namespace atom::utils {
 
@@ -63,7 +99,9 @@ struct alignas(N) aligned {
     template <typename T, std::size_t n>
     constexpr aligned& operator=(const aligned<T, n>& that) noexcept(
         std::is_nothrow_assignable_v<Ty, T>) {
-        if constexpr (std::is_trivially_assignable_v<Ty, T>) {}
+        if constexpr (std::is_trivially_assignable_v<Ty, T>) {
+            rtmemcpy(value, that.value);
+        }
         else {
             Ty temp(that.value);
             std::swap(value, temp.value);
@@ -82,6 +120,12 @@ struct alignas(N) aligned {
     constexpr ~aligned() noexcept(std::is_nothrow_destructible_v<Ty>) = default;
 };
 
+/**
+ * @brief Padded type.
+ *
+ * @tparam Ty Type need to padded.
+ * @tparam N Padding
+ */
 template <typename Ty, std::size_t N>
 struct padded {
     Ty value;
@@ -130,7 +174,7 @@ struct padded {
     constexpr padded& operator=(const padded<T, n>& that) noexcept(
         std::is_nothrow_assignable_v<Ty, T>) {
         if constexpr (std::is_trivially_assignable_v<Ty, T>) {
-            value = that.value;
+            rtmemcpy(value, that.value);
         }
         else {
             Ty temp(that.value);

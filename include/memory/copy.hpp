@@ -1,8 +1,12 @@
 #pragma once
-#include <algorithm>
 #include <cstring>
 #include <type_traits>
-#include "core/langdef.hpp"
+
+#if __has_include(<core/langdef.hpp>)
+    #include "core/langdef.hpp"
+#else
+constexpr auto num_sixteen = 16;
+#endif
 
 namespace atom::utils {
 
@@ -15,10 +19,10 @@ namespace atom::utils {
 template <typename Ty, typename T = Ty>
 requires std::is_trivially_assignable_v<Ty, T>
 constexpr void rtmemcpy(Ty& dst, T&& src) noexcept {
-    if (std::is_constant_evaluated()) {
+    if (std::is_constant_evaluated()) [[unlikely]] {
         dst = std::forward<T>(src);
     }
-    else {
+    else [[likely]] {
         if constexpr (sizeof(Ty) > num_sixteen) {
             std::memcpy(std::addressof(dst), std::addressof(src), sizeof(Ty));
         }
