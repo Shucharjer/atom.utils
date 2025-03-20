@@ -10222,13 +10222,23 @@ requires(existance_of<Name, Ty>())
 
 namespace atom::utils {
 
-template <std::size_t Index, concepts::aggregate Ty>
-struct member_type_of {
+template <std::size_t Index, concepts::reflectible Ty>
+struct member_type_of;
+
+template <std::size_t Index, concepts::reflectible Ty>
+requires concepts::default_reflectible_aggregate<Ty>
+struct member_type_of<Index, Ty> {
     using type = std::remove_pointer_t<
         std::tuple_element_t<Index, decltype(internal::struct_to_tuple_view<Ty>())>>;
 };
 
-template <std::size_t Index, concepts::aggregate Ty>
+template <std::size_t Index, concepts::reflectible Ty>
+requires concepts::has_field_traits<Ty>
+struct member_type_of<Index, Ty> {
+    using type = typename std::tuple_element_t<Index, decltype(Ty::field_traits())>::type;
+};
+
+template <std::size_t Index, concepts::reflectible Ty>
 using member_type_of_t = typename member_type_of<Index, Ty>::type;
 
 } // namespace atom::utils
