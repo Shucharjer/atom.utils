@@ -162,6 +162,69 @@ struct same_reference<To, From&&> {
 template <typename To, typename From>
 using same_reference_t = typename same_reference<To, From>::type;
 
+template <typename To, typename From>
+struct same_cvref {
+    using type = To;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, From&> {
+    using type = To&;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, From&&> {
+    using type = To&&;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, const From> {
+    using type = const To;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, const From&> {
+    using type = const To&;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, const From&&> {
+    using type = const To&&;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, volatile From> {
+    using type = const To;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, volatile From&> {
+    using type = const To&;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, volatile From&&> {
+    using type = const To&&;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, const volatile From> {
+    using type = const To;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, const volatile From&> {
+    using type = const To&;
+};
+
+template <typename To, typename From>
+struct same_cvref<To, const volatile From&&> {
+    using type = const To&&;
+};
+
+template <typename To, typename From>
+using same_cvref_t = typename same_cvref<To, From>::type;
+
 template <typename...>
 struct first_of {
     using type = void;
