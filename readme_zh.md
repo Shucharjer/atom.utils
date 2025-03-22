@@ -53,6 +53,7 @@ using namespace atom::utils;
 
 <pre>
 <a href="#核心">核心</a>
+    <a href="#多态">多态</a>
     <a href="#对">对</a>
     <a href="#管道与闭包">管道与闭包</a>
         <a href="#适配器闭包">适配器闭包</a>
