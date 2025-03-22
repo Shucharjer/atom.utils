@@ -5,6 +5,7 @@
 #include <exception>
 #include <mutex>
 #include <stdexcept>
+#include <utility>
 
 namespace atom::utils {
 
