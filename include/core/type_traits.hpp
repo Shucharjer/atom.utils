@@ -8,6 +8,13 @@
 
 namespace atom::utils {
 
+/**
+ * @brief Fake copy init, just for compile-time deduce & check.
+ * @note No difination.
+ */
+template <typename Ty>
+[[nodiscard]] Ty fake_copy_init(Ty) noexcept;
+
 template <std::integral auto Integral>
 struct is_zero : std::false_type {};
 
@@ -42,10 +49,9 @@ template <typename Ty>
 using cast_to_void_pointer_t = void*;
 
 template <typename Ty>
-struct is_tuple : std::false_type {};
-
-template <typename... Args, template <typename...> typename Tuple>
-struct is_tuple<Tuple<Args...>> : std::true_type {};
+struct is_tuple {
+    constexpr static auto value = requires { std::tuple_size<Ty>(); };
+};
 
 template <typename Ty>
 constexpr bool is_tuple_v = ::atom::utils::is_tuple<Ty>::value;
