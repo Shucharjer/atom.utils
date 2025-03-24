@@ -4,6 +4,24 @@
 #include <type_traits>
 #include <utility>
 
+#if __has_include(<core/langdef.hpp>)
+    #include "core/langdef.hpp"
+#else
+    #ifdef _MSC_VER
+        #define ATOM_FORCE_INLINE __forceinline
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define ATOM_FORCE_INLINE inline __attribute__((__always_inline__))
+    #else
+        #define ATOM_FORCE_INLINE inline
+    #endif
+
+    #if defined(_DEBUG)
+        #define ATOM_RELEASE_INLINE
+    #else
+        #define ATOM_RELEASE_INLINE ATOM_FORCE_INLINE
+    #endif
+#endif
+
 #if __has_include(<core/type_traits.hpp>)
     #include "core/type_traits.hpp"
 #else
@@ -162,7 +180,7 @@ public:
     using type = value_type;
 
     template <typename Ty>
-    consteval static const type* instance() {
+    consteval static auto instance() -> const value_type* {
         return &table_<Ty>;
     }
 };
@@ -273,7 +291,7 @@ private:
  * @return decltype(auto) The return value of the function.
  */
 template <std::size_t Index, typename T, typename... Args>
-decltype(auto) poly_call(T&& self, Args&&... args) {
+ATOM_RELEASE_INLINE constexpr decltype(auto) poly_call(T&& self, Args&&... args) {
     return std::forward<T>(self).template invoke<Index>(self, std::forward<Args>(args)...);
 }
 
