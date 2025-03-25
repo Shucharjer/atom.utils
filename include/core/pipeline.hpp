@@ -18,13 +18,15 @@ struct pipeline_tag {
 };
 
 /**
- * @brief The custom result of pipeline operators.
+ * @brief The custom result of pipeline operator between two closures. It's a special closure.
  *
  * @tparam First The type of the first range closure.
  * @tparam Second The type of the second range closure.
  */
 template <typename First, typename Second>
 struct pipeline_result {
+    using pipeline_tag = pipeline_tag;
+
     template <typename Left, typename Right>
     constexpr pipeline_result(Left&& left, Right&& right) noexcept(
         std::is_nothrow_constructible_v<compressed_pair<First, Second>, Left, Right>)
@@ -90,88 +92,61 @@ private:
     compressed_pair<First, Second> closures_;
 };
 
-} // namespace atom::utils
-
 namespace concepts {
 
+/**
+ * @brief A type has type alias named pipeline_tag
+ */
 template <typename Ty>
 concept has_pipeline_tag = requires { typename Ty::pipeline_tag; };
 
 } // namespace concepts
 
-/*! @cond TURN_OFF_DOXYGEN */
-namespace atom::utils::internal {
-
-template <typename Result>
-struct is_pipeline_result : public std::false_type {};
-
-template <typename First, typename Second>
-struct is_pipeline_result<::atom::utils::pipeline_result<First, Second>> : public std::true_type {};
-
-template <typename Result>
-constexpr bool is_pipeline_result_t = is_pipeline_result<Result>::value;
-
-} // namespace atom::utils::internal
-/*! @endcond */
+} // namespace atom::utils
 
 /**
- * @brief Construct a range
- * from a arg and a pipeline result.
+ * @brief Construct an object by pipeline operator.
  *
- * @tparam Arg Usually, this tparam will be a range, but not only.
- */
-template <typename Arg, typename Result>
-requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>> && requires {
-    std::forward<Result>(std::declval<Result>())(std::forward<Arg>(std::declval<Arg>()));
-}
-[[nodiscard]] constexpr inline auto operator|(Arg&& arg, Result&& result) noexcept(
-    noexcept(std::forward<Result>(result)(std::forward<Arg>(arg)))) {
-    return std::forward<Result>(result)(std::forward<Arg>(arg));
-}
-
-/**
- * @brief Construct a pipeline result
- * from two closures or a arg and a closure.
+ * @tparam Arg This tparam could be deduced automatically.
+ * @tparam Closure This tparam could be deduced automatically.
+ * @param[in] arg A closure object or arg could be pass to the closure.
+ * @param[in] closure A closure object.
  */
 template <typename Arg, typename Closure>
-requires(concepts::has_pipeline_tag<std::remove_cvref_t<Arg>> ||
-         concepts::has_pipeline_tag<std::remove_cvref_t<Closure>>) &&
-        (requires {std::forward<Closure>(std::declval<Closure>())(std::forward<Arg>(std::declval<Arg>()));} || requires {
-            ::atom::utils::pipeline_result<Arg, Closure>(std::declval<Arg>(), std::declval<Closure>());
-        })
+requires(atom::utils::concepts::has_pipeline_tag<std::remove_cvref_t<Closure>>)
 [[nodiscard]] constexpr inline auto operator|(Arg&& arg, Closure&& closure) noexcept(
-    std::is_nothrow_constructible_v<
-        atom::utils::pipeline_result<Arg, Closure>, Arg, Closure>) {
-    if constexpr (requires {
-                      std::forward<Closure>(std::declval<Closure>())(
-                          std::forward<Arg>(std::declval<Arg>()));
-                  }) {
-        return std::forward<Closure>(closure)(std::forward<Arg>(arg));
+    ((std::ranges::range<Arg> ||
+      requires { std::forward<Closure>(closure)(std::forward<Arg>(arg)); }) &&
+     noexcept((std::forward<Closure>(closure))(std::forward<Arg>(arg)))) ||
+    noexcept(atom::utils::pipeline_result<Arg, Closure>(
+        std::forward<Arg>(arg), std::forward<Closure>(closure)))) {
+    if constexpr (std::ranges::range<Arg>) {
+        return (std::forward<Closure>(closure))(std::forward<Arg>(arg));
     }
-    else if constexpr (requires {
-                           ::atom::utils::pipeline_result<Arg, Closure>(
-                               std::declval<Arg>(), std::declval<Closure>());
-                       }) {
+    else if constexpr (requires { closure(arg); }) {
+        return (std::forward<Closure>(closure))(std::forward<Arg>(arg));
+    }
+    else {
         return ::atom::utils::pipeline_result<Arg, Closure>(
             std::forward<Arg>(arg), std::forward<Closure>(closure));
     }
-    else {
-        static_assert(false);
-    }
 }
 
 /**
- * @brief Construct a pipeline_result
- * from a pipeline_result and a closure.
+ * @brief Construct a pipeline result.
+ *
+ * @tparam Closure A closure with pipeline_tag. Could be deduced.
+ * @tparam WildClosure A type maybe has pipeline_tag. Could be deduced.
+ * @param[in] closure
+ * @param[in] wild
+ * @warning Whether the tparam WildClosure is a closure, this function would return a
+ * pipeline_result object.
  */
-template <typename Result, typename Closure>
-requires ::atom::utils::internal::is_pipeline_result_t<std::remove_cvref_t<Result>> && requires {
-    ::atom::utils::pipeline_result<Result, Closure>(
-        std::declval<Result>(), std::declval<Closure>());
-}
-[[nodiscard]] constexpr inline auto operator|(Result&& result, Closure&& closure) noexcept(
-    std::is_nothrow_constructible_v<
-        ::atom::utils::pipeline_result<Result, Closure>, Result, Closure>) {
-    return ::atom::utils::pipeline_result<Result, Closure>(
-        std::forward<Result>(result), std::forward<Closure>(closure));
+template <typename Closure, typename WildClosure>
+requires atom::utils::concepts::has_pipeline_tag<std::remove_cvref_t<Closure>>
+[[nodiscard]] constexpr inline auto operator|(Closure&& closure, WildClosure&& wild) noexcept(
+    noexcept(atom::utils::pipeline_result<Closure, WildClosure>(
+        std::forward<Closure>(closure), std::forward<WildClosure>(wild)))) {
+    return atom::utils::pipeline_result<Closure, WildClosure>(
+        std::forward<Closure>(closure), std::forward<WildClosure>(wild));
 }
