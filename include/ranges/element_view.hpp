@@ -1,16 +1,17 @@
 #pragma once
-#include <concepts>
 #include <cstddef>
 #include <ranges>
 #include <tuple>
 #include <type_traits>
+#include "concepts/type.hpp"
 #include "core/pipeline.hpp"
-#include "core/type_traits.hpp"
+#include "core/tuple.hpp"
 
-namespace atom::utils {
+namespace atom::utils::ranges {
 
 template <std::ranges::range Rng, size_t Index, bool IsConst>
 struct element_iterator {
+    using inner_iterator  = std::ranges::iterator_t<Rng>;
     using value_type      = std::tuple_element_t<Index, std::ranges::range_value_t<Rng>>;
     using difference_type = ptrdiff_t;
 
@@ -20,22 +21,33 @@ struct element_iterator {
         std::is_nothrow_move_constructible_v<std::ranges::iterator_t<Rng>>)
         : iter_(std::move(iter)) {}
 
-    [[nodiscard]] constexpr decltype(auto) operator*() {
-        if constexpr (requires { std::get<Index>(*iter_); }) {
-            return ::std::get<Index>(*iter_);
-        }
-        else if constexpr (requires { iter_->template get<Index>(); }) {
-            return iter_->template get<Index>();
-        }
-        else if constexpr (requires { get<Index>(*iter_); }) {
-            return get<Index>(*iter_);
+    [[nodiscard]] constexpr decltype(auto) operator*() noexcept
+    requires(!IsConst)
+    {
+        if constexpr (concepts::gettible<
+                          Index, std::remove_const_t<std::ranges::range_value_t<Rng>>>) {
+            return uniget<Index>(*iter_);
         }
         else {
             static_assert(false, "No suitable method to get the value.");
         }
     }
 
-    [[nodiscard]] constexpr decltype(auto) operator->() noexcept { return iter_; }
+    [[nodiscard]] constexpr decltype(auto) operator*() const noexcept {
+        if constexpr (concepts::gettible<
+                          Index, std::remove_const_t<std::ranges::range_value_t<Rng>>>) {
+            return uniget<Index>(*iter_);
+        }
+        else {
+            static_assert(false, "No suitable method to get the value.");
+        }
+    }
+
+    [[nodiscard]] constexpr decltype(auto) operator->() noexcept
+    requires(!IsConst)
+    {
+        return iter_;
+    }
 
     [[nodiscard]] constexpr decltype(auto) operator->() const noexcept { return iter_; }
 
@@ -95,9 +107,25 @@ struct element_iterator {
         return temp;
     }
 
+    template <bool Const>
+    constexpr bool operator==(const element_iterator<Rng, Index, Const>& that) const noexcept
+    requires concepts::has_equal_operator<
+        inner_iterator, typename element_iterator<Rng, Index, Const>::inner_iterator>
+    {
+        return iter_ == that.iter_;
+    }
+
+    template <bool Const>
+    constexpr bool operator!=(const element_iterator<Rng, Index, Const>& that) const noexcept
+    requires concepts::has_not_equal_operator<
+        inner_iterator, typename element_iterator<Rng, Index, Const>::inner_iterator>
+    {
+        return iter_ != that.iter_;
+    }
+
 private:
     std::ranges::iterator_t<Rng> iter_;
-};
+}; // namespace atom::utils::ranges
 
 /**
  * @brief Elements view, but supports user defined get.
@@ -106,7 +134,7 @@ private:
  * @tparam Index
  */
 template <std::ranges::input_range Vw, size_t Index>
-class elements_view {
+class elements_view : std::ranges::view_interface<elements_view<Vw, Index>> {
 public:
     /**
      * @brief Constuct a elements view.
@@ -116,33 +144,52 @@ public:
     constexpr explicit elements_view(Vw range) noexcept(std::is_nothrow_constructible_v<Vw>)
         : range_(std::move(range)) {}
 
-    constexpr auto begin() { return element_iterator<Vw, Index, false>(range_.begin()); }
+    constexpr auto begin() noexcept {
+        return element_iterator<Vw, Index, false>(std::ranges::begin(range_));
+    }
 
-    constexpr auto begin() const {
-        if constexpr (requires { range_.cbegin(); }) {
-            return element_iterator<Vw, Index, true>(range_.cbegin());
+    constexpr auto begin() const noexcept {
+        if constexpr (requires { std::ranges::cbegin(range_); }) {
+            return element_iterator<Vw, Index, true>(std::ranges::cbegin(range_));
         }
-        else if constexpr (requires { range_.begin(); }) {
-            return element_iterator<Vw, Index, true>(range_.begin());
+        else {
+            return element_iterator<Vw, Index, true>(std::ranges::begin(range_));
+        }
+    }
+
+#if not _HAS_CXX23
+    constexpr auto cbegin() const noexcept {
+        return element_iterator<Vw, Index, true>(std::ranges::cbegin(range_));
+    }
+
+    constexpr auto rbegin() noexcept {
+        return element_iterator<Vw, Index, false>(std::ranges::rbegin(range_));
+    }
+
+    constexpr auto crbegin() const noexcept {
+        return element_iterator<Vw, Index, true>(std::ranges::crbegin(range_));
+    }
+#endif
+
+    constexpr auto end() noexcept {
+        return element_iterator<Vw, Index, false>(std::ranges::end(range_));
+    }
+
+    constexpr auto end() const noexcept {
+        if constexpr (requires { std::ranges::cend(range_); }) {
+            return element_iterator<Vw, Index, true>(std::ranges::cend(range_));
+        }
+        else if constexpr (requires { std::end(range_); }) {
+            return element_iterator<Vw, Index, true>(std::ranges::end(range_));
         }
         else {
             static_assert(false, "No suitable method to get a const iterator");
         }
     }
 
-    constexpr auto end() { return element_iterator<Vw, Index, false>(range_.cbegin()); }
+    constexpr auto cend() const noexcept { return std::ranges::cend(range_); }
 
-    constexpr auto end() const {
-        if constexpr (requires { range_.cend(); }) {
-            return element_iterator<Vw, Index, true>(range_.cend());
-        }
-        else if constexpr (requires { range_.end(); }) {
-            return element_iterator<Vw, Index, true>(range_.end());
-        }
-        else {
-            static_assert(false, "No suitable method to get a const iterator");
-        }
-    }
+    constexpr auto rend() noexcept { return std::ranges::rend(range_); }
 
     constexpr auto size() const noexcept
     requires std::ranges::sized_range<const Vw>
@@ -159,10 +206,16 @@ struct element_fn {
     using pipeline_tag = pipeline_tag;
 
     template <std::ranges::viewable_range Rng>
+    requires concepts::gettible<Index, std::ranges::range_value_t<Rng>>
     [[nodiscard]] constexpr auto operator()(Rng&& range) const {
+        static_assert(
+            Index < std::tuple_size_v<std::ranges::range_value_t<Rng>>,
+            "Index should be in [0, size)");
         return elements_view<std::views::all_t<Rng>, Index>{ std::forward<Rng>(range) };
     }
 };
+
+namespace views {
 
 template <size_t Index>
 constexpr element_fn<Index> elements;
@@ -170,29 +223,6 @@ constexpr element_fn<Index> elements;
 constexpr inline auto keys   = elements<0>;
 constexpr inline auto values = elements<1>;
 
-struct concat_fn {
-    using pipeline_tag = pipeline_tag;
+} // namespace views
 
-    template <std::ranges::viewable_range Rng>
-    constexpr auto operator()(Rng&& range) const noexcept {
-        return make_closure<concat_fn>(std::views::all(std::forward<Rng>(range)));
-    }
-
-    template <std::ranges::viewable_range Lhs, std::ranges::viewable_range Rhs>
-    constexpr auto operator()(Lhs&& lhs, Rhs&& rhs) {
-        using lvalue_t = std::ranges::range_value_t<Lhs>;
-        using rvalue_t = std::ranges::range_value_t<Rhs>;
-        if constexpr (
-            is_pair_v<lvalue_t> || is_std_tuple_v<lvalue_t> || is_pair_v<rvalue_t> ||
-            is_std_tuple_v<rvalue_t>) {
-            // combine as tuple
-        }
-        else {
-            // combine as pair
-        }
-    }
-};
-
-constexpr inline concat_fn concat;
-
-} // namespace atom::utils
+} // namespace atom::utils::ranges
