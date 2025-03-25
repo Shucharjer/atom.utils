@@ -1,24 +1,21 @@
 #pragma once
-#include "core/type_traits.hpp"
+#include "concepts/type.hpp"
 
 namespace atom::utils {
 
-template <typename Ty, typename... Args, template <typename...> class Tuple>
-requires ::atom::utils::is_tuple_v<Tuple<Args...>>
-[[nodiscard]] constexpr Ty to(const Tuple<Args...>& tuple) {
-    return [&tuple]<std::size_t... Is>(std::index_sequence<Is...>) {
-        return Ty(std::get<Is>(tuple)...);
-    }(std::make_index_sequence<sizeof...(Args)>());
-}
-
-// NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
-template <typename Ty, typename... Args, template <typename...> class Tuple>
-requires ::atom::utils::is_tuple_v<Tuple<Args...>>
-[[nodiscard]] constexpr Ty to(Tuple<Args...>&& tuple) {
-    // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
-    return [&tuple]<std::size_t... Is>(std::index_sequence<Is...>) {
-        return Ty(std::move(std::get<Is>(tuple))...);
-    }(std::make_index_sequence<sizeof...(Args)>());
+template <std::size_t Index, typename Ty>
+requires concepts::gettible<Index, Ty>
+constexpr inline decltype(auto) uniget(Ty& inst) noexcept {
+    using namespace concepts;
+    if constexpr (std_gettible<Index, Ty>) {
+        return std::get<Index>(inst);
+    }
+    else if constexpr (member_gettible<Index, Ty>) {
+        return inst.template get<Index>();
+    }
+    else if constexpr (adl_gettible<Index, Ty>) {
+        return get<Index>(inst);
+    }
 }
 
 } // namespace atom::utils
