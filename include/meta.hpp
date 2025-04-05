@@ -56,5 +56,13 @@ struct quick_sort;
 template <typename Seq, template <typename...> typename Cnt = std::initializer_list>
 struct as_container;
 
-}
+/**
+ * @brief Return whether a expression is const evaluated.
+ * @note If you want to know whether the function could run at compile-time, please call
+ * std::is_const_evaluated()
+ * @bug Could not verify whether a callable is a constexpr.
+ */
+template <auto expr>
+consteval bool is_constexpr();
 
+} // namespace atom::utils
