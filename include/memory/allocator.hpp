@@ -18,7 +18,7 @@ static bool is_aligned(void* ptr, const std::size_t alignment) {
     return !(addr & (alignment - 1));
 }
 
-constexpr const auto min_align = 16ULL;
+constexpr inline auto min_align = 16ULL;
 
 } // namespace internal
 
@@ -82,6 +82,20 @@ struct standard_allocator : public basic_allocator {
 
     constexpr void deallocate(Ty* ptr, const size_type count = 1) noexcept {
         std::allocator<Ty>{}.deallocate(ptr, count);
+    }
+
+    constexpr bool operator==(const standard_allocator&) const noexcept { return true; }
+
+    constexpr bool operator!=(const standard_allocator&) const noexcept { return false; }
+
+    template <typename T>
+    constexpr bool operator==(const standard_allocator<T>&) const noexcept {
+        return false;
+    }
+
+    template <typename T>
+    constexpr bool operator!=(const standard_allocator<T>&) const noexcept {
+        return true;
     }
 };
 
@@ -226,12 +240,14 @@ public:
         static_assert(sizeof(Ty));
 
         return pool_->template allocate<Ty>(
-            count, static_cast<std::align_val_t>(std::min<std::size_t>(alignof(Ty), internal::min_align)));
+            count,
+            static_cast<std::align_val_t>(std::min<std::size_t>(alignof(Ty), internal::min_align)));
     }
 
     void deallocate(Ty** const ptr, const size_t count = 1) noexcept {
         return pool_->template deallocate<Ty>(
-            ptr, count, static_cast<std::align_val_t>(std::min<std::size_t>(alignof(Ty), internal::min_align)));
+            ptr, count,
+            static_cast<std::align_val_t>(std::min<std::size_t>(alignof(Ty), internal::min_align)));
     }
 
     [[nodiscard]] auto alloc(const size_type count = 1) -> void* override {
