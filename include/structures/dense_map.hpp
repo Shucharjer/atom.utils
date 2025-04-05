@@ -291,13 +291,13 @@ public:
         alloc_n_dense_.second().clear();
     }
 
-    auto front() -> mapped_type& { return alloc_n_dense_.second().front(); }
-    [[nodiscard]] auto front() const -> const mapped_type& {
+    auto front() -> value_type& { return alloc_n_dense_.second().front(); }
+    [[nodiscard]] auto front() const -> const value_type& {
         return alloc_n_dense_.second().front();
     }
 
-    auto back() -> mapped_type& { return alloc_n_dense_.second().back(); }
-    [[nodiscard]] auto back() const -> const mapped_type& { return alloc_n_dense_.second().back(); }
+    auto back() -> value_type& { return alloc_n_dense_.second().back(); }
+    [[nodiscard]] auto back() const -> const value_type& { return alloc_n_dense_.second().back(); }
 
     auto begin() noexcept -> iterator { return alloc_n_dense_.second().begin(); }
     [[nodiscard]] auto begin() const noexcept -> const_iterator {
