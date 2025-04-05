@@ -5563,6 +5563,8 @@ constexpr std::size_t offset_map_size = 256;
 #define ATOM_CONCAT(a, b) ATOM_CONCAT_(a, b)
 #define ATOM_SET_THE_OFFSET_(n, o) arr[n] = ATOM_CONCAT(&offset_helper::off, o);
 
+inline namespace {
+
 consteval static auto offset_map0() noexcept {
     std::array<std::uint8_t offset_helper::*, offset_map_size> arr{};
     ATOM_SET_THE_OFFSET_(0, 0)
@@ -10070,6 +10072,8 @@ constexpr static auto offset_mapping15(const std::size_t off) noexcept {
     constexpr std::array<std::uint8_t offset_helper::*, offset_map_size> offsets = offset_map0();
     return offsets.at(off);
 }
+
+} // namespace
 
 constexpr static inline auto offset_mapping_(const std::size_t offset) noexcept {
     const std::size_t map = offset / offset_map_size;
