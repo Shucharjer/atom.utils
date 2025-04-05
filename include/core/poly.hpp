@@ -180,34 +180,34 @@ public:
     using type = value_type;
 
     template <typename Ty>
-    consteval static auto instance() -> const value_type* {
-        return &table_<Ty>;
+    consteval static auto instance() -> const value_type {
+        return table_<Ty>;
     }
 };
 
 template <typename Poly>
 struct poly_base {
     template <std::size_t Index, typename... Args>
-    [[nodiscard]] decltype(auto) invoke(const poly_base& self, Args&&... args) const {
+    [[nodiscard]] constexpr decltype(auto) invoke(const poly_base& self, Args&&... args) const {
         const auto& poly = static_cast<const Poly&>(self);
 
         if constexpr (std::is_function_v<std::remove_pointer_t<decltype(poly.vtable_)>>) {
             return poly.vtable_(poly.any_, std::forward<Args>(args)...);
         }
         else {
-            return std::get<Index>(*poly.vtable_)(poly.any_, std::forward<Args>(args)...);
+            return std::get<Index>(poly.vtable_)(poly.any_, std::forward<Args>(args)...);
         }
     }
 
     template <std::size_t Index, typename... Args>
-    decltype(auto) invoke(poly_base& self, Args&&... args) {
+    constexpr decltype(auto) invoke(poly_base& self, Args&&... args) {
         auto& poly = static_cast<Poly&>(self);
 
         if constexpr (std::is_function_v<std::remove_pointer_t<decltype(poly.vtable_)>>) {
             return poly.vtable_(poly.any_, std::forward<Args>(args)...);
         }
         else {
-            return std::get<Index>(*poly.vtable_)(poly.any_, std::forward<Args>(args)...);
+            return std::get<Index>(poly.vtable_)(poly.any_, std::forward<Args>(args)...);
         }
     }
 };
@@ -231,7 +231,7 @@ public:
     requires(!std::is_same_v<poly, std::remove_cvref_t<Ty>>)
     constexpr poly(Ty&& val)
         : any_(std::forward<Ty>(val)),
-          vtable_((vtable_type*)vtable<Object>::template instance<std::remove_cvref_t<Ty>>()) {}
+          vtable_(vtable<Object>::template instance<std::remove_cvref_t<Ty>>()) {}
 
     template <typename Ty, typename... Args>
     constexpr poly(Args&&... args)
@@ -277,7 +277,7 @@ public:
 
 private:
     std::any any_;
-    vtable_type* vtable_;
+    vtable_type vtable_;
 };
 
 /**
@@ -291,7 +291,7 @@ private:
  * @return decltype(auto) The return value of the function.
  */
 template <std::size_t Index, typename T, typename... Args>
-ATOM_RELEASE_INLINE constexpr decltype(auto) poly_call(T&& self, Args&&... args) {
+ATOM_FORCE_INLINE constexpr decltype(auto) poly_call(T&& self, Args&&... args) {
     return std::forward<T>(self).template invoke<Index>(self, std::forward<Args>(args)...);
 }
 
