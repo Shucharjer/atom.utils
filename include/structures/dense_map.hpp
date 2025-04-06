@@ -601,11 +601,11 @@ public:
         dense_.clear();
     }
 
-    auto front() -> mapped_type& { return dense_.front(); }
-    [[nodiscard]] auto front() const -> const mapped_type& { return dense_.front(); }
+    auto front() -> value_type& { return dense_.front(); }
+    [[nodiscard]] auto front() const -> const value_type& { return dense_.front(); }
 
-    auto back() -> mapped_type& { return dense_.back(); }
-    [[nodiscard]] auto back() const -> const mapped_type& { return dense_.back(); }
+    auto back() -> value_type& { return dense_.back(); }
+    [[nodiscard]] auto back() const -> const value_type& { return dense_.back(); }
 
     auto begin() noexcept -> iterator { return dense_.begin(); }
     [[nodiscard]] auto begin() const noexcept -> const_iterator { return dense_.cbegin(); }
