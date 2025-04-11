@@ -219,7 +219,7 @@ struct poly_base {
  */
 template <typename Object>
 class poly : private Object::template interface<poly_base<poly<Object>>> {
-    friend class poly_base<poly>;
+    friend struct poly_base<poly>;
 
 public:
     using interface   = Object::template interface<poly_base<poly<Object>>>;
