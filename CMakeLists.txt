@@ -5,6 +5,10 @@ if (NOT CMAKE_CXX_STANDARD)
 set(CMAKE_CXX_STANDARD 20)
 endif()
 
+add_compile_options(-O2)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx")
+
 set(CMAKE_NAMESPACE "Atom::")
 
 project(Utils
@@ -84,7 +88,23 @@ if (Utils_INCLUDE_HEADERS)
     )
 endif()
 
+if(WIN32)
 include(JoinPaths)
+elseif(UNIX)
+function(join_paths joined_path first_path_segment)
+    set(temp_path "${first_path_segment}")
+    foreach(current_segment IN LISTS ARGN)
+        if(NOT ("${current_segment}" STREQUAL ""))
+            if(IS_ABSOLUTE "${current_segment}")
+                set(temp_path "${current_segment}")
+            else()
+                set(temp_path "${temp_path}/${current_segment}")
+            endif()
+        endif()
+    endforeach()
+    set(${joined_path} "${temp_path}" PARENT_SCOPE)
+endfunction()
+endif()
 
 set(Utils_PKGCONFIG ${CMAKE_CURRENT_BINARY_DIR}/utils.pc)
 
