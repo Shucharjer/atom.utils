@@ -7,7 +7,7 @@ namespace atom::utils {
 
 namespace ranges {
 template <std::ranges::input_range Rng>
-class phony_input_iterator;
+struct phony_input_iterator;
 
 template <typename Container, std::ranges::input_range Rng, typename... Args>
 requires(!std::ranges::view<Container>)

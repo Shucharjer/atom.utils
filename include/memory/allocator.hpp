@@ -264,10 +264,10 @@ private:
     shared_type pool_;
 };
 
-template <::atom::utils::concepts::completed Ty, size_t Count = 1>
+template <concepts::completed Ty, size_t Count = 1>
 class builtin_storage_allocator;
 
-template <::atom::utils::concepts::completed Ty, size_t Count>
+template <concepts::completed Ty, size_t Count>
 class builtin_storage_allocator : public basic_allocator {
 public:
     using value_type      = Ty;
@@ -341,6 +341,17 @@ struct rebind_allocator<Allocator<Ty, Others...>> {
     template <typename Other>
     struct to {
         using type = Allocator<Other, Others...>;
+    };
+
+    template <typename Other>
+    using to_t = typename to<Other>::type;
+};
+
+template <template <typename, auto...> typename Allocator, typename Ty, auto... Args>
+struct rebind_allocator<Allocator<Ty, Args...>> {
+    template <typename Other>
+    struct to {
+        using type = Allocator<Other, Args...>;
     };
 
     template <typename Other>

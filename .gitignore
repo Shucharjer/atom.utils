@@ -2,5 +2,6 @@ build
 .cache
 .idea
 .vscode
+compile_commands.json
 *.draft.hpp
 *.draft.cpp
