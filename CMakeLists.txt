@@ -5,9 +5,11 @@ if (NOT CMAKE_CXX_STANDARD)
 set(CMAKE_CXX_STANDARD 20)
 endif()
 
-add_compile_options(-O2)
+if(NOT CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "..." FORCE)
+endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mavx")
+add_compile_options(-O2)
 
 set(CMAKE_NAMESPACE "Atom::")
 
@@ -16,6 +18,76 @@ project(Utils
     HOMEPAGE_URL "https://github.com/Shucharjer/atom.utils"
     LANGUAGES C CXX
 )
+
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
+
+cmake_push_check_state()
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mavx")
+check_cxx_source_compiles("
+#include <immintrin.h>
+int main() {
+    __m256i a = _mm256_set_ps(8, 7, 6, 5, 4, 3, 2, 1);
+    __m256i b = _mm256_set_ps(1, 2, 3, 4, 5, 6, 7, 8);
+    __m256i c = _mm256_add_ps(a, b);
+    return 0;
+}
+" ATOM_AVX_AVAILABLE)
+cmake_pop_check_state()
+if(ATOM_AVX_AVAILABLE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+endif()
+
+cmake_push_check_state()
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mavx2")
+check_cxx_source_compiles("
+#include <immintrin.h>
+int main() {
+    __m256i a = _mm256_set_epi32(-3, -2, -1, 0, 1, 2, 3, 4);
+    __m256i b = _mm256_abs_epi32(a);
+    return 0;
+}
+" ATOM_AVX2_AVAILABLE)
+cmake_pop_check_state()
+if(ATOM_AVX2_AVAILABLE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+endif()
+
+cmake_push_check_state()
+set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mfma")
+check_cxx_source_compiles("
+#include <immintrin.h>
+int main() {
+    __m256i a = _mm256_set_ps(8, 7, 6, 5, 4, 3, 2, 1);
+    __m256i b = _mm256_set_ps(1, 2, 3, 4, 5, 6, 7, 8);
+    __m256i c = _mm256_set_ps(2, 2, 3, 3, 4, 4, 5, 5);
+    __m256i d = _mm256_fmadd_ps(a, b, c);
+    return 0;
+}
+" ATOM_FMA_AVAILABLE)
+cmake_pop_check_state()
+if(ATOM_FMA_AVAILABLE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfma")
+endif()
+
+option(ATOM_USE_LIBCPP OFF)
+if (ATOM_USE_LIBCPP)
+    if (NOT WIN32)
+
+        cmake_push_check_state()
+
+        set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -stdlib=libc++")
+
+        check_cxx_source_compiles("
+            #include <type_traits>
+            int main() { return std::is_same_v<int, char>; }
+            " ATOM_USE_LIBCPP_COMPILE_SUCCESS)
+
+        cmake_pop_check_state()
+    endif()
+
+    add_compile_options(-stdlib=libc++)
+endif()
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
@@ -78,7 +150,6 @@ if (Utils_INCLUDE_HEADERS)
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/linear.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/map.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/set.hpp>
-        $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/string.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/tstring.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread.hpp>
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/corotine.hpp>
@@ -88,83 +159,89 @@ if (Utils_INCLUDE_HEADERS)
     )
 endif()
 
-if(WIN32)
-include(JoinPaths)
-elseif(UNIX)
-function(join_paths joined_path first_path_segment)
-    set(temp_path "${first_path_segment}")
-    foreach(current_segment IN LISTS ARGN)
-        if(NOT ("${current_segment}" STREQUAL ""))
-            if(IS_ABSOLUTE "${current_segment}")
-                set(temp_path "${current_segment}")
-            else()
-                set(temp_path "${temp_path}/${current_segment}")
-            endif()
-        endif()
-    endforeach()
-    set(${joined_path} "${temp_path}" PARENT_SCOPE)
-endfunction()
+option(Utils_INSTALL OFF)
+
+if (Utils_INSTALL)
+
+    if(WIN32)
+        include(JoinPaths)
+    elseif(UNIX)
+        function(join_paths joined_path first_path_segment)
+            set(temp_path "${first_path_segment}")
+            foreach(current_segment IN LISTS ARGN)
+                if(NOT ("${current_segment}" STREQUAL ""))
+                    if(IS_ABSOLUTE "${current_segment}")
+                        set(temp_path "${current_segment}")
+                    else()
+                        set(temp_path "${temp_path}/${current_segment}")
+                    endif()
+                endif()
+            endforeach()
+            set(${joined_path} "${temp_path}" PARENT_SCOPE)
+        endfunction()
+    endif()
+
+    set(Utils_PKGCONFIG ${CMAKE_CURRENT_BINARY_DIR}/utils.pc)
+
+    join_paths(Utils_PKGCONFIG_INCLUDEDIR "\${prefix}" "CMAKE_INSTALL_INCLUDEDIR")
+
+    configure_file(
+        ${Utils_SOURCE_DIR}/cmake/in/utils.pc.in
+        ${Utils_PKGCONFIG}
+        @ONLY
+    )
+
+    install(
+        FILES ${Utils_PKGCONFIG}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+    )
+
+    include(CMakePackageConfigHelpers)
+
+    install(
+        TARGETS Utils
+        EXPORT UtilsTargets
+        LIBRARY DESTINATION ${INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${INSTALL_LIBDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+
+    configure_package_config_file(
+        ${Utils_SOURCE_DIR}/cmake/in/UtilsConfig.cmake.in
+        UtilsConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake
+    )
+
+    export(
+        EXPORT UtilsTargets
+        FILE ${CMAKE_CURRENT_BINARY_DIR}/UtilsTargets.cmake
+        NAMESPACE Atom::
+    )
+
+    install(
+        EXPORT UtilsTargets
+        FILE UtilsTargets.cmake
+        NAMESPACE Atom::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake
+    )
+
+    install(
+        FILES ${PROJECT_BINARY_DIR}/UtilsConfig.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake
+    )
+
+    install(
+        DIRECTORY
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*.hpp"
+    )
+
+    export(PACKAGE Utils)
+
 endif()
-
-set(Utils_PKGCONFIG ${CMAKE_CURRENT_BINARY_DIR}/utils.pc)
-
-join_paths(Utils_PKGCONFIG_INCLUDEDIR "\${prefix}" "CMAKE_INSTALL_INCLUDEDIR")
-
-configure_file(
-    ${Utils_SOURCE_DIR}/cmake/in/utils.pc.in
-    ${Utils_PKGCONFIG}
-    @ONLY
-)
-
-install(
-    FILES ${Utils_PKGCONFIG}
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
-)
-
-include(CMakePackageConfigHelpers)
-
-install(
-    TARGETS Utils
-    EXPORT UtilsTargets
-    LIBRARY DESTINATION ${INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${INSTALL_LIBDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
-
-configure_package_config_file(
-    ${Utils_SOURCE_DIR}/cmake/in/UtilsConfig.cmake.in
-    UtilsConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake
-)
-
-export(
-    EXPORT UtilsTargets
-    FILE ${CMAKE_CURRENT_BINARY_DIR}/UtilsTargets.cmake
-    NAMESPACE Atom::
-)
-
-install(
-    EXPORT UtilsTargets
-    FILE UtilsTargets.cmake
-    NAMESPACE Atom::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake
-)
-
-install(
-    FILES ${PROJECT_BINARY_DIR}/UtilsConfig.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake
-)
-
-install(
-    DIRECTORY
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING
-    PATTERN "*.h"
-    PATTERN "*.hpp"
-)
-
-export(PACKAGE Utils)
 
 option(BUILD_UTILS_DOCS OFF)
 
