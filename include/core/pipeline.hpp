@@ -25,7 +25,7 @@ struct pipeline_tag {
  */
 template <typename First, typename Second>
 struct pipeline_result {
-    using pipeline_tag = pipeline_tag;
+    using pipeline_tag = utils::pipeline_tag;
 
     template <typename Left, typename Right>
     constexpr pipeline_result(Left&& left, Right&& right) noexcept(

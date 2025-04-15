@@ -19,7 +19,7 @@ class closure {
     using self_type      = closure;
 
 public:
-    using pipeline_tag = pipeline_tag;
+    using pipeline_tag = utils::pipeline_tag;
 
     static_assert((std::same_as<std::decay_t<Args>, Args> && ...));
     static_assert(std::is_empty_v<Fn> || std::is_default_constructible_v<Fn>);
