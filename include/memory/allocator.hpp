@@ -337,6 +337,7 @@ struct rebind_allocator<Allocator<Ty>> {
 };
 
 template <template <typename...> typename Allocator, typename Ty, typename... Others>
+requires((sizeof...(Others) != 0))
 struct rebind_allocator<Allocator<Ty, Others...>> {
     template <typename Other>
     struct to {
@@ -348,6 +349,7 @@ struct rebind_allocator<Allocator<Ty, Others...>> {
 };
 
 template <template <typename, auto...> typename Allocator, typename Ty, auto... Args>
+requires((sizeof...(Args) != 0))
 struct rebind_allocator<Allocator<Ty, Args...>> {
     template <typename Other>
     struct to {
