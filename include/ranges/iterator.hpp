@@ -57,6 +57,8 @@ struct phony_input_iterator {
 
 } // namespace ranges
 
+}
+
 // NOTE: iterator tags
 // input_iterator_tag
 // output_iterator_tag
@@ -65,6 +67,7 @@ struct phony_input_iterator {
 // random_access_iterator_tag
 // contiguous_iterator_tag - new in cpp20
 
+#if defined(__GNUC__)
 
 template <typename Iter, typename Container>
 constexpr bool operator==(
