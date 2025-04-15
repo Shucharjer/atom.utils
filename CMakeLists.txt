@@ -281,14 +281,6 @@ if(BUILD_UTILS_DOCS)
     endif()
 endif()
 
-option(BUILD_UTILS_TEST OFF)
-if(BUILD_UTILS_TEST)
-
-option(SEE_ALL_TEMPLATE_BACKTRACE OFF)
-set(SEE_ALL_TEMPLATE_BACKTRACE ON)
-
-set(UTILS_TEST_DIR "${Utils_SOURCE_DIR}/test")
-
 function(BUILD_EXECUTABLE_FOR TEST_EXECUTABLE_NAME TEST_SOURCES)
     add_executable(${TEST_EXECUTABLE_NAME} ${TEST_SOURCES})
     target_link_libraries(${TEST_EXECUTABLE_NAME} PRIVATE Atom::Utils)
@@ -297,6 +289,13 @@ function(BUILD_EXECUTABLE_FOR TEST_EXECUTABLE_NAME TEST_SOURCES)
         target_compile_options(${TEST_EXECUTABLE_NAME} PRIVATE -ftemplate-backtrace-limit=0)
     endif()
 endfunction()
+
+option(BUILD_UTILS_TEST OFF)
+if(BUILD_UTILS_TEST)
+
+option(SEE_ALL_TEMPLATE_BACKTRACE OFF)
+
+set(UTILS_TEST_DIR "${Utils_SOURCE_DIR}/test")
 
 BUILD_EXECUTABLE_FOR(core ${UTILS_TEST_DIR}/core.cpp)
 BUILD_EXECUTABLE_FOR(memory ${UTILS_TEST_DIR}/memory.cpp)

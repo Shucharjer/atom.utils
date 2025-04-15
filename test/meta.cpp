@@ -3,13 +3,28 @@
 #include <type_traits>
 #include <vector>
 #include "meta/algorithm.hpp"
+#include "meta/constexpr.hpp"
 #include "meta/sequence.hpp"
 #include "output.hpp"
 #include "require.hpp"
 
 using namespace atom::utils;
 
+void foo(int) {}
+constexpr void cfoo(int) {}
+
 int main() {
+    // constexpr
+    {
+        auto lambda = [](const std::string&) { return 1; };
+        // the follow line shows the lamdba is constexpr
+        constexpr auto v = lambda(std::string{});
+        REQUIRES(is_constexpr<lambda>())
+        REQUIRES(is_constexpr<&decltype(lambda)::operator()>())
+        REQUIRES(is_constexpr<&cfoo>())
+        REQUIRES_FALSE(is_constexpr<&foo>())
+    }
+
     // quick sort
     {
         using seq          = sequence<int, 3, -3, 2, 2, 0, 1, 4>;
@@ -33,4 +48,3 @@ int main() {
 
     return 0;
 }
-

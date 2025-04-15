@@ -2,11 +2,6 @@
 
 memory pool
 
-[signal]
-
-sink
-dispatcher
-
 [reflection]
 
 support for lua
@@ -14,4 +9,3 @@ support for lua
 [strucrues]
 
 dense set
-string
