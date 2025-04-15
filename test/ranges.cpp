@@ -37,7 +37,7 @@ int main() {
 
         auto to_list = ranges::to<std::list>();
 
-        auto list = array | ranges::to<std::list>();
+        auto list = array | to_list;
         std::ranges::for_each(list, print);
         newline();
     }

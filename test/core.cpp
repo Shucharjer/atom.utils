@@ -19,7 +19,7 @@ struct get_vector_fn {
 };
 
 struct empty_fn {
-    using pipeline_tag = pipeline_tag;
+    using pipeline_tag = atom::utils::pipeline_tag;
 
     template <std::ranges::range Rng>
     Rng operator()(const Rng& range) const {
