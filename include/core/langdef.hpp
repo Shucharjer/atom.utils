@@ -45,11 +45,12 @@
     #define ATOM_VECTORIZABLE false
 #endif
 
-constexpr auto magic_2        = 0x2;
-constexpr auto magic_4        = 0x4;
-constexpr auto magic_8        = 0x8;
-constexpr auto magic_16       = 0x10;
-constexpr auto magic_32       = 0x20;
-constexpr auto magic_64       = 0x40;
-constexpr auto magic_128      = 0x80;
-constexpr auto magic_one_half = 0.5;
+constexpr auto magic_2               = 0x2;
+constexpr auto magic_4               = 0x4;
+constexpr auto magic_8               = 0x8;
+constexpr auto magic_16              = 0x10;
+constexpr auto magic_32              = 0x20;
+constexpr auto magic_64              = 0x40;
+constexpr auto magic_128             = 0x80;
+constexpr auto magic_one_half        = 0.5F;
+constexpr auto magic_double_one_half = 0.5;
