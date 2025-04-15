@@ -10803,7 +10803,7 @@ inline void from_json(const nlohmann::json& json, Ty& obj) {
         //
 
 template <>
-struct ::atom::utils::serialization<nlohmann::json> {
+struct atom::utils::serialization<nlohmann::json> {
     template <typename Ty>
     auto operator()(const Ty& obj, nlohmann::json& json) const {
         if constexpr (::atom::utils::concepts::reflectible<Ty>) {
@@ -10816,7 +10816,7 @@ struct ::atom::utils::serialization<nlohmann::json> {
 };
 
 template <>
-struct ::atom::utils::deserialization<nlohmann::json> {
+struct atom::utils::deserialization<nlohmann::json> {
     template <typename Ty>
     auto operator()(Ty& obj, const nlohmann::json& json) const {
         if constexpr (::atom::utils::concepts::reflectible<Ty>) {
