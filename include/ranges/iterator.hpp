@@ -6,6 +6,30 @@
 
 namespace atom::utils {
 
+namespace concepts {
+template <typename Iter>
+concept input_iterator = requires(const Iter iter) { *iter; };
+
+template <typename Iter>
+concept output_iterator = requires(Iter iter) { *iter; };
+
+template <typename Iter>
+concept forward_iterator = input_iterator<Iter> && requires(Iter iter) {
+    ++iter;
+    iter++;
+};
+
+template <typename Iter>
+concept bidirectional_iterator = forward_iterator<Iter> && requires(Iter iter) {
+    --iter;
+    iter--;
+};
+
+template <typename Iter>
+concept random_access_iterator =
+    bidirectional_iterator<Iter> && requires(Iter iter) { iter += static_cast<unsigned>(-1); };
+} // namespace concepts
+
 namespace ranges {
 /**
  * @brief Phony input iterator, for lazy construction with ranges.
@@ -41,106 +65,6 @@ struct phony_input_iterator {
 // random_access_iterator_tag
 // contiguous_iterator_tag - new in cpp20
 
-template <typename Derived>
-class iterator {
-public:
-    using value_type      = typename Derived::value_type;
-    using reference       = typename Derived::reference;
-    using const_reference = typename Derived::const_reference;
-    using pointer         = typename Derived::pointer;
-    using const_pointer   = typename Derived::const_pointer;
-
-    using difference_type   = typename Derived::difference_type;
-    using iterator_category = typename Derived::iterator_category;
-
-    iterator() noexcept                           = default;
-    iterator(const iterator&) noexcept            = default;
-    iterator(iterator&&) noexcept                 = default;
-    iterator& operator=(const iterator&) noexcept = default;
-    iterator& operator=(iterator&&) noexcept      = default;
-    ~iterator() noexcept                          = default;
-
-    constexpr auto& operator++() noexcept(noexcept(static_cast<Derived*>(this)->operator++()))
-    requires requires(Derived iter) { ++iter; }
-    {
-        static_cast<Derived*>(this)->operator++();
-    }
-    constexpr auto operator++(int) noexcept(noexcept(static_cast<Derived*>(this)->operator++(int{
-        1 })))
-    requires requires(Derived iter) { iter++; }
-    {
-        static_cast<Derived*>(this)->operator++(int{ 1 });
-    }
-
-    constexpr auto& operator--() noexcept(noexcept(static_cast<Derived*>(this)->operator--()))
-    requires requires(Derived iter) { --iter; }
-    {
-        static_cast<Derived*>(this)->operator--();
-    }
-    constexpr auto operator--(int) noexcept(noexcept(static_cast<Derived*>(this)->operator--(int{
-        1 })))
-    requires requires(Derived iter) { iter--; }
-    {
-        static_cast<Derived*>(this)->operator--(int{ 1 });
-    }
-
-    constexpr auto& operator+=(const difference_type diff) noexcept(
-        noexcept(static_cast<Derived*>(this)->operator+=(diff)))
-    requires requires(Derived iter) { iter += std::declval<difference_type>(); }
-    {
-        static_cast<Derived*>(this)->operator+=(diff);
-    }
-    constexpr auto operator+(const difference_type diff) noexcept(
-        noexcept(static_cast<Derived*>(this)->operator+(diff)))
-    requires requires(Derived iter) { iter + std::declval<difference_type>(); }
-    {
-        return static_cast<Derived*>(this)->operator+(diff);
-    }
-
-    constexpr auto& operator-=(const difference_type diff) noexcept(
-        noexcept(static_cast<Derived*>(this)->operator-(diff)))
-    requires requires(Derived iter) { iter -= std::declval<difference_type>(); }
-    {
-        static_cast<Derived*>(this)->operator-=(diff);
-    }
-    constexpr auto operator-(const difference_type diff) noexcept(
-        noexcept(static_cast<Derived*>(this)->operator-(diff)))
-    requires requires(Derived iter) { iter - std::declval<difference_type>(); }
-    {
-        return static_cast<Derived*>(this)->operator-(diff);
-    }
-
-    constexpr reference operator*() noexcept(noexcept(static_cast<Derived*>(this)->operator*()))
-    requires requires(Derived iter) { *iter; }
-    {
-        return static_cast<Derived*>(this)->operator*();
-    }
-
-    constexpr const_reference operator*() const
-        noexcept(noexcept(static_cast<Derived*>(this)->operator*()))
-    requires requires(Derived iter) { *iter; }
-    {
-        return static_cast<Derived*>(this)->operator*();
-    }
-
-    constexpr auto& operator[](const difference_type diff) noexcept(
-        noexcept(static_cast<Derived*>(this)->operator[](diff)))
-    requires requires(Derived iter) { iter[std::declval<difference_type>()]; }
-    {
-        return static_cast<Derived*>(this)->operator[](diff);
-    }
-
-    constexpr auto& operator[](const difference_type diff) const
-        noexcept(noexcept(static_cast<Derived*>(this)->operator[](diff)))
-    requires requires(Derived iter) { iter[std::declval<difference_type>()]; }
-    {
-        return static_cast<Derived*>(this)->operator[](diff);
-    }
-};
-
-} // namespace atom::utils
-
-#ifdef __GNUC__
 
 template <typename Iter, typename Container>
 constexpr bool operator==(
@@ -149,11 +73,25 @@ constexpr bool operator==(
     return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Iter, Container>&>(lhs) == rhs;
 }
 
+template <typename Ty, typename Container>
+constexpr bool operator==(
+    const ::__gnu_cxx::__normal_iterator<Ty, Container>& lhs,
+    const ::__gnu_cxx::__normal_iterator<const Ty*, Container>& rhs) noexcept {
+    return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Ty*, Container>&>(lhs) == rhs;
+}
+
 template <typename Iter, typename Container>
 constexpr bool operator!=(
     const ::__gnu_cxx::__normal_iterator<Iter, Container>& lhs,
     const ::__gnu_cxx::__normal_iterator<const Iter, Container>& rhs) noexcept {
     return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Iter, Container>&>(lhs) != rhs;
+}
+
+template <typename Ty, typename Container>
+constexpr bool operator!=(
+    const ::__gnu_cxx::__normal_iterator<Ty, Container>& lhs,
+    const ::__gnu_cxx::__normal_iterator<const Ty*, Container>& rhs) noexcept {
+    return reinterpret_cast<::__gnu_cxx::__normal_iterator<const Ty*, Container>&>(lhs) != rhs;
 }
 
 #endif
