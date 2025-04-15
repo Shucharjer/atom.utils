@@ -39,7 +39,7 @@ private:
 
 public:
     using iterator               = typename vector::iterator;
-    using const_iterator         = typename vector::iterator;
+    using const_iterator         = typename vector::const_iterator;
     using reverse_iterator       = typename vector::reverse_iterator;
     using const_reverse_iterator = typename vector::const_reverse_iterator;
 
@@ -275,10 +275,10 @@ public:
 
         shared_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         if (contains_impl(key, page, offset)) {
-            return alloc_n_dense_.second().cbegin() + sparse_[page]->at(offset);
+            return alloc_n_dense_.second().begin() + sparse_[page]->at(offset);
         }
         else {
-            return alloc_n_dense_.second().cend();
+            return alloc_n_dense_.second().end();
         }
     }
 
@@ -302,7 +302,7 @@ public:
 
     auto begin() noexcept -> iterator { return alloc_n_dense_.second().begin(); }
     [[nodiscard]] auto begin() const noexcept -> const_iterator {
-        return alloc_n_dense_.second().cbegin();
+        return alloc_n_dense_.second().begin();
     }
     [[nodiscard]] auto cbegin() const noexcept -> const_iterator {
         return alloc_n_dense_.second().cbegin();
@@ -310,7 +310,7 @@ public:
 
     auto end() noexcept -> iterator { return alloc_n_dense_.second().end(); }
     [[nodiscard]] auto end() const noexcept -> const_iterator {
-        return alloc_n_dense_.second().cend();
+        return alloc_n_dense_.second().end();
     }
     [[nodiscard]] auto cend() const noexcept -> const_iterator {
         return alloc_n_dense_.second().cend();
@@ -335,7 +335,7 @@ public:
 private:
     static size_type page_of(const key_type key) noexcept { return key / PageSize; }
     static size_type offset_of(const key_type key) noexcept { return key % PageSize; }
-    void check_page(const size_type page) {
+    void check_page(const size_type page) noexcept {
         const auto current_page = sparse_.size();
         try {
             while (page >= sparse_.size()) {
@@ -363,6 +363,12 @@ private:
                                                : dense[sparse_[page]->at(offset)].first == key
                    : false;
     }
+
+    /**
+     * @brief Erase element without check.
+     * May cause error, but faster.
+     * We could check before calling this.
+     */
     auto erase_without_check_impl(const size_type page, const size_type offset) {
         auto& dense = alloc_n_dense_.second();
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
@@ -374,8 +380,7 @@ private:
         index = 0;
     }
 
-    compressed_pair<allocator_t<value_type>, std::vector<value_type, allocator_t<value_type>>>
-        alloc_n_dense_;
+    compressed_pair<allocator_t<value_type>, vector> alloc_n_dense_;
     std::vector<storage_t, allocator_t<storage_t>> sparse_;
     std::shared_mutex dense_mutex_;
     std::shared_mutex sparse_mutex_;
