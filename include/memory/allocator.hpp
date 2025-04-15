@@ -42,7 +42,7 @@ struct standard_allocator : public basic_allocator {
     using value_type      = Ty;
     using size_type       = typename basic_allocator::size_type;
     using pointer         = Ty*;
-    using const_pointer   = const Ty&;
+    using const_pointer   = const Ty*;
     using reference       = Ty&;
     using const_reference = const Ty&;
 
@@ -111,7 +111,7 @@ public:
     using value_type      = Ty;
     using size_type       = typename basic_allocator::size_type;
     using pointer         = Ty*;
-    using const_pointer   = const Ty&;
+    using const_pointer   = const Ty*;
     using reference       = Ty&;
     using const_reference = const Ty&;
 
