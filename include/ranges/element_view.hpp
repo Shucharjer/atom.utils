@@ -203,7 +203,7 @@ private:
 
 template <size_t Index>
 struct element_fn {
-    using pipeline_tag = pipeline_tag;
+    using pipeline_tag = utils::pipeline_tag;
 
     template <std::ranges::viewable_range Rng>
     requires concepts::gettible<Index, std::ranges::range_value_t<Rng>>
