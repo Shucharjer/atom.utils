@@ -34,13 +34,14 @@ public:
     using reference       = value_type&;
     using const_reference = const value_type&;
 
-    using iterator = typename std::vector<value_type, allocator_t<value_type>>::iterator;
-    using const_iterator =
-        typename std::vector<value_type, allocator_t<value_type>>::const_iterator;
-    using reverse_iterator =
-        typename std::vector<value_type, allocator_t<value_type>>::reverse_iterator;
-    using const_reverse_iterator =
-        typename std::vector<value_type, allocator_t<value_type>>::const_reverse_iterator;
+private:
+    using vector = std::vector<value_type, allocator_t<value_type>>;
+
+public:
+    using iterator               = typename vector::iterator;
+    using const_iterator         = typename vector::iterator;
+    using reverse_iterator       = typename vector::reverse_iterator;
+    using const_reverse_iterator = typename vector::const_reverse_iterator;
 
 private:
     using array_t            = std::array<size_type, PageSize>;
@@ -601,11 +602,11 @@ public:
         dense_.clear();
     }
 
-    auto front() -> mapped_type& { return dense_.front(); }
-    [[nodiscard]] auto front() const -> const mapped_type& { return dense_.front(); }
+    auto front() -> value_type& { return dense_.front(); }
+    [[nodiscard]] auto front() const -> const value_type& { return dense_.front(); }
 
-    auto back() -> mapped_type& { return dense_.back(); }
-    [[nodiscard]] auto back() const -> const mapped_type& { return dense_.back(); }
+    auto back() -> value_type& { return dense_.back(); }
+    [[nodiscard]] auto back() const -> const value_type& { return dense_.back(); }
 
     auto begin() noexcept -> iterator { return dense_.begin(); }
     [[nodiscard]] auto begin() const noexcept -> const_iterator { return dense_.cbegin(); }
