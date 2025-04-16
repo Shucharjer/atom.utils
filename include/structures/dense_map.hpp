@@ -460,8 +460,14 @@ public:
      *
      */
     explicit dense_map(std::initializer_list<std::pair<Key, Val>>&& list)
-        // delegate consturctor
-        : dense_map(std::move(list)) {}
+        : dense_(std::move(list)), sparse_() {
+        for (const auto& [key, val] : dense_) {
+            auto page   = page_of(key);
+            auto offset = offset_of(key);
+            check_page(page);
+            sparse_[page]->at(offset) = dense_.size();
+        }
+    }
 
     dense_map(dense_map&& that) noexcept
         : dense_(std::move(that.dense_)), sparse_(std::move(that.sparse_)) {}
