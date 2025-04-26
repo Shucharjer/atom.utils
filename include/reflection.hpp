@@ -5537,7 +5537,7 @@ template <concepts::aggregate Ty>
 static inline const auto& offsets_of() noexcept {
     constexpr auto count                                    = member_count_v<Ty>;
     auto& outline                                           = get_object_outline<Ty>();
-    constexpr auto tuple                                    = object_to_tuple_view(outline);
+    auto tuple                                              = object_to_tuple_view(outline);
     [[maybe_unused]] static std::array<size_t, count> array = { [&]<std::size_t... Is>(
                                                                     std::index_sequence<Is...>) {
         std::array<size_t, count> arr;
