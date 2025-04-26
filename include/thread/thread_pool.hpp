@@ -41,6 +41,13 @@ public:
         condvar_.notify_all();
 
         // jthread
+#if !defined(__cpp_lib_jthread)
+        for (auto& thread : threads_) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+#endif
     }
 
     /**
@@ -101,7 +108,11 @@ private:
     std::atomic<bool> stop_{ false };
     uint32_t num_threads_;
     std::mutex mutex_;
+#if defined(__cpp_lib_jthread)
     std::vector<std::jthread> threads_;
+#else
+    std::vector<std::thread> threads_;
+#endif
     std::condition_variable condvar_;
     std::queue<std::function<void()>> tasks_;
 };
