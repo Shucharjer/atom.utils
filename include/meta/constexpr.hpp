@@ -8,6 +8,10 @@
 #if __has_include(<meta/list.hpp>)
     #include "meta/list.hpp"
 #else
+namespace atom::utils {
+template <typename...>
+struct type_list {};
+} // namespace atom::utils
 #endif
 
 namespace atom::utils {
