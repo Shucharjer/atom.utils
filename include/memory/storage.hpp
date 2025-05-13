@@ -28,20 +28,6 @@ public:
     [[nodiscard]] constexpr virtual auto raw() const noexcept -> const void* { return nullptr; }
 };
 
-/**
- * @brief Lazy storage.
- * Initialize on Get, Copy on Write.
- */
-template <typename Ty, typename Alloc = std::allocator<Ty>>
-class unique_storage;
-
-/**
- * @brief Shared lazy storage.
- * Initialize on Get, Copy on Write.
- */
-template <typename Ty, typename Allocator = std::allocator<Ty>>
-class shared_storage;
-
 struct with_allocator_t {};
 struct with_destroyer_t {};
 
@@ -71,6 +57,10 @@ constexpr auto wrap_destroyer(Destroyer destroyer) -> void (*)(void*) {
 
 } // namespace internal
 
+/**
+ * @brief Lazy storage.
+ * Initialize on Get, Copy on Write.
+ */
 template <typename Ty, typename Allocator>
 class unique_storage final : public basic_storage {
     template <typename Target>
@@ -232,6 +222,10 @@ private:
     Ty* val_{};
 };
 
+/**
+ * @brief Shared lazy storage.
+ * Initialize on Get, Copy on Write.
+ */
 template <typename Ty, typename Allocator>
 class shared_storage final : public basic_storage {
     template <typename T>
