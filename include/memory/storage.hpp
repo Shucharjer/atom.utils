@@ -5,6 +5,7 @@
 #include <utility>
 #include "concepts/allocator.hpp"
 #include "core.hpp"
+#include "core/langdef.hpp"
 #include "core/pair.hpp"
 #include "memory.hpp"
 #include "memory/allocator.hpp"
@@ -31,18 +32,14 @@ public:
  * @brief Lazy storage.
  * Initialize on Get, Copy on Write.
  */
-template <
-    typename Ty,
-    ::atom::utils::concepts::rebindable_allocator Allocator = ::atom::utils::standard_allocator<Ty>>
+template <typename Ty, typename Alloc = std::allocator<Ty>>
 class unique_storage;
 
 /**
  * @brief Shared lazy storage.
  * Initialize on Get, Copy on Write.
  */
-template <
-    typename Ty,
-    ::atom::utils::concepts::rebindable_allocator Allocator = ::atom::utils::standard_allocator<Ty>>
+template <typename Ty, typename Allocator = std::allocator<Ty>>
 class shared_storage;
 
 struct with_allocator_t {};
@@ -74,19 +71,17 @@ constexpr auto wrap_destroyer(Destroyer destroyer) -> void (*)(void*) {
 
 } // namespace internal
 
-template <typename Ty, ::atom::utils::concepts::rebindable_allocator Allocator>
+template <typename Ty, typename Allocator>
 class unique_storage final : public basic_storage {
-    using alty_traits = std::allocator_traits<Allocator>;
-
     template <typename Target>
-    using allocator_t =
-        typename ::atom::utils::rebind_allocator<Allocator>::template to<Target>::type;
+    using allocator_t = typename rebind_allocator<Allocator>::template to<Target>::type;
+
+    using alty        = allocator_t<Ty>;
+    using alty_traits = std::allocator_traits<alty>;
 
 public:
-    using count_type = uint32_t;
-
     using value_type      = Ty;
-    using allocator_type  = Allocator;
+    using allocator_type  = alty;
     using pointer         = typename alty_traits::pointer;
     using const_pointer   = typename alty_traits::const_pointer;
     using reference       = Ty&;
@@ -95,7 +90,10 @@ public:
     static_assert(sizeof(Ty), "Can't suit for incompleted type");
     static_assert(!std::is_const_v<Ty>);
 
-    constexpr explicit unique_storage(const Allocator& allocator = Allocator()) noexcept(
+    constexpr unique_storage() noexcept(std::is_nothrow_default_constructible_v<alty>) = default;
+
+    template <typename Al>
+    constexpr explicit unique_storage(const Al& allocator) noexcept(
         std::is_nothrow_default_constructible_v<allocator_type>)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {}
 
@@ -109,8 +107,8 @@ public:
     constexpr explicit unique_storage(Ty* const ptr, with_destroyer_t, Destroyer destroyer)
         : pair_(internal::wrap_destroyer<Ty>(destroyer), Allocator()), val_(ptr) {}
 
-    constexpr explicit unique_storage(construct_at_once_t, const Allocator& allocator = Allocator{})
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {
+    constexpr explicit unique_storage(construct_at_once_t)
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), alty{}), val_(nullptr) {
         Ty* ptr = nullptr;
         try {
             ptr = pair_.second().allocate(1);
@@ -128,7 +126,7 @@ public:
     template <typename... Args>
     requires std::is_constructible_v<Ty, Args...>
     constexpr explicit unique_storage(Args&&... args)
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), Allocator{}), val_(nullptr) {
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), alty{}), val_(nullptr) {
         Ty* ptr = nullptr;
         try {
             ptr = pair_.second().allocate(1);
@@ -143,9 +141,9 @@ public:
         }
     }
 
-    template <typename... Args, typename Alloc>
-    requires std::is_constructible_v<Ty, Args...> && std::is_constructible_v<Allocator, Alloc>
-    constexpr explicit unique_storage(Args&&... args, const Alloc& allocator)
+    template <typename Alloc, typename... Args>
+    requires std::is_constructible_v<Ty, Args...> && std::is_constructible_v<alty, Alloc>
+    constexpr explicit unique_storage(std::allocator_arg_t, const Alloc& allocator, Args&&... args)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {
         Ty* ptr = nullptr;
         try {
@@ -165,6 +163,10 @@ public:
 
     constexpr unique_storage(unique_storage&& that) noexcept
         : pair_(std::move(that.pair_)), val_(std::exchange(that.val_, nullptr)) {}
+
+    template <typename Al>
+    constexpr unique_storage(std::allocator_arg_t, const Al& al, unique_storage&& that) noexcept
+        : unique_storage(std::move(that)) {}
 
     unique_storage& operator=(const unique_storage& that) = delete;
 
@@ -198,7 +200,7 @@ public:
             *val_ = std::forward<Val>(val);
         }
         else {
-            auto* ptr = pair_.second().allocate();
+            auto* ptr = pair_.second().allocate(1);
             ::new (ptr) Ty(std::forward<Val>(val));
             val_ = std::launder(ptr);
         }
@@ -227,19 +229,22 @@ public:
 
 private:
     compressed_pair<void (*)(void*), allocator_type> pair_;
-    Ty* val_;
+    Ty* val_{};
 };
 
-template <typename Ty, ::atom::utils::concepts::rebindable_allocator Allocator>
+template <typename Ty, typename Allocator>
 class shared_storage final : public basic_storage {
-    using alty_traits = std::allocator_traits<Allocator>;
+    template <typename T>
+    using allocator_t = typename rebind_allocator<Allocator>::template to<T>::type;
+    using alty        = allocator_t<Ty>;
+    using alty_traits = std::allocator_traits<alty>;
 
 public:
     using meta_count_type = uint32_t;
     using count_type      = std::atomic<meta_count_type>;
 
     using value_type           = Ty;
-    using allocator_type       = Allocator;
+    using allocator_type       = alty;
     using count_allocator_type = typename Allocator::template rebind_t<count_type>;
     using pointer              = typename alty_traits::pointer;
     using const_pointer        = typename alty_traits::const_pointer;
@@ -334,7 +339,7 @@ public:
           control_pair_(nullptr, internal::wrap_destroyer<Ty>(default_destroyer<Ty>{})) {
         Ty* ptr = nullptr;
         try {
-            ptr = pair_.second().allocate();
+            ptr = pair_.second().allocate(1);
             ::new (ptr) Ty(std::forward<Args>(args)...);
             pair_.first() = std::launder(ptr);
 
@@ -347,7 +352,7 @@ public:
             }
             catch (...) {
                 if (count) {
-                    count_allocator.deallocate(count);
+                    count_allocator.deallocate(count, 1);
                 }
                 throw;
             }
@@ -355,7 +360,7 @@ public:
         catch (...) {
             if (ptr) {
                 ptr->~Ty();
-                pair_.second().deallocate(ptr);
+                pair_.second().deallocate(ptr, 1);
                 if (pair_.first()) {
                     pair_.first() = nullptr;
                 }
@@ -378,13 +383,13 @@ public:
             count_type* count    = nullptr;
             auto count_allocator = count_allocator_type{ pair_.second() }.allocate();
             try {
-                count = count_allocator.allocate();
+                count = count_allocator.allocate(1);
                 ::new (count) count_type(1);
                 control_pair_.first() = std::launder(count);
             }
             catch (...) {
                 if (count) {
-                    count_allocator.deallocate(count);
+                    count_allocator.deallocate(count, 1);
                 }
                 throw;
             }
@@ -392,7 +397,7 @@ public:
         catch (...) {
             if (ptr) {
                 ptr->~Ty();
-                pair_.second().deallocate(ptr);
+                pair_.second().deallocate(ptr, 1);
                 if (pair_.first()) {
                     pair_.first() = nullptr;
                 }
@@ -408,14 +413,14 @@ public:
           control_pair_(nullptr, internal::wrap_destroyer<Ty>(destroyer)) {
         Ty* ptr = nullptr;
         try {
-            ptr = pair_.second().allocate();
+            ptr = pair_.second().allocate(1);
             ::new (ptr) Ty(std::forward<Args>(args)...);
             pair_.first() = std::launder(ptr);
 
             count_type* count    = nullptr;
             auto count_allocator = count_allocator_type{ pair_.second() };
             try {
-                count = count_allocator.allocate();
+                count = count_allocator.allocate(1);
                 ::new (count) count_type(1);
                 // noexcept
                 control_pair_.first() = std::launder(count);
