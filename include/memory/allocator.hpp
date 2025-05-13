@@ -38,7 +38,7 @@ struct basic_allocator {
 };
 
 template <typename Ty>
-struct standard_allocator : public basic_allocator {
+struct standard_allocator : public basic_allocator, private std::allocator<Ty> {
     using value_type      = Ty;
     using size_type       = typename basic_allocator::size_type;
     using pointer         = Ty*;
@@ -61,12 +61,9 @@ struct standard_allocator : public basic_allocator {
     ~standard_allocator() noexcept override                           = default;
 
     template <typename T>
-    constexpr explicit standard_allocator(const standard_allocator<T>&) noexcept {}
-
-    // NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
-    template <typename T>
-    constexpr explicit standard_allocator(standard_allocator<T>&&) noexcept {}
-    // NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)
+    constexpr standard_allocator(const standard_allocator<T>& that) noexcept(
+        std::is_nothrow_constructible_v<std::allocator<Ty>, std::allocator<T>>)
+        : std::allocator<Ty>(static_cast<const std::allocator<T>&>(*that)) {}
 
     [[nodiscard]] auto alloc(const size_type count = 1) noexcept -> void* override {
         return static_cast<void*>(allocate(count));
@@ -76,12 +73,10 @@ struct standard_allocator : public basic_allocator {
         deallocate(static_cast<Ty*>(ptr), count);
     }
 
-    [[nodiscard]] constexpr Ty* allocate(const size_type count = 1) {
-        return std::allocator<Ty>{}.allocate(count);
-    }
+    [[nodiscard]] constexpr Ty* allocate(const size_type count = 1) { return allocate(count); }
 
     constexpr void deallocate(Ty* ptr, const size_type count = 1) noexcept {
-        std::allocator<Ty>{}.deallocate(ptr, count);
+        deallocate(ptr, count);
     }
 
     constexpr bool operator==(const standard_allocator&) const noexcept { return true; }
