@@ -39,6 +39,9 @@ struct basic_allocator {
 
 template <typename Ty>
 struct standard_allocator : public basic_allocator, private std::allocator<Ty> {
+    template <typename T>
+    friend struct standard_allocator;
+
     using value_type      = Ty;
     using size_type       = typename basic_allocator::size_type;
     using pointer         = Ty*;
@@ -63,7 +66,7 @@ struct standard_allocator : public basic_allocator, private std::allocator<Ty> {
     template <typename T>
     constexpr standard_allocator(const standard_allocator<T>& that) noexcept(
         std::is_nothrow_constructible_v<std::allocator<Ty>, std::allocator<T>>)
-        : std::allocator<Ty>(static_cast<const std::allocator<T>&>(*that)) {}
+        : std::allocator<Ty>(static_cast<const std::allocator<T>&>(that)) {}
 
     [[nodiscard]] auto alloc(const size_type count = 1) noexcept -> void* override {
         return static_cast<void*>(allocate(count));
