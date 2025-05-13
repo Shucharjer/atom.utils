@@ -9,8 +9,7 @@ struct default_destroyer;
 namespace internal {
 
 template <typename Ty>
-ATOM_FORCE_INLINE constexpr void destroy(Ty* ptr) noexcept(
-    noexcept(std::destroy_at(ptr))) {
+ATOM_FORCE_INLINE _CONSTEXPR20 void destroy(Ty* ptr) noexcept(noexcept(std::destroy_at(ptr))) {
     std::destroy_at(ptr);
 }
 
@@ -29,6 +28,16 @@ struct default_destroyer {
     using rebind_t = default_destroyer<T>;
 
     inline constexpr void operator()(Ty* const ptr) const noexcept { internal::destroy(ptr); }
+};
+
+template <typename Ty>
+struct nop_destroyer {
+    using value_type = Ty;
+
+    template <typename T>
+    using rebind_t = nop_destroyer<T>;
+
+    inline constexpr void operator()(Ty* const ptr) const noexcept {}
 };
 
 } // namespace atom::utils
