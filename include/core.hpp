@@ -44,10 +44,6 @@ struct type_spreader;
 template <typename = void>
 class type;
 
-struct placeholder_t {};
-
-constexpr inline placeholder_t placeholder{};
-
 } // namespace utils
 
 using default_id_t = utils::default_id_t;

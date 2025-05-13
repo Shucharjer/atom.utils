@@ -45,6 +45,62 @@
     #define ATOM_VECTORIZABLE false
 #endif
 
+#ifndef _HAS_CXX17
+    #if __cplusplus > 201402L
+        #define _HAS_CXX17 1
+    #else
+        #define _HAS_CXX17 0
+    #endif
+#endif
+
+#ifndef _HAS_CXX20
+    #if _HAS_CXX17 && __cplusplus > 201703L
+        #define _HAS_CXX20 1
+    #else
+        #define _HAS_CXX20 0
+    #endif
+#endif
+
+#ifndef _HAS_CXX23
+    #if _HAS_CXX20 && __cplusplus > 202002L
+        #define _HAS_CXX23 1
+    #else
+        #define _HAS_CXX23 0
+    #endif
+#endif
+
+#ifndef _CONSTEXPR17
+    #if _HAS_CXX17
+        #define _CONSTEXPR17 constexpr
+    #else
+        #define _CONSTEXPR17 inline
+    #endif
+#endif
+
+#ifndef _CONSTEXPR20
+    #if _HAS_CXX20
+        #define _CONSTEXPR20 constexpr
+    #else
+        #define _CONSTEXPR20 inline
+    #endif
+#endif
+
+#ifndef _HAS_NODISCARD
+    #ifndef __has_cpp_attribute
+        #define _HAS_NODISCARD 0
+    #elif __has_cpp_attribute(nodiscard) >= 201603L // TRANSITION, VSO#939899 (need toolset update)
+        #define _HAS_NODISCARD 1
+    #else
+        #define _HAS_NODISCARD 0
+    #endif
+#endif
+
+#if _HAS_NODISCARD
+    #define _NODISCARD [[nodiscard]]
+#else // ^^^ CAN HAZ [[nodiscard]] / NO CAN HAZ [[nodiscard]] vvv
+    #define _NODISCARD
+#endif
+
 constexpr auto magic_2               = 0x2;
 constexpr auto magic_4               = 0x4;
 constexpr auto magic_8               = 0x8;
