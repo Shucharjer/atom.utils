@@ -1,4 +1,5 @@
 #pragma once
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include "core.hpp"
@@ -206,11 +207,11 @@ class reversed_compressed_pair;
  * @tparam Second The second element type.
  */
 template <typename First, typename Second>
-class compressed_pair final : private ::atom::utils::internal::compressed_element<First, true>,
-                              private ::atom::utils::internal::compressed_element<Second, false> {
+class compressed_pair final : private internal::compressed_element<First, true>,
+                              private internal::compressed_element<Second, false> {
     using self_type   = compressed_pair;
-    using first_base  = ::atom::utils::internal::compressed_element<First, true>;
-    using second_base = ::atom::utils::internal::compressed_element<Second, false>;
+    using first_base  = internal::compressed_element<First, true>;
+    using second_base = internal::compressed_element<Second, false>;
 
 public:
     using first_type  = First;
@@ -238,25 +239,19 @@ public:
         : first_base(std::forward<FirstType>(first)),
           second_base(std::forward<SecondType>(second)) {}
 
-    /**
-     * @brief Construct the second defaultly.
-     *
-     */
-    template <typename Ty>
-    constexpr explicit compressed_pair(Ty&& val, placeholder_t) noexcept(
-        std::is_nothrow_constructible_v<first_base, Ty> &&
-        std::is_nothrow_default_constructible_v<second_base>)
-        : first_base(std::forward<Ty>(val)), second_base() {}
+    template <typename Tuple1, typename Tuple2, size_t... Is1, size_t... Is2>
+    constexpr compressed_pair(Tuple1& t1, Tuple2& t2, std::index_sequence<Is1...>, std::index_sequence<Is2...>) noexcept(
+        std::is_nothrow_constructible_v<First, std::tuple_element_t<Is1, Tuple1>...> &&
+        std::is_nothrow_constructible_v<Second, std::tuple_element_t<Is2, Tuple2>...>)
+        : first_base(std::get<Is1>(std::move(t1))...),
+          second_base(std::get<Is2>(std::move(t2))...) {}
 
-    /**
-     * @brief Construct the first defaultly.
-     *
-     */
-    template <typename Ty>
-    constexpr explicit compressed_pair(placeholder_t, Ty&& val) noexcept(
-        std::is_nothrow_default_constructible_v<first_base> &&
-        std::is_nothrow_constructible_v<second_base, Ty>)
-        : first_base(), second_base(std::forward<Ty>(val)) {}
+    template <typename... Tys1, typename... Tys2>
+    constexpr compressed_pair(std::piecewise_construct_t, std::tuple<Tys1...> t1, std::tuple<Tys2...> t2) noexcept(
+        noexcept(compressed_pair(
+            t1, t2, std::index_sequence_for<Tys1...>{}, std::index_sequence_for<Tys2...>{})))
+        : compressed_pair(
+              t1, t2, std::index_sequence_for<Tys1...>{}, std::index_sequence_for<Tys2...>{}) {}
 
     constexpr compressed_pair(const compressed_pair&)            = default;
     constexpr compressed_pair& operator=(const compressed_pair&) = default;
@@ -293,6 +288,15 @@ public:
 
     [[nodiscard]] constexpr const Second& second() const noexcept {
         return static_cast<const second_base&>(*this).value();
+    }
+
+    template <
+        typename = std::enable_if_t<
+            std::is_copy_constructible_v<First> && std::is_copy_constructible_v<Second>>>
+    constexpr operator std::pair<First, Second>() noexcept(
+        std::is_nothrow_copy_constructible_v<First> &&
+        std::is_nothrow_copy_constructible_v<Second>) {
+        return std::pair<First, Second>(first(), second());
     }
 };
 
@@ -362,23 +366,25 @@ public:
         : first_base(), second_base() {}
 
     template <typename FirstType, typename SecondType>
-    constexpr explicit reversed_compressed_pair(FirstType&& first, SecondType&& second) noexcept(
+    constexpr reversed_compressed_pair(FirstType&& first, SecondType&& second) noexcept(
         std::is_nothrow_constructible_v<second_base, SecondType> &&
         std::is_nothrow_constructible_v<first_base, FirstType>)
         : first_base(std::forward<SecondType>(second)),
           second_base(std::forward<FirstType>(first)) {}
 
-    template <typename Ty>
-    constexpr explicit reversed_compressed_pair(Ty&& val, placeholder_t) noexcept(
-        std::is_nothrow_constructible_v<first_base, Ty> &&
-        std::is_nothrow_default_constructible_v<second_base>)
-        : first_base(std::forward<Ty>(val)), second_base() {}
+    template <typename Tuple1, typename Tuple2, size_t... Is1, size_t... Is2>
+    constexpr reversed_compressed_pair(Tuple1& t1, Tuple2& t2, std::index_sequence<Is1...>, std::index_sequence<Is2...>) noexcept(
+        std::is_nothrow_constructible_v<First, std::tuple_element_t<Is1, Tuple1>...> &&
+        std::is_nothrow_constructible_v<Second, std::tuple_element_t<Is2, Tuple2>...>)
+        : first_base(std::get<Is1>(std::move(t1))...),
+          second_base(std::get<Is2>(std::move(t2))...) {}
 
-    template <typename Ty>
-    constexpr explicit reversed_compressed_pair(placeholder_t, Ty&& val) noexcept(
-        std::is_nothrow_default_constructible_v<first_base> &&
-        std::is_nothrow_constructible_v<second_base, Ty>)
-        : first_base(), second_base(std::forward<Ty>(val)) {}
+    template <typename... Tys1, typename... Tys2>
+    constexpr reversed_compressed_pair(std::piecewise_construct_t, std::tuple<Tys1...> t1, std::tuple<Tys2...> t2) noexcept(
+        noexcept(reversed_compressed_pair(
+            t1, t2, std::index_sequence_for<Tys1...>{}, std::index_sequence_for<Tys2...>{})))
+        : reversed_compressed_pair(
+              t1, t2, std::index_sequence_for<Tys1...>{}, std::index_sequence_for<Tys2...>{}) {}
 
     constexpr reversed_compressed_pair(const reversed_compressed_pair&)            = default;
     constexpr reversed_compressed_pair& operator=(const reversed_compressed_pair&) = default;
@@ -502,40 +508,44 @@ constexpr inline bool operator!=(const Ty& lhs, const reversed_pair<First, Secon
     return !(lhs == rhs);
 }
 
-template <typename First, typename Second, template <typename, typename> typename Pair = std::pair>
-struct pair_wrapper {
+template <
+    typename First, typename Second, template <typename, typename> typename Pair = compressed_pair>
+struct pair {
 public:
     using value_type = Pair<First, Second>;
 
     template <typename... Args>
     requires std::is_constructible_v<value_type, Args...>
-    pair_wrapper(Args&&... args) noexcept(std::is_nothrow_constructible_v<value_type, Args...>)
+    pair(Args&&... args) noexcept(std::is_nothrow_constructible_v<value_type, Args...>)
         : pair_(std::forward<Args>(args)...) {}
 
-    pair_wrapper(const pair_wrapper& that) noexcept(
-        std::is_nothrow_copy_constructible_v<value_type>)
+    pair(const pair& that) noexcept(std::is_nothrow_copy_constructible_v<value_type>)
         : pair_(that.pair_) {}
 
-    pair_wrapper(pair_wrapper&& that) noexcept(std::is_nothrow_move_constructible_v<value_type>)
+    pair(pair&& that) noexcept(std::is_nothrow_move_constructible_v<value_type>)
         : pair_(std::move(that.pair_)) {}
 
-    pair_wrapper& operator=(const pair_wrapper& that) noexcept(
-        std::is_nothrow_copy_assignable_v<value_type>) {
+    template <typename... Tys1, typename... Tys2>
+    pair(std::piecewise_construct_t, std::tuple<Tys1...> t1, std::tuple<Tys2...> t2) noexcept(
+        std::is_nothrow_constructible_v<
+            value_type, std::piecewise_construct_t, std::tuple<Tys1...>, std::tuple<Tys2...>>)
+        : pair(std::piecewise_construct, std::move(t1), std::move(t2)) {}
+
+    pair& operator=(const pair& that) noexcept(std::is_nothrow_copy_assignable_v<value_type>) {
         if (this != &that) [[likely]] {
             pair_ = that.pair_;
         }
         return *this;
     }
 
-    pair_wrapper& operator=(pair_wrapper&& that) noexcept(
-        std::is_nothrow_move_assignable_v<value_type>) {
+    pair& operator=(pair&& that) noexcept(std::is_nothrow_move_assignable_v<value_type>) {
         if (this != &that) [[likely]] {
             pair_ = that.pair_;
         }
         return *this;
     }
 
-    ~pair_wrapper() noexcept(std::is_nothrow_destructible_v<value_type>) = default;
+    ~pair() noexcept(std::is_nothrow_destructible_v<value_type>) = default;
 
     constexpr First& first() noexcept {
         if constexpr (requires { pair_.first; }) {
@@ -585,9 +595,7 @@ public:
         }
     }
 
-    constexpr bool operator==(const pair_wrapper& that) const noexcept {
-        return pair_ == that.pair_;
-    }
+    constexpr bool operator==(const pair& that) const noexcept { return pair_ == that.pair_; }
 
     template <typename Ty>
     constexpr bool operator==(const Ty& that) const noexcept {
@@ -599,9 +607,7 @@ public:
         }
     }
 
-    constexpr bool operator!=(const pair_wrapper& that) const noexcept {
-        return pair_ != that.pair_;
-    }
+    constexpr bool operator!=(const pair& that) const noexcept { return pair_ != that.pair_; }
 
     template <typename Ty>
     constexpr bool operator!=(const Ty& that) const noexcept {
@@ -641,8 +647,8 @@ struct reversed_result<reversed_pair<Second, First>> {
 };
 
 template <typename First, typename Second, template <typename, typename> typename Pair>
-struct reversed_result<pair_wrapper<First, Second, Pair>> {
-    using type = pair_wrapper<Second, First, Pair>;
+struct reversed_result<pair<First, Second, Pair>> {
+    using type = pair<Second, First, Pair>;
 };
 
 template <typename Pair>
@@ -763,7 +769,7 @@ constexpr inline const auto& get(
 
 template <
     size_t Index, typename First, typename Second, template <typename, typename> typename Pair>
-constexpr inline auto& get(pair_wrapper<First, Second, Pair>& pair) noexcept {
+constexpr inline auto& get(pair<First, Second, Pair>& pair) noexcept {
     static_assert(Index < 2, "Index out of range");
     if constexpr (Index) {
         return pair.second();
@@ -775,7 +781,7 @@ constexpr inline auto& get(pair_wrapper<First, Second, Pair>& pair) noexcept {
 
 template <
     size_t Index, typename First, typename Second, template <typename, typename> typename Pair>
-constexpr inline const auto& get(const pair_wrapper<First, Second, Pair>& pair) noexcept {
+constexpr inline const auto& get(const pair<First, Second, Pair>& pair) noexcept {
     static_assert(Index < 2, "Index out of range");
     if constexpr (Index) {
         return pair.second();
@@ -799,8 +805,7 @@ struct tuple_size<::atom::utils::reversed_compressed_pair<First, Second>>
     : std::integral_constant<size_t, 2> {};
 
 template <typename First, typename Second, template <typename, typename> typename Pair>
-struct tuple_size<::atom::utils::pair_wrapper<First, Second, Pair>>
-    : std::integral_constant<size_t, 2> {};
+struct tuple_size<::atom::utils::pair<First, Second, Pair>> : std::integral_constant<size_t, 2> {};
 
 template <size_t Index, typename First, typename Second>
 struct tuple_element<Index, ::atom::utils::compressed_pair<First, Second>> {
@@ -816,7 +821,7 @@ struct tuple_element<Index, ::atom::utils::reversed_compressed_pair<First, Secon
 
 template <
     size_t Index, typename First, typename Second, template <typename, typename> typename Pair>
-struct tuple_element<Index, ::atom::utils::pair_wrapper<First, Second, Pair>> {
+struct tuple_element<Index, ::atom::utils::pair<First, Second, Pair>> {
     static_assert(Index < 2);
     using type = std::conditional_t<(Index == 0), First, Second>;
 };
