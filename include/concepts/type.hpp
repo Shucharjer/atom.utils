@@ -76,4 +76,23 @@ concept adl_gettible = requires(Ty& t) {
 template <std::size_t Index, typename Ty>
 concept gettible = std_gettible<Index, Ty> || member_gettible<Index, Ty> || adl_gettible<Index, Ty>;
 
+template <typename Ty>
+concept public_pair = requires(const std::remove_cv_t<std::remove_reference_t<Ty>>& val) {
+    typename std::remove_cv_t<std::remove_reference_t<Ty>>::first_type;
+    typename std::remove_cv_t<std::remove_reference_t<Ty>>::second_type;
+    val.first;
+    val.second;
+};
+
+template <typename Ty>
+concept private_pair = requires(const std::remove_cv_t<std::remove_reference_t<Ty>>& val) {
+    typename std::remove_cv_t<std::remove_reference_t<Ty>>::first_type;
+    typename std::remove_cv_t<std::remove_reference_t<Ty>>::second_type;
+    val.first();
+    val.second();
+};
+
+template <typename Ty>
+concept pair = public_pair<Ty> || private_pair<Ty>;
+
 } // namespace atom::utils::concepts
