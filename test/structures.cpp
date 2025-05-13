@@ -1,15 +1,18 @@
 #include "structures.hpp"
+#include <memory_resource>
 #include <ranges>
+#include <ranges/element_view.hpp>
 #include "structures/dense_map.hpp"
 
-using namespace atom;
+using namespace atom::utils;
 
 int main() {
     auto v = std::ranges::input_range<std::vector<int>>;
+    std::pmr::unsynchronized_pool_resource pool;
     // dense_map
     {
-        utils::dense_map<size_t, int> dense_map;
-        auto values = dense_map | std::views::values;
+        pmr::dense_map<size_t, int> dense_map{ &pool };
+        auto values = dense_map | views::values;
 
         const auto map = dense_map;
 
