@@ -6,6 +6,7 @@
 #include "concepts/type.hpp"
 #include "core/pipeline.hpp"
 #include "core/tuple.hpp"
+#include "ranges.hpp"
 
 namespace atom::utils::ranges {
 
