@@ -1,6 +1,7 @@
 #pragma once
 #include <concepts>
 #include "concepts/allocator.hpp"
+#include "core/pair.hpp"
 #include "memory.hpp"
 #include "memory/allocator.hpp"
 #include "memory/pool.hpp"
@@ -17,17 +18,18 @@ class dense_set;
 
 template <
     std::unsigned_integral Key, typename Val,
-    ::atom::utils::concepts::rebindable_allocator Alloc =
-        ::atom::utils::standard_allocator<::atom::utils::compressed_pair<Key, Val>>,
-    std::size_t = k_default_page_size>
+    typename Alloc = std::allocator<compressed_pair<Key, Val>>, std::size_t = k_default_page_size>
 class dense_map;
 
+#if __has_include(<memory_resource>)
 namespace pmr {
 
-template <std::unsigned_integral Key, typename Val, std::size_t = k_default_page_size>
-class dense_map;
-
+template <std::unsigned_integral Key, typename Val, std::size_t size = k_default_page_size>
+using dense_map =
+    dense_map<Key, Val, std::pmr::polymorphic_allocator<compressed_pair<Key, Val>>, size>;
 }
+
+#endif
 
 template <typename Ty>
 using sync_allocator = allocator<Ty, synchronized_pool>;
