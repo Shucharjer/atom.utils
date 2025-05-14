@@ -2,6 +2,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include "concepts/type.hpp"
 #include "core.hpp"
 #include "core/type_traits.hpp"
 #include "langdef.hpp"
@@ -233,7 +234,7 @@ public:
      * @tparam SecondType
      */
     template <typename FirstType, typename SecondType>
-    constexpr explicit compressed_pair(FirstType&& first, SecondType&& second) noexcept(
+    constexpr compressed_pair(FirstType&& first, SecondType&& second) noexcept(
         std::is_nothrow_constructible_v<first_base, FirstType> &&
         std::is_nothrow_constructible_v<second_base, SecondType>)
         : first_base(std::forward<FirstType>(first)),
@@ -252,6 +253,35 @@ public:
             t1, t2, std::index_sequence_for<Tys1...>{}, std::index_sequence_for<Tys2...>{})))
         : compressed_pair(
               t1, t2, std::index_sequence_for<Tys1...>{}, std::index_sequence_for<Tys2...>{}) {}
+
+    // template <
+    //     typename That, typename = std::enable_if_t<!std::is_same_v<
+    //                        compressed_pair, std::remove_cv_t<std::remove_reference_t<That>>>>>
+    // constexpr compressed_pair(That&& that) noexcept(
+    //     std::is_nothrow_constructible_v<First, same_reference_t<First, That>> &&
+    //     std::is_nothrow_constructible_v<Second, same_reference_t<Second, That>>)
+    //     : first_base([&] {
+    //           if constexpr (concepts::public_pair<That>) {
+    //               return std::forward<That>(that).first;
+    //           }
+    //           else if constexpr (concepts::private_pair<That>) {
+    //               return std::forward<That>(that).first();
+    //           }
+    //           else {
+    //               static_assert(false, "no suitable way to construct the first element");
+    //           }
+    //       }),
+    //       second_base([&] {
+    //           if constexpr (concepts::public_pair<That>) {
+    //               return std::forward<That>(that).second;
+    //           }
+    //           else if constexpr (concepts::private_pair<That>) {
+    //               return std::forward<That>(that).second();
+    //           }
+    //           else {
+    //               static_assert(false, "no suitable way to construct the second element");
+    //           }
+    //       }) {}
 
     constexpr compressed_pair(const compressed_pair&)            = default;
     constexpr compressed_pair& operator=(const compressed_pair&) = default;

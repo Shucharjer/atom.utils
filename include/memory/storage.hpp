@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -28,10 +29,8 @@ public:
     [[nodiscard]] constexpr virtual auto raw() const noexcept -> const void* { return nullptr; }
 };
 
-struct with_allocator_t {};
 struct with_destroyer_t {};
 
-constexpr inline with_allocator_t with_allocator;
 constexpr inline with_destroyer_t with_destroyer;
 
 struct construct_at_once_t {};
@@ -42,12 +41,18 @@ namespace internal {
 
 template <typename Ty, typename Destroyer>
 constexpr auto wrap_destroyer(Destroyer destroyer) -> void (*)(void*) {
-    static_assert(std::is_invocable_v<Destroyer, Ty*>);
+    static_assert(std::is_invocable_v<Destroyer, Ty*> || std::is_invocable_v<Destroyer, Ty* const>);
     if constexpr (std::is_function_v<Destroyer>) {
-        return [&destroyer](void* ptr) { destroyer(static_cast<Ty*>(ptr)); };
+        if constexpr (std::is_invocable_v<Destroyer, Ty*>)
+            return [&destroyer](void* ptr) { destroyer(static_cast<Ty*>(ptr)); };
+        else
+            return [&destroyer](void* const ptr) { destroyer(static_cast<Ty*>(ptr)); };
     }
     else if constexpr (std::is_class_v<Destroyer>) {
-        return [](void* ptr) { Destroyer{}(static_cast<Ty*>(ptr)); };
+        if constexpr (std::is_invocable_v<Destroyer, Ty*>)
+            return [](void* ptr) { Destroyer{}(static_cast<Ty*>(ptr)); };
+        else
+            return [](void* const ptr) { Destroyer{}(static_cast<Ty*>(ptr)); };
     }
     else {
         static_assert(false);
@@ -82,74 +87,114 @@ public:
 
     constexpr unique_storage() noexcept(std::is_nothrow_default_constructible_v<alty>) = default;
 
-    template <typename Al>
-    constexpr explicit unique_storage(const Al& allocator) noexcept(
-        std::is_nothrow_default_constructible_v<allocator_type>)
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {}
+    /*
+     * construct at once
+     */
 
-    constexpr explicit unique_storage(
-        const Ty* ptr,
-        const Allocator& allocator =
-            Allocator()) noexcept(std::is_nothrow_default_constructible_v<allocator_type>)
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(ptr) {}
+    /**
+     * @brief Construct an element with destroyer at once.
+     *
+     * @tparam Al
+     * @tparam Destroyer
+     * @tparam Args
+     * @param al
+     * @param destroyer
+     * @param args
+     * @return _CONSTEXPR20
+     */
+    template <
+        typename Al, typename Destroyer, typename... Args,
+        typename =
+            std::void_t<decltype(internal::wrap_destroyer<Ty>(std::declval<Destroyer>()), true)>>
+    _CONSTEXPR20 unique_storage(
+        std::allocator_arg_t, const Al& al, construct_at_once_t, with_destroyer_t,
+        Destroyer& destroyer, Args&&... args)
+        : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {
+        allocate_and_construct(std::forward<Args>(args)...);
+    }
 
-    template <typename Destroyer>
-    constexpr explicit unique_storage(Ty* const ptr, with_destroyer_t, Destroyer destroyer)
-        : pair_(internal::wrap_destroyer<Ty>(destroyer), Allocator()), val_(ptr) {}
+    // template <
+    //     typename Al, typename Destroyer, typename... Args,
+    //     typename =
+    //         std::void_t<decltype(internal::wrap_destroyer<Ty>(std::declval<Destroyer>()), true)>,
+    //     typename = std::enable_if_t<std::is_constructible_v<Ty, Args...>>>
+    // _CONSTEXPR20 unique_storage(
+    //     std::allocator_arg_t, const Al& al, construct_at_once_t, Destroyer& destroyer,
+    //     Args&&... args)
+    //     : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {
+    //     allocate_and_construct(std::forward<Args>(args)...);
+    // }
 
-    constexpr explicit unique_storage(construct_at_once_t)
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), alty{}), val_(nullptr) {
-        Ty* ptr = nullptr;
-        try {
-            ptr = pair_.second().allocate(1);
-            ::new (ptr) Ty();
-            val_ = std::launder(ptr);
-        }
-        catch (...) {
-            if (ptr) {
-                pair_.second().deallocate(ptr, 1);
-            }
-            throw;
-        }
+    /**
+     * @brief Construct an element at once.
+     *
+     * @tparam Al
+     * @tparam Args
+     * @param al
+     * @param args
+     * @return _CONSTEXPR20
+     */
+    template <
+        typename Al, typename... Args,
+        typename = std::enable_if_t<std::is_constructible_v<value_type, Args...>>>
+    _CONSTEXPR20 unique_storage(
+        std::allocator_arg_t, const Al& al, construct_at_once_t, Args&&... args)
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), al), val_(nullptr) {
+        allocate_and_construct(std::forward<Args>(args)...);
+    }
+
+    _CONSTEXPR20 unique_storage(construct_at_once_t)
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), {}), val_(nullptr) {
+        auto& alloc     = pair_.second();
+        auto* const ptr = alloc.allocate(1);
+        alty_traits::construct(alloc, val_);
+        val_ = std::launder(ptr);
     }
 
     template <typename... Args>
-    requires std::is_constructible_v<Ty, Args...>
-    constexpr explicit unique_storage(Args&&... args)
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), alty{}), val_(nullptr) {
-        Ty* ptr = nullptr;
-        try {
-            ptr = pair_.second().allocate(1);
-            ::new (ptr) Ty(std::forward<Args>(args)...);
-            val_ = std::launder(ptr);
-        }
-        catch (...) {
-            if (ptr) {
-                pair_.second().deallocate(ptr, 1);
-            }
-            throw;
-        }
+    _CONSTEXPR20 unique_storage(construct_at_once_t, Args&&... args)
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), {}), val_(nullptr) {
+        allocate_and_construct(std::forward<Args>(args)...);
     }
 
-    template <typename Alloc, typename... Args>
-    requires std::is_constructible_v<Ty, Args...> && std::is_constructible_v<alty, Alloc>
-    constexpr explicit unique_storage(std::allocator_arg_t, const Alloc& allocator, Args&&... args)
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator), val_(nullptr) {
-        Ty* ptr = nullptr;
-        try {
-            ptr = pair_.second().allocate(1);
-            ::new (ptr) Ty(std::forward<Args>(args)...);
-            val_ = std::launder(ptr);
-        }
-        catch (...) {
-            if (ptr) {
-                pair_.second().deallocate(ptr, 1);
-            }
-            throw;
-        }
+    template <typename... Args, typename = std::enable_if_t<std::is_constructible_v<Ty, Args...>>>
+    _CONSTEXPR20 explicit unique_storage(Args&&... args)
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), {}), val_(nullptr) {
+        allocate_and_construct(std::forward<Args>(args)...);
     }
 
-    unique_storage(const unique_storage& that) = delete;
+    /*
+     * construct later
+     */
+
+    /**
+     * @brief
+     *
+     * @tparam Al
+     * @tparam Destroyer
+     * @param al
+     * @param destroyer
+     * @return _CONSTEXPR20
+     */
+    template <typename Al, typename Destroyer>
+    _CONSTEXPR20 unique_storage(
+        std::allocator_arg_t, const Al& al, with_destroyer_t,
+        Destroyer& destroyer) noexcept(std::is_nothrow_constructible_v<allocator_type, Al>)
+        : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {}
+
+    template <typename Al, typename Destroyer>
+    _CONSTEXPR20 unique_storage(std::allocator_arg_t, const Al& al, Destroyer& destroyer) noexcept(
+        std::is_nothrow_constructible_v<allocator_type, Al>)
+        : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {}
+
+    template <typename Al>
+    _CONSTEXPR20 unique_storage(std::allocator_arg_t, const Al& al)
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), al), val_(nullptr) {}
+
+    template <typename Al>
+    _CONSTEXPR20 unique_storage(Al& al) : unique_storage(std::allocator_arg, al) {}
+
+    constexpr unique_storage(const unique_storage& that) = delete;
 
     constexpr unique_storage(unique_storage&& that) noexcept
         : pair_(std::move(that.pair_)), val_(std::exchange(that.val_, nullptr)) {}
@@ -184,18 +229,31 @@ public:
     constexpr auto get() noexcept -> Ty* { return val_; }
     [[nodiscard]] constexpr auto get() const noexcept -> const Ty* { return val_; }
 
-    template <typename Val>
+    template <typename Val, typename = std::enable_if_t<std::is_convertible_v<Ty, Val>>>
     unique_storage& operator=(Val&& val) {
         if (val_) {
             *val_ = std::forward<Val>(val);
         }
         else {
-            auto* ptr = pair_.second().allocate(1);
-            ::new (ptr) Ty(std::forward<Val>(val));
-            val_ = std::launder(ptr);
+            allocate_and_construct(std::forward<Val>(val));
         }
 
         return *this;
+    }
+
+    template <
+        typename... Args,
+        typename = std::enable_if_t<sizeof...(Args) != 1 && std::is_constructible_v<Ty, Args...>>>
+    _CONSTEXPR20 unique_storage& operator=(Args&&... args) {
+        if (val_) {
+            *val_ = Ty(std::forward<Args>(args)...);
+        }
+        else {
+            auto& alloc     = pair_.second();
+            auto* const ptr = alloc.allocate(1);
+            alty_traits::construct(ptr, std::forward<Args>(args)...);
+            val_ = std::launder(ptr);
+        }
     }
 
     constexpr auto operator->() noexcept -> Ty* { return val_; }
@@ -218,6 +276,14 @@ public:
     }
 
 private:
+    template <typename... Args>
+    _CONSTEXPR20 void allocate_and_construct(Args&&... args) {
+        auto& alloc     = pair_.second();
+        auto* const ptr = alloc.allocate(1);
+        alty_traits::construct(alloc, ptr, std::forward<Args>(args)...);
+        val_ = std::launder(ptr);
+    }
+
     compressed_pair<void (*)(void*), allocator_type> pair_;
     Ty* val_{};
 };
