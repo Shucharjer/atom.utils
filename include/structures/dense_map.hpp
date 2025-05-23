@@ -41,7 +41,10 @@ public:
     using size_type       = typename alty_traits::size_type;
     using difference_type = typename alty_traits::difference_type;
 
-    using allocator_type = allocator_t<value_type>;
+    /* caused by the graduation design is coming soon, there is no time to fit objects in ecs
+     * completely.
+     */
+    // using allocator_type = allocator_t<value_type>;
 
     using pointer         = typename alty_traits::pointer;
     using const_pointer   = typename alty_traits::const_pointer;
@@ -230,14 +233,13 @@ public:
 
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         if (contains_impl(key, page, offset)) {
-            erase_without_check_impl(page, offset);
+            erase_without_check_impl_unlocked(page, offset);
         }
     }
 
     auto erase_without_check(const key_type key) {
         auto page   = page_of(key);
         auto offset = offset_of(key);
-        unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
         erase_without_check_impl(page, offset);
     }
 
@@ -362,6 +364,10 @@ private:
      */
     auto erase_without_check_impl(const size_type page, const size_type offset) {
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
+        erase_without_check_impl_unlocked(page, offset);
+    }
+
+    auto erase_without_check_impl_unlocked(const size_type page, const size_type offset) {
         auto& index                                             = sparse_[page]->at(offset);
         auto& back                                              = dense_.back();
         sparse_[page_of(back.first)]->at(offset_of(back.first)) = index;
