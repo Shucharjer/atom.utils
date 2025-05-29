@@ -1,5 +1,5 @@
 #pragma once
-#include <yvals_core.h>
+#include "concepts/ranges.hpp"
 #if defined(__cpp_concepts)
     #include <concepts>
 #endif
@@ -28,7 +28,7 @@ template <typename Kty, typename Ty, typename Alloc, std::size_t PageSize, typen
 #endif
 class dense_map {
     template <typename Target>
-    using allocator_t = typename ::atom::utils::rebind_allocator<Alloc>::template to<Target>::type;
+    using allocator_t = typename rebind_allocator<Alloc>::template to<Target>::type;
 
     using alty        = allocator_t<std::pair<Key, Val>>;
     using alty_traits = std::allocator_traits<alty>;
@@ -91,6 +91,7 @@ public:
     template <typename IFirst, typename ILast, typename Al>
     _CONSTEXPR20 dense_map(IFirst first, ILast last, const Al& al) noexcept(
         noexcept(dense_map(std::allocator_arg, al, first, last)))
+    requires concepts::constructible_from_iterator<IFirst, value_type>
         : dense_(first, last, al), sparse_(al) {
         for (const auto& [key, val] : dense_) {
             auto page   = page_of(key);
@@ -106,6 +107,7 @@ public:
      */
     template <typename IFirst, typename ILast, typename Al>
     _CONSTEXPR20 explicit dense_map(std::allocator_arg_t, const Al& al, IFirst first, ILast last)
+    requires concepts::constructible_from_iterator<IFirst, value_type>
         : dense_map(first, last, al) {}
 
     /**
@@ -113,6 +115,7 @@ public:
      *
      */
     template <typename Iter>
+    requires concepts::constructible_from_iterator<Iter, value_type>
     _CONSTEXPR20 dense_map(Iter first, Iter last) : dense_map(first, last, alty{}) {}
 
     /**
@@ -120,6 +123,10 @@ public:
      *
      */
     template <typename Al, typename Pair = value_type>
+    requires requires {
+        typename Pair::first_type;
+        typename Pair::second_type;
+    } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
     _CONSTEXPR20 dense_map(std::initializer_list<Pair> il, const Al& allocator)
         : dense_(il.begin(), il.end(), allocator), sparse_(allocator) {
         for (auto i = 0; i < il.size(); ++i) {
@@ -132,6 +139,10 @@ public:
     }
 
     template <typename Al, typename Pair = value_type>
+    requires requires {
+        typename Pair::first_type;
+        typename Pair::second_type;
+    } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
     _CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al, std::initializer_list<Pair> il)
         : dense_map(il, al) {}
 
@@ -140,8 +151,20 @@ public:
      *
      */
     template <typename Pair = value_type>
+    requires requires {
+        typename Pair::first_type;
+        typename Pair::second_type;
+    } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
     _CONSTEXPR20 dense_map(std::initializer_list<Pair> il) noexcept(noexcept(dense_map(il, alty{})))
-        : dense_map(il, alty{}) {}
+        : dense_(il, alty{}), sparse_(alty{}) {
+        for (auto i = 0; i < il.size(); ++i) {
+            const auto& [key, val] = dense_[i];
+            auto page              = page_of(key);
+            auto offset            = offset_of(key);
+            check_page(page);
+            sparse_[page]->at(offset) = i;
+        }
+    }
 
     _CONSTEXPR20 dense_map(dense_map&& that) noexcept
         : dense_(std::move(that.dense_)), sparse_(std::move(that.sparse_)) {}
