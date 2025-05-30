@@ -71,27 +71,26 @@ public:
      * @brief Default constructor.
      *
      */
-    _CONSTEXPR20 dense_map() noexcept(std::is_nothrow_default_constructible_v<alty>)
-        : dense_(), sparse_() {}
+    _CONSTEXPR20 dense_map() : dense_(), sparse_() {}
 
     /**
      * @brief Construct with allocator.
      *
      */
     template <typename Al>
-    _CONSTEXPR20 dense_map(const Al& allocator) noexcept : dense_(allocator), sparse_(allocator) {}
+    _CONSTEXPR20 dense_map(const Al& allocator) : dense_(allocator), sparse_(allocator) {}
 
     template <typename Al>
-    _CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al) noexcept : dense_(al), sparse_(al) {}
+    _CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al) : dense_(al), sparse_(al) {}
 
     /**
      * @brief Construct by iterators and allocator.
      *
      */
     template <typename IFirst, typename ILast, typename Al>
+    requires concepts::constructible_from_iterator<IFirst, value_type>
     _CONSTEXPR20 dense_map(IFirst first, ILast last, const Al& al) noexcept(
         noexcept(dense_map(std::allocator_arg, al, first, last)))
-    requires concepts::constructible_from_iterator<IFirst, value_type>
         : dense_(first, last, al), sparse_(al) {
         for (const auto& [key, val] : dense_) {
             auto page   = page_of(key);
@@ -106,17 +105,17 @@ public:
      *
      */
     template <typename IFirst, typename ILast, typename Al>
-    _CONSTEXPR20 explicit dense_map(std::allocator_arg_t, const Al& al, IFirst first, ILast last)
     requires concepts::constructible_from_iterator<IFirst, value_type>
+    _CONSTEXPR20 explicit dense_map(std::allocator_arg_t, const Al& al, IFirst first, ILast last)
         : dense_map(first, last, al) {}
 
     /**
      * @brief Construct by iterators.
      *
      */
-    template <typename Iter>
-    requires concepts::constructible_from_iterator<Iter, value_type>
-    _CONSTEXPR20 dense_map(Iter first, Iter last) : dense_map(first, last, alty{}) {}
+    template <typename IFirst, typename ILast>
+    requires concepts::constructible_from_iterator<IFirst, value_type>
+    _CONSTEXPR20 dense_map(IFirst first, ILast last) : dense_map(first, last, alty{}) {}
 
     /**
      * @brief Construct by initializer list and allocator.
@@ -127,7 +126,7 @@ public:
         typename Pair::first_type;
         typename Pair::second_type;
     } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
-    _CONSTEXPR20 dense_map(std::initializer_list<Pair> il, const Al& allocator)
+    _CONSTEXPR20 dense_map(std::initializer_list<Pair> il, const Al& allocator = Alloc{})
         : dense_(il.begin(), il.end(), allocator), sparse_(allocator) {
         for (auto i = 0; i < il.size(); ++i) {
             const auto& [key, val] = dense_[i];
@@ -145,26 +144,6 @@ public:
     } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
     _CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al, std::initializer_list<Pair> il)
         : dense_map(il, al) {}
-
-    /**
-     * @brief Construct by initializer list.
-     *
-     */
-    template <typename Pair = value_type>
-    requires requires {
-        typename Pair::first_type;
-        typename Pair::second_type;
-    } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
-    _CONSTEXPR20 dense_map(std::initializer_list<Pair> il) noexcept(noexcept(dense_map(il, alty{})))
-        : dense_(il, alty{}), sparse_(alty{}) {
-        for (auto i = 0; i < il.size(); ++i) {
-            const auto& [key, val] = dense_[i];
-            auto page              = page_of(key);
-            auto offset            = offset_of(key);
-            check_page(page);
-            sparse_[page]->at(offset) = i;
-        }
-    }
 
     _CONSTEXPR20 dense_map(dense_map&& that) noexcept
         : dense_(std::move(that.dense_)), sparse_(std::move(that.sparse_)) {}
@@ -225,7 +204,7 @@ public:
     // std::pair<iterator, bool> try_emplace(const key_type keyval, Mappedty&&... mapval) {}
 
     template <typename ValTy>
-    void emplace(const key_type& key, ValTy&& val) {
+    _CONSTEXPR26 void emplace(const key_type& key, ValTy&& val) {
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
@@ -248,7 +227,10 @@ public:
     }
 
     template <typename... Tys>
-    void emplace() {}
+    requires std::is_constructible_v<value_type, Tys...>
+    _CONSTEXPR26 std::pair<iterator, bool> emplace(Tys&&... vals) {
+        // TODO: finish this function
+    }
 
     auto erase(const key_type key) {
         auto page   = page_of(key);
