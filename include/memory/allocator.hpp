@@ -22,7 +22,7 @@ constexpr inline auto min_align = 16ULL;
 
 } // namespace internal
 
-struct basic_allocator {
+struct NOVTABLE basic_allocator {
     using size_type = std::size_t;
 
     basic_allocator() noexcept                                  = default;
@@ -34,7 +34,7 @@ struct basic_allocator {
 
     [[nodiscard]] virtual auto alloc(const std::size_t count = 1) -> void* { return nullptr; }
 
-    virtual auto dealloc(void* ptr, const std::size_t count = 1) noexcept -> void {}
+    virtual auto dealloc(void* const ptr, const std::size_t count = 1) noexcept -> void {}
 };
 
 template <typename Ty>
@@ -267,6 +267,19 @@ class builtin_storage_allocator;
 
 template <concepts::completed Ty, size_t Count>
 class builtin_storage_allocator : public basic_allocator {
+    // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+    // NOLINTBEGIN(modernize-avoid-c-arrays)
+    struct _Storage { alignas(alignof(Ty)) std::byte bytes[sizeof(Ty)]; };
+    alignas(alignof(_Storage)) _Storage storage_[Count];
+    _Storage* ptrs_[Count];
+    size_t begin_;
+    size_t end_;
+
+    constexpr static size_t _Mask = Count - 1;
+
+    void _Gen_ptrs() noexcept {
+        std::iota(std::rbegin(ptrs_), std::rend(ptrs_), storage_);
+    }
 public:
     using value_type      = Ty;
     using pointer         = Ty*;
@@ -277,9 +290,9 @@ public:
     template <typename Other, size_t Count_ = 1>
     using rebind_t = builtin_storage_allocator<Other, Count_>;
 
-    constexpr builtin_storage_allocator() noexcept : storage_() {};
-    constexpr builtin_storage_allocator(const builtin_storage_allocator&) noexcept : storage_() {}
-    constexpr builtin_storage_allocator(builtin_storage_allocator&&) noexcept : storage_() {}
+    constexpr builtin_storage_allocator() noexcept : storage_() { _Gen_ptrs() };
+    constexpr builtin_storage_allocator(const builtin_storage_allocator&) noexcept : storage_() { _Gen_ptrs(); }
+    constexpr builtin_storage_allocator(builtin_storage_allocator&&) noexcept : storage_() { _Gen_ptrs(); }
 
     // NOLINTBEGIN(bugprone-unhandled-self-assignment)
 
@@ -298,24 +311,22 @@ public:
     constexpr explicit builtin_storage_allocator(const builtin_storage_allocator<Other>&) noexcept
         : storage_() {}
 
-    constexpr auto allocate(const size_type count = 1) const noexcept -> Ty* {
+    constexpr auto allocate() const noexcept -> Ty* {
         // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-        return const_cast<Ty*>(reinterpret_cast<const Ty*>(&storage_));
+        return ptrs_[begin_++ & _Mask];
         // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
     }
 
-    constexpr void deallocate(Ty* ptr, const size_type count = 1) const noexcept {}
+    constexpr void deallocate(Ty* const ptr) const noexcept {
+        ptrs_[end_++ & _Mask] = ptr;
+    }
 
-    [[nodiscard]] constexpr auto alloc(const size_type count = 1) noexcept -> void* override {
+    [[nodiscard]] constexpr auto alloc() noexcept -> void* override {
         return static_cast<void*>(storage_);
     }
 
-    constexpr auto dealloc(void* ptr, const size_type count = 1) noexcept -> void override {}
+    constexpr auto dealloc(void* const ptr) noexcept -> void override {}
 
-private:
-    // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
-    // NOLINTBEGIN(modernize-avoid-c-arrays)
-    alignas(Ty) std::byte storage_[sizeof(Ty) * Count];
     // NOLINTEND(modernize-avoid-c-arrays)
     // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
 };
