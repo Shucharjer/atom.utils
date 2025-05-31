@@ -19,7 +19,7 @@ namespace internal {
  * they have the same type.
  */
 template <typename Ty, bool IsFirst>
-class NOVTABLE compressed_element {
+class compressed_element {
 public:
     using self_type       = compressed_element;
     using value_type      = Ty;
@@ -80,7 +80,7 @@ private:
  * @tparam Ty Element type.
  */
 template <typename Ty, bool IsFirst>
-class NOVTABLE compressed_element<Ty*, IsFirst> {
+class compressed_element<Ty*, IsFirst> {
 public:
     using self_type       = compressed_element;
     using value_type      = Ty*;
@@ -136,7 +136,7 @@ private:
  * @tparam IsFirst
  */
 template <bool IsFirst>
-class NOVTABLE compressed_element<void, IsFirst> {
+class compressed_element<void, IsFirst> {
 public:
     using self_type  = compressed_element;
     using value_type = void;
@@ -156,7 +156,7 @@ public:
 };
 
 template <typename Ret, typename... Args, bool IsFirst>
-class NOVTABLE compressed_element<Ret (*)(Args...), IsFirst> {
+class compressed_element<Ret (*)(Args...), IsFirst> {
 public:
     using self_type       = compressed_element;
     using value_type      = Ret (*)(Args...);

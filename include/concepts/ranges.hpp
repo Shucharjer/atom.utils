@@ -1,4 +1,5 @@
 #pragma once
+#include <iterator>
 #include <ranges>
 #include <type_traits>
 #include "uconceptdef.hpp"
@@ -73,5 +74,9 @@ concept constructible_appendable =
      can_push_back<Container, std::ranges::range_reference_t<Rng>> ||
      can_emplace_end<Container, std::ranges::range_reference_t<Rng>> ||
      can_insert_end<Container, std::ranges::range_reference_t<Rng>>);
+
+template <typename Iter, typename Ty>
+concept constructible_from_iterator =
+    std::same_as<typename std::iterator_traits<Iter>::value_type, Ty>;
 
 } // namespace atom::utils::concepts

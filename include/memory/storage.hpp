@@ -159,7 +159,8 @@ public:
 
     template <typename... Args, typename = std::enable_if_t<std::is_constructible_v<Ty, Args...>>>
     _CONSTEXPR20 explicit unique_storage(Args&&... args)
-        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), {}), val_(nullptr) {
+        : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator_type{}),
+          val_(nullptr) {
         allocate_and_construct(std::forward<Args>(args)...);
     }
 
