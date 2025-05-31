@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <ranges>
+#include <string>
 #include <vector>
 #include "core/pair.hpp"
 #include "core/pipeline.hpp"
@@ -39,6 +40,11 @@ int main() {
 
         auto list = array | to_list;
         std::ranges::for_each(list, print);
+        newline();
+
+        auto transformed = vector | std::views::transform(
+                                        [&](const auto& val) { return std::to_string(val + 1); });
+        std::ranges::for_each(transformed, print);
         newline();
     }
 

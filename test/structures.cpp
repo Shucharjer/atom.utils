@@ -11,25 +11,31 @@ int main() {
     std::pmr::unsynchronized_pool_resource pool;
     // dense_map
     {
-        pmr::dense_map<size_t, int> dense_map{ &pool };
-        auto values = dense_map | views::values;
+        pmr::dense_map<size_t, int> map(&pool);
+        auto values = map | views::values;
 
-        const auto map = dense_map;
+        dense_map<unsigned int, int> another{
+            { 2,  4 },
+            { 4,  4 },
+            { 4, 56 }
+        };
 
-        for (auto v : dense_map) {}
-
-        for (const auto v : dense_map) {}
-
-        std::vector<int> vec;
-
-        for (auto i = dense_map.begin(); i != dense_map.end(); ++i) {}
-
-        for (auto i = dense_map.cbegin(); i != dense_map.cend(); ++i) {}
+        const auto cmap = map;
 
         for (auto v : map) {}
 
-        auto i = map.begin();
-        for (i = map.begin(); i != map.end(); ++i) {}
+        for (const auto v : map) {}
+
+        std::vector<int> vec;
+
+        for (auto i = map.begin(); i != map.end(); ++i) {}
+
+        for (auto i = map.cbegin(); i != map.cend(); ++i) {}
+
+        for (auto v : cmap) {}
+
+        auto i = cmap.begin();
+        for (i = cmap.begin(); i != cmap.end(); ++i) {}
 
         for (auto v : values) {}
     }

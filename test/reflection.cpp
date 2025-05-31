@@ -44,6 +44,12 @@ int main() {
 
         REQUIRES(get<0>(na) == num);
         REQUIRES(get<1>(na) == ch);
+
+        REQUIRES(get<"member1">(a) == num);
+        REQUIRES(get<"member2">(a) == ch);
+
+        REQUIRES(get<"another_member1">(na) == num);
+        REQUIRES(get<"another_member2">(na) == ch);
     }
 
     // member_names_of
