@@ -1,6 +1,7 @@
 #pragma once
 #include <concepts>
 #include <tuple>
+#include <type_traits>
 #include "core.hpp"
 #include "core/pipeline.hpp"
 
@@ -24,24 +25,23 @@ public:
     static_assert((std::same_as<std::decay_t<Args>, Args> && ...));
     static_assert(std::is_empty_v<Fn> || std::is_default_constructible_v<Fn>);
 
-    template <typename... ArgTypes>
-    requires(std::same_as<std::decay_t<ArgTypes>, Args> && ...)
-    explicit constexpr closure(ArgTypes&&... args) noexcept(
-        std::conjunction_v<std::is_nothrow_constructible<Args, ArgTypes>...>)
-        : args_(std::make_tuple(std::forward<ArgTypes>(args)...)) {}
+    explicit constexpr closure(auto&&... args) noexcept(
+        std::conjunction_v<std::is_nothrow_constructible<std::tuple<Args...>, decltype(args)...>>)
+    requires std::is_constructible_v<std::tuple<Args...>, decltype(args)...>
+        : args_(std::make_tuple(std::forward<decltype(args)>(args)...)) {}
 
-    template <typename Ty>
-    requires std::invocable<Fn, Ty, Args&...>
-    constexpr decltype(auto) operator()(Ty&& arg) & noexcept(
-        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
-        return call(*this, std::forward<Ty>(arg), index_sequence{});
+    constexpr decltype(auto) operator()(auto&& arg) & noexcept(
+        noexcept(call(*this, std::forward<decltype(arg)>(arg), index_sequence{})))
+    requires std::invocable<Fn, decltype(arg), Args&...>
+    {
+        return call(*this, std::forward<decltype(arg)>(arg), index_sequence{});
     }
 
-    template <typename Ty>
-    requires std::invocable<Fn, Ty, const Args&...>
-    constexpr decltype(auto) operator()(Ty&& arg) const& noexcept(
-        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
-        return call(*this, std::forward<Ty>(arg), index_sequence{});
+    constexpr decltype(auto) operator()(auto&& arg) const& noexcept(
+        noexcept(call(*this, std::forward<decltype(arg)>(arg), index_sequence{})))
+    requires std::invocable<Fn, decltype(arg), const Args&...>
+    {
+        return call(*this, std::forward<decltype(arg)>(arg), index_sequence{});
     }
 
     template <typename Ty>
@@ -59,16 +59,16 @@ public:
     }
 
 private:
-    template <typename SelfTy, typename Ty, size_t... Index>
+    template <typename SelfTy, typename Ty, size_t... Is>
     constexpr static decltype(auto)
-        call(SelfTy&& self, Ty&& arg, std::index_sequence<Index...>) noexcept(noexcept(
-            Fn{}(std::forward<Ty>(arg), std::get<Index>(std::forward<SelfTy>(self).args_)...))) {
-        static_assert(std::same_as<std::index_sequence<Index...>, index_sequence>);
-        return Fn{}(std::forward<Ty>(arg), std::get<Index>(std::forward<SelfTy>(self).args_)...);
+        call(SelfTy&& self, Ty&& arg, std::index_sequence<Is...>) noexcept(noexcept(
+            Fn{}(std::forward<Ty>(arg), std::get<Is>(std::forward<SelfTy>(self).args_)...))) {
+        static_assert(std::same_as<std::index_sequence<Is...>, index_sequence>);
+        return Fn{}(std::forward<Ty>(arg), std::get<Is>(std::forward<SelfTy>(self).args_)...);
     }
 
     std::tuple<Args...> args_;
-};
+}; // namespace atom::utils
 
 /**
  * @brief Making a closure without caring about the parameter types.

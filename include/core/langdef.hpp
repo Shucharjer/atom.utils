@@ -69,6 +69,14 @@
     #endif
 #endif
 
+#ifndef _HAS_CXX26
+    #if _HAS_CXX23 && __cplusplus > 202302L
+        #define _HAS_CXX26 1
+    #else
+        #define _HAS_CXX26 0
+    #endif
+#endif
+
 #ifndef _CONSTEXPR17
     #if _HAS_CXX17
         #define _CONSTEXPR17 constexpr
@@ -82,6 +90,14 @@
         #define _CONSTEXPR20 constexpr
     #else
         #define _CONSTEXPR20 inline
+    #endif
+#endif
+
+#ifndef _STATIC23
+    #if _HAS_CXX23
+        #define _STATIC23 static
+    #else
+        #define _STATIC23
     #endif
 #endif
 

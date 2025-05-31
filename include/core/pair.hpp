@@ -289,14 +289,16 @@ public:
     constexpr compressed_pair(compressed_pair&& that) noexcept(
         std::is_nothrow_move_constructible_v<first_base> &&
         std::is_nothrow_move_constructible_v<second_base>)
-        : first_base(std::move(static_cast<first_base&&>(that))),
-          second_base(std::move(static_cast<second_base&&>(that))) {}
+        // : first_base(std::move(static_cast<first_base&&>(that))),
+        //   second_base(std::move(static_cast<second_base&&>(that))) {}
+        : first_base(static_cast<first_base&&>(std::move(that))),
+          second_base(static_cast<second_base&&>(std::move(that))) {}
 
     constexpr compressed_pair& operator=(compressed_pair&& that) noexcept(
         std::is_nothrow_move_assignable_v<first_base> &&
         std::is_nothrow_move_assignable_v<second_base>) {
-        static_cast<first_base&>(*this)  = std::move(static_cast<first_base&&>(that));
-        static_cast<second_base&>(*this) = std::move(static_cast<second_base&&>(that));
+        static_cast<first_base&>(*this)  = static_cast<first_base&&>(std::move(that));
+        static_cast<second_base&>(*this) = static_cast<second_base&&>(std::move(that));
         return *this;
     }
 
