@@ -11,9 +11,8 @@ namespace atom::utils {
 constexpr std::size_t k_default_page_size = 32;
 
 template <
-    std::unsigned_integral Ty,
-    ::atom::utils::concepts::rebindable_allocator Alloc = ::atom::utils::standard_allocator<Ty>,
-    std::size_t                                         = k_default_page_size>
+    std::unsigned_integral Ty, typename Alloc = std::allocator<Ty>,
+    std::size_t = k_default_page_size>
 class dense_set;
 
 #if _HAS_CXX20
