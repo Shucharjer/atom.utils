@@ -5,10 +5,47 @@
 #include <type_traits>
 #include "concepts/type.hpp"
 #include "core/pipeline.hpp"
-#include "core/tuple.hpp"
 #include "ranges.hpp"
 
-namespace atom::utils::ranges {
+namespace atom::utils {
+
+namespace concepts {
+
+template <std::size_t Index, typename Ty>
+concept std_gettible = requires(Ty& t) {
+    { std::get<Index>(t) } -> std::same_as<std::tuple_element_t<Index, Ty>&>;
+};
+
+template <std::size_t Index, typename Ty>
+concept member_gettible = requires(Ty& t) {
+    { t.template get<Index>() } -> std::same_as<std::tuple_element_t<Index, Ty>&>;
+};
+
+template <std::size_t Index, typename Ty>
+concept adl_gettible = requires(Ty& t) {
+    { fake_copy_init(get<Index>(t)) } -> std::same_as<std::tuple_element_t<Index, Ty>>;
+};
+
+template <std::size_t Index, typename Ty>
+concept gettible = std_gettible<Index, Ty> || member_gettible<Index, Ty> || adl_gettible<Index, Ty>;
+} // namespace concepts
+
+namespace ranges {
+
+template <std::size_t Index, typename Ty>
+requires concepts::gettible<Index, Ty>
+constexpr inline decltype(auto) _get(Ty& inst) noexcept {
+    using namespace concepts;
+    if constexpr (std_gettible<Index, Ty>) {
+        return std::get<Index>(inst);
+    }
+    else if constexpr (member_gettible<Index, Ty>) {
+        return inst.template get<Index>();
+    }
+    else if constexpr (adl_gettible<Index, Ty>) {
+        return get<Index>(inst);
+    }
+}
 
 template <std::ranges::range Rng, size_t Index, bool IsConst>
 struct element_iterator {
@@ -27,7 +64,7 @@ struct element_iterator {
     {
         if constexpr (concepts::gettible<
                           Index, std::remove_const_t<std::ranges::range_value_t<Rng>>>) {
-            return uniget<Index>(*iter_);
+            return _get<Index>(*iter_);
         }
         else {
             static_assert(false, "No suitable method to get the value.");
@@ -37,7 +74,7 @@ struct element_iterator {
     [[nodiscard]] constexpr decltype(auto) operator*() const noexcept {
         if constexpr (concepts::gettible<
                           Index, std::remove_const_t<std::ranges::range_value_t<Rng>>>) {
-            return uniget<Index>(*iter_);
+            return _get<Index>(*iter_);
         }
         else {
             static_assert(false, "No suitable method to get the value.");
@@ -158,7 +195,7 @@ public:
         }
     }
 
-#if not _HAS_CXX23
+#if !_HAS_CXX23
     constexpr auto cbegin() const noexcept {
         return element_iterator<Vw, Index, true>(std::ranges::cbegin(range_));
     }
@@ -226,4 +263,6 @@ constexpr inline auto values = elements<1>;
 
 } // namespace views
 
-} // namespace atom::utils::ranges
+} // namespace ranges
+
+} // namespace atom::utils

@@ -107,9 +107,9 @@ target_include_directories(Utils INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-option(Utils_INCLUDE_HEADERS OFF)
+option(ATOM_Utils_INCLUDE_HEADERS OFF)
 
-if (Utils_INCLUDE_HEADERS)
+if (ATOM_Utils_INCLUDE_HEADERS)
     target_sources(Utils INTERFACE
         # the fellow line is a template    
         # $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/>
@@ -159,9 +159,9 @@ if (Utils_INCLUDE_HEADERS)
     )
 endif()
 
-option(Utils_INSTALL OFF)
+option(ATOM_Utils_INSTALL OFF)
 
-if (Utils_INSTALL)
+if (ATOM_Utils_INSTALL)
 
     if(WIN32)
         include(JoinPaths)
@@ -243,9 +243,9 @@ if (Utils_INSTALL)
 
 endif()
 
-option(BUILD_UTILS_DOCS OFF)
+option(ATOM_UTILS_BUILD_DOCS OFF)
 
-if(BUILD_UTILS_DOCS)
+if(ATOM_UTILS_BUILD_DOCS)
     find_package(Doxygen REQUIRED dot)
     if (DOXYGEN_FOUND)
         include(FetchContent)
@@ -256,6 +256,7 @@ if(BUILD_UTILS_DOCS)
             GIT_TAG main
             GIT_SHALLOW 1
         )
+        FetchContent_MakeAvailable(doxygen-awesome-css)
 
         FetchContent_GetProperties(doxygen-awesome-css)
 
@@ -290,20 +291,43 @@ function(BUILD_EXECUTABLE_FOR TEST_EXECUTABLE_NAME TEST_SOURCES)
     endif()
 endfunction()
 
-option(BUILD_UTILS_TEST OFF)
-if(BUILD_UTILS_TEST)
+option(ATOM_UTILS_BUILD_TEST OFF)
+
+if(ATOM_UTILS_BUILD_TEST)
 
 option(SEE_ALL_TEMPLATE_BACKTRACE OFF)
 
-set(UTILS_TEST_DIR "${Utils_SOURCE_DIR}/test")
+set(ATOM_UTILS_TEST_DIR "${Utils_SOURCE_DIR}/test")
 
-BUILD_EXECUTABLE_FOR(core ${UTILS_TEST_DIR}/core.cpp)
-BUILD_EXECUTABLE_FOR(memory ${UTILS_TEST_DIR}/memory.cpp)
-BUILD_EXECUTABLE_FOR(meta ${UTILS_TEST_DIR}/meta.cpp)
-BUILD_EXECUTABLE_FOR(ranges ${UTILS_TEST_DIR}/ranges.cpp)
-BUILD_EXECUTABLE_FOR(reflection ${UTILS_TEST_DIR}/reflection.cpp)
-BUILD_EXECUTABLE_FOR(signal ${UTILS_TEST_DIR}/signal.cpp)
-BUILD_EXECUTABLE_FOR(structures ${UTILS_TEST_DIR}/structures.cpp)
-BUILD_EXECUTABLE_FOR(thread ${UTILS_TEST_DIR}/thread.cpp)
+BUILD_EXECUTABLE_FOR(core ${ATOM_UTILS_TEST_DIR}/core.cpp)
+BUILD_EXECUTABLE_FOR(memory ${ATOM_UTILS_TEST_DIR}/memory.cpp)
+BUILD_EXECUTABLE_FOR(meta ${ATOM_UTILS_TEST_DIR}/meta.cpp)
+BUILD_EXECUTABLE_FOR(ranges ${ATOM_UTILS_TEST_DIR}/ranges.cpp)
+BUILD_EXECUTABLE_FOR(reflection ${ATOM_UTILS_TEST_DIR}/reflection.cpp)
+BUILD_EXECUTABLE_FOR(signal ${ATOM_UTILS_TEST_DIR}/signal.cpp)
+BUILD_EXECUTABLE_FOR(structures ${ATOM_UTILS_TEST_DIR}/structures.cpp)
+BUILD_EXECUTABLE_FOR(thread ${ATOM_UTILS_TEST_DIR}/thread.cpp)
 
+endif()
+
+set(ATOM_Utils_BENCHMARK_DIR "${Utils_SOURCE_DIR}/benchmark")
+option(ATOM_UTILS_BUILD_BENCHMARK OFF)
+
+function(BUILD_BENCHMARK_FOR BENCHMARK_NAME)
+    add_executable(benchmark-${BENCHMARK_NAME} ${ATOM_Utils_BENCHMARK_DIR}/${BENCHMARK_NAME}.cpp)
+    target_link_libraries(benchmark-${BENCHMARK_NAME} PRIVATE Utils benchmark::benchmark)
+endfunction()
+
+if (ATOM_UTILS_BUILD_BENCHMARK)
+  include(FetchContent)
+  FetchContent_Declare(
+    googlebenchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG main
+    GIT_SHALLOW 1)
+  set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
+  FetchContent_MakeAvailable(googlebenchmark)
+
+  BUILD_BENCHMARK_FOR(delegate)
+  BUILD_BENCHMARK_FOR(polymorphic)
 endif()

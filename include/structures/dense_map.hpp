@@ -121,7 +121,7 @@ public:
      * @brief Construct by initializer list and allocator.
      *
      */
-    template <typename Al, typename Pair = value_type>
+    template <typename Al = Alloc, typename Pair = value_type>
     requires requires {
         typename Pair::first_type;
         typename Pair::second_type;

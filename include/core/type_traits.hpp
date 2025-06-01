@@ -5,6 +5,8 @@
 #include <type_traits>
 #include <utility>
 #include "core.hpp"
+#include "core/type_traits/half.hpp"
+#include "core/type_traits/same.hpp"
 
 namespace atom::utils {
 
@@ -29,19 +31,6 @@ constexpr bool is_positive_integral_v = std::integral_constant<bool, (Integral >
 
 template <std::integral auto Integral>
 constexpr bool is_negative_integral_v = std::integral_constant<bool, (Integral < 0)>::value;
-
-template <typename To, typename From>
-struct same_constness {
-    using type = To;
-};
-
-template <typename To, typename From>
-struct same_constness<To, From const> {
-    using type = To const;
-};
-
-template <typename To, typename From>
-using same_constness_t = typename same_constness<To, From>::type;
 
 constexpr bool is_pow_two(const std::size_t num) { return num && !(num & (num - 1)); }
 
@@ -113,123 +102,6 @@ using is_nothrow_invocable_member_function =
 template <auto Candidate, typename... Args>
 constexpr bool is_nothrow_invocable_member_function_v =
     ::atom::utils::is_nothrow_invocable_member_function<Candidate, Args...>::value;
-
-template <typename To, typename From>
-struct same_volatile {
-    using type = To;
-};
-
-template <typename To, typename From>
-struct same_volatile<To, volatile From> {
-    using type = volatile To;
-};
-
-template <typename To, typename From>
-using same_volatile_t = typename same_volatile<To, From>::type;
-
-template <typename To, typename From>
-struct same_cv {
-    using type = To;
-};
-
-template <typename To, typename From>
-struct same_cv<To, const From> {
-    using type = const To;
-};
-
-template <typename To, typename From>
-struct same_cv<To, volatile From> {
-    using type = volatile To;
-};
-
-template <typename To, typename From>
-struct same_cv<To, const volatile From> {
-    using type = const volatile To;
-};
-
-template <typename To, typename From>
-using same_cv_t = typename same_cv<To, From>::type;
-
-template <typename To, typename From>
-struct same_reference {
-    using type = To;
-};
-
-template <typename To, typename From>
-struct same_reference<To, From&> {
-    using type = To&;
-};
-
-template <typename To, typename From>
-struct same_reference<To, From&&> {
-    using type = To&&;
-};
-
-template <typename To, typename From>
-using same_reference_t = typename same_reference<To, From>::type;
-
-template <typename To, typename From>
-struct same_cvref {
-    using type = To;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, From&> {
-    using type = To&;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, From&&> {
-    using type = To&&;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, const From> {
-    using type = const To;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, const From&> {
-    using type = const To&;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, const From&&> {
-    using type = const To&&;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, volatile From> {
-    using type = const To;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, volatile From&> {
-    using type = const To&;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, volatile From&&> {
-    using type = const To&&;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, const volatile From> {
-    using type = const To;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, const volatile From&> {
-    using type = const To&;
-};
-
-template <typename To, typename From>
-struct same_cvref<To, const volatile From&&> {
-    using type = const To&&;
-};
-
-template <typename To, typename From>
-using same_cvref_t = typename same_cvref<To, From>::type;
 
 template <typename...>
 struct first_of {
@@ -315,41 +187,5 @@ struct last_of_tparams<Template<Args...>> {
 
 template <typename Template>
 using last_of_tparams_t = typename last_of_tparams<Template>::type;
-
-template <typename Ty>
-struct half_size;
-
-template <typename Ty>
-using half_size_t = typename half_size<Ty>::type;
-
-template <>
-struct half_size<uint64_t> {
-    using type = uint32_t;
-};
-
-template <>
-struct half_size<int64_t> {
-    using type = int32_t;
-};
-
-template <>
-struct half_size<uint32_t> {
-    using type = uint16_t;
-};
-
-template <>
-struct half_size<int32_t> {
-    using type = int16_t;
-};
-
-template <>
-struct half_size<uint16_t> {
-    using type = uint8_t;
-};
-
-template <>
-struct half_size<int16_t> {
-    using type = int8_t;
-};
 
 } // namespace atom::utils

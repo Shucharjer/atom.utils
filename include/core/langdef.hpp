@@ -93,6 +93,14 @@
     #endif
 #endif
 
+#ifndef _CONSTEXPR26
+    #if _HAS_CXX26
+        #define _CONSTEXPR26 constexpr
+    #else
+        #define _CONSTEXPR26 inline
+    #endif
+#endif
+
 #ifndef _STATIC23
     #if _HAS_CXX23
         #define _STATIC23 static
