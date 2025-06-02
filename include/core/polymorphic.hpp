@@ -69,7 +69,10 @@ constexpr auto make_tuple(Ty) noexcept {
 /*! @cond TURN_OFF_DOXYGEN */
 
 struct _poly_empty_impl {
-    _poly_empty_impl() = delete;
+    template <size_t Index, typename... Args>
+    constexpr inline auto invoke(Args&&... args) noexcept {}
+    template <size_t Index, typename... Args>
+    constexpr inline auto invoke(Args&&... args) const noexcept {}
 };
 
 template <typename Ty>
@@ -109,75 +112,14 @@ struct _mem_func_traits<Ret (Class::*)(Args...) const> {
     using static_type = Ret (*)(const void*, Args...);
 };
 
-template <typename, typename>
-struct _replace_caller;
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty, Ret (*)(Class&, Args...)> {
-    using type = Ret (*)(Ty, Args...);
-};
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty, Ret (*)(Class*, Args...)> {
-    using type = Ret (*)(Ty, Args...);
-};
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty*, Ret (*)(Class&, Args...)> {
-    using type = Ret (*)(Ty*, Args...);
-};
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty*, Ret (*)(Class*, Args...)> {
-    using type = Ret (*)(Ty*, Args...);
-};
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty, Ret (*)(const Class&, Args...)> {
-    using type = Ret (*)(const Ty&, Args...);
-};
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty, Ret (*)(const Class*, Args...)> {
-    using type = Ret (*)(const Ty&, Args...);
-};
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty*, Ret (*)(const Class&, Args...)> {
-    using type = Ret (*)(const Ty*, Args...);
-};
-template <typename Ty, typename Ret, typename Class, typename... Args>
-struct _replace_caller<Ty*, Ret (*)(const Class*, Args...)> {
-    using type = Ret (*)(const Ty*, Args...);
-};
-template <typename Ty, typename Static>
-using _replace_caller_t = typename _replace_caller<Ty, Static>::type;
-
-template <typename Ty>
-struct _ref_non_pointer {
-    using type = Ty&;
-};
-template <typename Ty>
-struct _ref_non_pointer<Ty*> {
-    using type = Ty*;
-};
-template <typename Ty>
-using _ref_non_pointer_t = typename _ref_non_pointer<Ty>::type;
-
-template <typename Ty>
-struct _cref_non_pointer {
-    using type = const Ty&;
-};
-template <typename Ty>
-struct _cref_non_pointer<const Ty*> {
-    using type = const Ty*;
-};
-template <typename Ty>
-using _cref_non_pointer_t = typename _cref_non_pointer<Ty>::type;
-
-/*! @endcond */
-
-template <_poly_object Object, typename Any = void*>
+template <_poly_object Object>
 struct vtable {
     using _empty_interface     = typename Object::template interface<_poly_empty_impl>;
     using _empty_impl          = typename Object::template impl<_empty_interface>;
     constexpr static auto size = value_list_size_v<_empty_impl>;
 
     template <typename MemFunc>
-    using static_type_t = _replace_caller_t<Any, typename _mem_func_traits<MemFunc>::static_type>;
+    using static_type_t = typename _mem_func_traits<MemFunc>::static_type;
 
     template <auto... Vals>
     constexpr static auto _deduce(value_list<Vals...>) noexcept {
@@ -186,93 +128,82 @@ struct vtable {
     constexpr static auto _deduce() noexcept { return _deduce(_empty_impl{}); }
 
     using type = std::remove_pointer_t<decltype(_deduce())>;
-    type value;
-
-    template <size_t Index, typename... Args>
-    constexpr decltype(auto) invoke(_ref_non_pointer_t<Any> any, Args&&... args) const {
-        return std::get<Index>(value)(any, std::forward<Args>(args)...);
-    }
-
-    template <size_t Index, typename... Args>
-    constexpr decltype(auto) invoke_const(_cref_non_pointer_t<Any> any, Args&&... args) const {
-        return std::get<Index>(value)(any, std::forward<Args>(args)...);
-    }
 };
+template <_poly_object Object>
+using vtable_t = typename vtable<Object>::type;
 
 /*! @cond TURN_OFF_DOXYGEN */
 
-template <typename ValueList, typename Any>
-struct _static_list;
+template <_poly_object Object, _poly_impl<Object> Impl>
+struct _vtable_value_list {
+    template <typename ValueList>
+    struct _static_list;
 
-template <auto... Vals, size_t Size, size_t Align, typename Ops>
-struct _static_list<value_list<Vals...>, basic_any<Size, Align, Ops>> {
-
-    using Any = basic_any<Size, Align, Ops>;
-
-    template <auto, typename>
-    struct _element;
-    template <auto Val, typename Ret, typename Class, typename... Args>
-    struct _element<Val, Ret (Class::*)(Args...)> {
-        constexpr static Ret (*value)(Any&, Args...) = [](Any& any, Args... args) {
-            return (any_cast<Class*>(any)->*Val)(std::forward<Args>(args)...);
+    template <auto... Vals>
+    struct _static_list<value_list<Vals...>> {
+        template <auto, typename>
+        struct _element;
+        template <auto Val, typename Ret, typename Class, typename... Args>
+        struct _element<Val, Ret (Class::*)(Args...)> {
+            constexpr static Ret (*value)(any&, Args...) = [](void* ptr, Args... args) {
+                return (static_cast<Class*>(ptr)->*Val)(std::forward<Args>(args)...);
+            };
         };
+        template <auto Val, typename Ret, typename Class, typename... Args>
+        struct _element<Val, Ret (Class::*)(Args...) const> {
+            constexpr static Ret (*value)(const void*, Args...) = [](const void* ptr,
+                                                                     Args... args) {
+                return (static_cast<const Class*>(ptr)->*Val)(std::forward<Args>(args)...);
+            };
+        };
+
+        using type = value_list<_element<Vals, decltype(Vals)>::value...>;
     };
 
-    template <auto Val, typename Ret, typename Class, typename... Args>
-    struct _element<Val, Ret (Class::*)(Args...) const> {
-        constexpr static Ret (*value)(const Any&, Args...) = [](const Any& any, Args... args) {
-            return (any_cast<const Class*>(any)->*Val)(std::forward<Args>(args)...);
-        };
-    };
-
-    using type = value_list<_element<Vals, decltype(Vals)>::value...>;
+    using type = typename _static_list<typename Object::template impl<Impl>>::type;
 };
 
-template <auto... Vals>
-struct _static_list<value_list<Vals...>, void*> {
-
-    template <auto, typename>
-    struct _element;
-    template <auto Val, typename Ret, typename Class, typename... Args>
-    struct _element<Val, Ret (Class::*)(Args...)> {
-        constexpr static Ret (*value)(any&, Args...) = [](void* ptr, Args... args) {
-            return (static_cast<Class*>(ptr)->*Val)(std::forward<Args>(args)...);
-        };
-    };
-    template <auto Val, typename Ret, typename Class, typename... Args>
-    struct _element<Val, Ret (Class::*)(Args...) const> {
-        constexpr static Ret (*value)(const void*, Args...) = [](const void* ptr, Args... args) {
-            return (static_cast<const Class*>(ptr)->*Val)(std::forward<Args>(args)...);
-        };
-    };
-
-    using type = value_list<_element<Vals, decltype(Vals)>::value...>;
-};
-template <typename ValueList, typename Any>
-using _static_list_t = _static_list<ValueList, Any>::type;
-
-template <_poly_object Object, _poly_impl<Object> Impl, typename Any>
-using _vtable_value = _static_list_t<typename Object::template impl<Impl>, Any>;
-
-template <_poly_object Object, _poly_impl<Object> Impl, typename Any>
-consteval auto _vtable_tuple_value() noexcept {
-    using _vtable_value = _vtable_value<Object, Impl, Any>;
-    return make_tuple<_vtable_value>();
-}
-
-template <_poly_object Object, _poly_impl<Object> Impl, typename Any>
-constexpr static auto _static_vtable =
-    vtable<Object, Any>{ .value = _vtable_tuple_value<Object, Impl, Any>() };
+template <_poly_object Object, _poly_impl<Object> Impl>
+using _vtable_value_list_t = _vtable_value_list<Object, Impl>::type;
 
 /*! @endcond */
+
+template <_poly_object Object, _poly_impl<Object> Impl>
+consteval inline auto make_vtable_tuple() noexcept {
+    return make_tuple<_vtable_value_list_t<Object, Impl>>();
+}
+
+template <_poly_object Object, _poly_impl<Object> Impl>
+constexpr static inline auto static_vtable_tuple = make_vtable_tuple<Object, Impl>();
+
+template <_poly_object Object, _poly_impl<Object> Impl>
+consteval static inline auto make_vtable_array() {
+    constexpr auto vtable = make_vtable_tuple<Object, Impl>();
+    std::array<void*, std::tuple_size_v<decltype(vtable)>> array;
+    [&]<size_t... Is>(std::index_sequence<Is...>) {
+        ((array[Is] = std::get<Is>(vtable)), ...);
+    }(std::make_index_sequence<std::tuple_size_v<decltype(vtable)>>{});
+    return array;
+}
+
+template <_poly_object Object, _poly_impl<Object> Impl>
+constexpr static inline auto static_vtable_array = make_vtable_array<Object, Impl>();
 
 template <typename Poly>
 class polymorphic_base;
 
-/*
-polymorphic<Object> ->  Object::temlate interface<_impl_> -> polymorphic_base<polymorphic<Object>
-*/
+// polymorphic<Object> ->  Object::temlate interface<_impl_> -> polymorphic_base<polymorphic<Object>
 
+/**
+ * @brief Static polymorphic object.
+ * @tparam Object The object type that provides the interface and implementation.
+ * @tparam Size The size of the storage for the polymorphic object. Default is
+ * `k_default_any_storege_size`.
+ * @tparam Align The alignment of the storage for the polymorphic object. Default is
+ * `k_default_any_storege_size`.
+ * @tparam Ops The operations to be used for the polymorphic object. Default is a tuple containing
+ * `any_operation_copy_construct`.
+ */
 template <
     _poly_object Object, size_t Size = k_default_any_storege_size,
     size_t Align = k_default_any_storege_size,
@@ -282,26 +213,49 @@ class polymorphic
 
     friend class polymorphic_base<polymorphic>;
 
-    using interface = typename Object::template interface<polymorphic_base<polymorphic>>;
+    template <typename Base>
+    using interface_t = typename Object::template interface<Base>;
 
-    using any = basic_any<Size, Align, Ops>;
+    using interface = interface_t<polymorphic_base<polymorphic>>;
 
-    any any_;
-    vtable<Object, any> vtable_;
+    /// @brief The storage for the polymorphic object.
+    basic_any<Size, Align, Ops> any_;
+
+    using vtable                                     = vtable_t<Object>;
+    constexpr static size_t _store_vtable_as_pointer = sizeof(vtable) > sizeof(vtable*);
+
+    /// @brief The vtable for the polymorphic object.
+    std::conditional_t<_store_vtable_as_pointer, const vtable*, vtable> vtable_;
+
+    template <_poly_impl<Object> Impl>
+    consteval static auto _vtable_value() noexcept {
+        if constexpr (_store_vtable_as_pointer) {
+            return &static_vtable_tuple<Object, Impl>;
+        }
+        else {
+            return make_vtable_tuple<Object, Impl>();
+        }
+    }
 
 public:
     constexpr polymorphic() noexcept
-        : vtable_(_vtable_tuple_value<
-                  Object, typename Object::template interface<_poly_empty_impl>, any>()),
-          any_() {}
+        : vtable_(make_vtable_tuple<Object, interface_t<_poly_empty_impl>>()), any_() {}
 
     template <_poly_impl<Object> Impl>
     constexpr polymorphic(Impl&& impl)
-        : vtable_(_vtable_tuple_value<Object, Impl, any>()), any_(std::forward<Impl>(impl)) {}
+        : vtable_(_vtable_value<Impl>()), any_(std::forward<Impl>(impl)) {}
 
-    interface* operator->() noexcept { return this; }
-    const interface* operator->() const noexcept { return this; }
+    constexpr inline interface* operator->() noexcept { return this; }
+    constexpr inline const interface* operator->() const noexcept { return this; }
 };
+
+template <
+    _poly_object Object, _poly_impl<Object> Impl, size_t Size = k_default_any_storege_size,
+    size_t Align = k_default_any_storege_size, typename Ops = std::tuple<>, typename... Args>
+requires std::constructible_from<Impl, Args...>
+constexpr inline polymorphic<Object, Size, Align, Ops> make_polymorphic(Args&&... args) {
+    // TODO:
+}
 
 template <typename Poly>
 class polymorphic_base;
@@ -312,44 +266,26 @@ public:
     using polymorphic_type = polymorphic<Object, Size, Align, Ops>;
 
     template <size_t Index, typename... Args>
-    constexpr decltype(auto) invoke(Args&&... args) {
+    constexpr inline decltype(auto) invoke(Args&&... args) {
         auto* const ptr = static_cast<polymorphic_type*>(this);
-        return ptr->vtable_.template invoke<Index>(ptr->any_, std::forward<Args>(args)...);
+        if constexpr (ptr->_store_vtable_as_pointer) {
+            return std::get<Index>(*(ptr->vtable_))(ptr->any_.get(), std::forward<Args>(args)...);
+        }
+        else {
+            return std::get<Index>(ptr->vtable_)(ptr->any_.get(), std::forward<Args>(args)...);
+        }
     }
 
     template <size_t Index, typename... Args>
-    constexpr decltype(auto) invoke(Args&&... args) const {
+    constexpr inline decltype(auto) invoke(Args&&... args) const {
         auto* const ptr = static_cast<const polymorphic_type*>(this);
-        return ptr->vtable_.template invoke_const<Index>(ptr->any_, std::forward<Args>(args)...);
+        if constexpr (ptr->_store_vtable_as_pointer) {
+            return std::get<Index>(*(ptr->vtable_))(ptr->any_.get(), std::forward<Args>(args)...);
+        }
+        else {
+            return std::get<Index>(ptr->vtable_)(ptr->any_.get(), std::forward<Args>(args)...);
+        }
     }
 };
-
-template <size_t Index, typename... Args>
-constexpr inline auto call_polymorphic(_poly_empty_impl* empty) noexcept {}
-
-template <size_t Index, typename... Args>
-constexpr inline auto call_polymorphic(const _poly_empty_impl* empty) noexcept {}
-
-/**
- * @brief
- *
- * @tparam Index
- * @tparam Self {$1:unknown}::interface template<polymorphic_base<polymorphic<$1>>>
- * @tparam Args
- * @param self
- * @param args
- * @return constexpr auto
- */
-template <size_t Index, typename Object, size_t Size, size_t Align, typename Ops, typename... Args>
-constexpr inline auto call_polymorphic(
-    polymorphic_base<polymorphic<Object, Size, Align, Ops>>* self, Args&&... args) noexcept {
-    self->template invoke<Index>(std::forward<Args>(args)...);
-}
-
-template <size_t Index, typename Object, size_t Size, size_t Align, typename Ops, typename... Args>
-constexpr inline auto call_polymorphic(
-    const polymorphic_base<polymorphic<Object, Size, Align, Ops>>* self, Args&&... args) noexcept {
-    self->template invoke<Index>(std::forward<Args>(args)...);
-}
 
 } // namespace atom::utils
