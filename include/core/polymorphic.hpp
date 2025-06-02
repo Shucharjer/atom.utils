@@ -1,13 +1,54 @@
 #pragma once
-#include <any>
 #include <cstddef>
 #include <new>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include "core.hpp"
 
 namespace atom::utils {
+
+template <typename, typename>
+struct has_type : std::false_type {};
+template <typename Ty, typename... Types>
+struct has_type<Ty, std::tuple<Types...>> {
+    constexpr static bool value = (std::is_same_v<Ty, Types> || ...);
+};
+template <typename Ty, typename Tuple>
+constexpr bool has_type_v = has_type<Ty, Tuple>::value;
+
+template <typename Ty, typename Tuple>
+struct tuple_first;
+template <typename Ty, typename... Types>
+struct tuple_first<Ty, std::tuple<Types...>> {
+    constexpr static size_t value = []<size_t... Is>(std::index_sequence<Is...>) {
+        auto index = static_cast<size_t>(-1);
+        (..., (index = (std::is_same_v<Ty, Types> ? Is : index)));
+        return index;
+    }(std::index_sequence_for<Types...>());
+    static_assert(value < sizeof...(Types), "Type not found in tuple");
+};
+template <typename Ty, typename Tuple>
+constexpr size_t tuple_first_v = tuple_first<Ty, Tuple>::value;
+
+struct poly_op_copy_construct {
+    void (*value)(void* ptr, const void* other) = nullptr;
+};
+
+struct poly_op_move_construct {
+    void (*value)(void* ptr, void* other) = nullptr;
+};
+
+struct poly_op_copy_assign {
+    void (*value)(void* ptr, const void* other) = nullptr;
+};
+
+struct poly_op_move_assign {
+    void (*value)(void* ptr, void* other) = nullptr;
+};
+
+constexpr size_t k_default_poly_storage_size = 16;
+
+constexpr size_t k_default_poly_storage_align = 16;
 
 template <auto... Vals>
 struct value_list {};
@@ -27,9 +68,9 @@ template <auto Val, auto... Others>
 struct value_list_element<0, value_list<Val, Others...>> {
     constexpr static auto value = Val;
 };
-template <size_t Index, auto... Vals>
-struct value_list_element<Index, value_list<Vals...>> {
-    constexpr static auto value = value_list_element<Index - 1, value_list<Vals...>>::value;
+template <size_t Index, auto Val, auto... Others>
+struct value_list_element<Index, value_list<Val, Others...>> {
+    constexpr static auto value = value_list_element<Index - 1, value_list<Others...>>::value;
 };
 template <size_t Index, typename Ty>
 constexpr inline auto value_list_element_v = value_list_element<Index, Ty>::value;
@@ -68,12 +109,38 @@ constexpr auto make_tuple(Ty) noexcept {
 
 /*! @cond TURN_OFF_DOXYGEN */
 
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wreturn-type"
+#elif defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wreturn-type"
+#elif defined(_MSC_VER)
+    #pragma warning(push)
+    #pragma warning(disable : 4715)
+#endif
 struct _poly_empty_impl {
+    struct _universal {
+        template <typename Ty>
+        constexpr operator Ty&&() {}
+    };
+
     template <size_t Index, typename... Args>
-    constexpr inline auto invoke(Args&&... args) noexcept {}
+    constexpr inline auto invoke(Args&&... args) noexcept {
+        return _universal{};
+    }
     template <size_t Index, typename... Args>
-    constexpr inline auto invoke(Args&&... args) const noexcept {}
+    constexpr inline auto invoke(Args&&... args) const noexcept {
+        return _universal{};
+    }
 };
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#elif defined(__clang__)
+    #pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+    #pragma warning(pop)
+#endif
 
 template <typename Ty>
 concept _poly_object = requires {
@@ -145,7 +212,7 @@ struct _vtable_value_list {
         struct _element;
         template <auto Val, typename Ret, typename Class, typename... Args>
         struct _element<Val, Ret (Class::*)(Args...)> {
-            constexpr static Ret (*value)(any&, Args...) = [](void* ptr, Args... args) {
+            constexpr static Ret (*value)(void*, Args...) = [](void* ptr, Args... args) {
                 return (static_cast<Class*>(ptr)->*Val)(std::forward<Args>(args)...);
             };
         };
@@ -156,8 +223,10 @@ struct _vtable_value_list {
                 return (static_cast<const Class*>(ptr)->*Val)(std::forward<Args>(args)...);
             };
         };
+        template <auto Val, typename Func>
+        constexpr static auto _element_v = _element<Val, Func>::value;
 
-        using type = value_list<_element<Vals, decltype(Vals)>::value...>;
+        using type = value_list<_element_v<Vals, decltype(Vals)>...>;
     };
 
     using type = typename _static_list<typename Object::template impl<Impl>>::type;
@@ -176,53 +245,45 @@ consteval inline auto make_vtable_tuple() noexcept {
 template <_poly_object Object, _poly_impl<Object> Impl>
 constexpr static inline auto static_vtable_tuple = make_vtable_tuple<Object, Impl>();
 
-template <_poly_object Object, _poly_impl<Object> Impl>
-consteval static inline auto make_vtable_array() {
-    constexpr auto vtable = make_vtable_tuple<Object, Impl>();
-    std::array<void*, std::tuple_size_v<decltype(vtable)>> array;
-    [&]<size_t... Is>(std::index_sequence<Is...>) {
-        ((array[Is] = std::get<Is>(vtable)), ...);
-    }(std::make_index_sequence<std::tuple_size_v<decltype(vtable)>>{});
-    return array;
-}
-
-template <_poly_object Object, _poly_impl<Object> Impl>
-constexpr static inline auto static_vtable_array = make_vtable_array<Object, Impl>();
-
 template <typename Poly>
 class polymorphic_base;
 
-// polymorphic<Object> ->  Object::temlate interface<_impl_> -> polymorphic_base<polymorphic<Object>
+// polymorphic<Object> ->  Object::temlate interface<Impl> -> polymorphic_base<polymorphic<Object>
 
 /**
  * @brief Static polymorphic object.
+ * This class provides a way to create a high performance polymorphic object **quickly**, but if you
+ * want to get higher performance, you should use a builtin vtable instead of this class.
+ *
  * @tparam Object The object type that provides the interface and implementation.
  * @tparam Size The size of the storage for the polymorphic object. Default is
- * `k_default_any_storege_size`.
+ * `k_default_poly_storege_size`.
  * @tparam Align The alignment of the storage for the polymorphic object. Default is
- * `k_default_any_storege_size`.
- * @tparam Ops The operations to be used for the polymorphic object. Default is a tuple containing
- * `any_operation_copy_construct`.
+ * `k_default_poly_storege_size`.
+ * @tparam Ops The operations to be used for the polymorphic object. Default is a empty tuple.
  */
 template <
-    _poly_object Object, size_t Size = k_default_any_storege_size,
-    size_t Align = k_default_any_storege_size,
-    typename Ops = std::tuple<any_operation_copy_construct>>
+    _poly_object Object, size_t Size = k_default_poly_storage_size,
+    size_t Align = k_default_poly_storage_align, typename Ops = std::tuple<>>
 class polymorphic
     : private Object::template interface<polymorphic_base<polymorphic<Object, Size, Align, Ops>>> {
 
     friend class polymorphic_base<polymorphic>;
 
-    template <typename Base>
-    using interface_t = typename Object::template interface<Base>;
+    using _empty_interface = typename Object::template interface<_poly_empty_impl>;
 
-    using interface = interface_t<polymorphic_base<polymorphic>>;
+    /// The pointer to the polymorphic object.
+    void* ptr_;
 
-    /// @brief The storage for the polymorphic object.
-    basic_any<Size, Align, Ops> any_;
+    struct _poly_operation_destroy {
+        void (*value)(void* ptr) = nullptr;
+    };
+    using ops_t = decltype(std::tuple_cat(Ops{}, std::tuple<_poly_operation_destroy>{}));
+    /// @brief Operations for the polymorphic object.
+    ops_t operations_;
 
     using vtable                                     = vtable_t<Object>;
-    constexpr static size_t _store_vtable_as_pointer = sizeof(vtable) > sizeof(vtable*);
+    constexpr static size_t _store_vtable_as_pointer = sizeof(vtable) > sizeof(void*) * 2;
 
     /// @brief The vtable for the polymorphic object.
     std::conditional_t<_store_vtable_as_pointer, const vtable*, vtable> vtable_;
@@ -237,21 +298,120 @@ class polymorphic
         }
     }
 
+    /// @brief Storage for the polymorphic object.
+    alignas(Align) std::byte storage_[Size];
+
+    template <_poly_impl<Object> Impl>
+    constexpr static bool builtin_storable = sizeof(Impl) <= Size && alignof(Impl) <= Align;
+
+    template <_poly_impl<Object> Impl>
+    constexpr void* _init_ptr() {
+        if constexpr (builtin_storable<Impl>) {
+            return static_cast<void*>(storage_);
+        }
+        else {
+            return operator new(sizeof(Impl), std::align_val_t(Align));
+        }
+    }
+
+    template <_poly_impl<Object> Impl>
+    constexpr void construct(Impl&& impl) {
+        ::new (ptr_) Impl(std::forward<Impl>(impl));
+        ptr_ = std::launder(static_cast<Impl*>(ptr_));
+    }
+
+    constexpr void destroy() {
+        std::get<tuple_first_v<_poly_operation_destroy, ops_t>>(operations_).value(ptr_);
+    }
+
+    template <_poly_impl<Object> Impl>
+    constexpr static inline ops_t _operations() noexcept {
+        ops_t ops;
+        if constexpr (has_type_v<poly_op_copy_construct, ops_t>) {
+            std::get<tuple_first_v<poly_op_copy_construct, ops_t>>(ops).value =
+                [](void* lhs,
+                   const void* rhs) noexcept(std::is_nothrow_copy_constructible_v<Impl>) {
+                    ::new (lhs) Impl(*static_cast<const Impl*>(rhs));
+                };
+        }
+        if constexpr (has_type_v<poly_op_move_construct, ops_t>) {
+            std::get<tuple_first_v<poly_op_move_construct, ops_t>>(ops).value =
+                [](void* lhs, void* rhs) noexcept(std::is_nothrow_move_constructible_v<Impl>) {
+                    ::new (lhs) Impl(std::move(*static_cast<Impl*>(rhs)));
+                };
+        }
+        if constexpr (has_type_v<poly_op_copy_assign, ops_t>) {
+            std::get<tuple_first_v<poly_op_copy_assign, ops_t>>(ops).value =
+                [](void* lhs, const void* rhs) noexcept(std::is_nothrow_copy_assignable_v<Impl>) {
+                    *static_cast<Impl*>(lhs) = *static_cast<const Impl*>(rhs);
+                };
+        }
+        if constexpr (has_type_v<poly_op_move_assign, ops_t>) {
+            std::get<tuple_first_v<poly_op_move_assign, ops_t>>(ops).value =
+                [](void* lhs, void* rhs) noexcept(std::is_nothrow_move_assignable_v<Impl>) {
+                    *static_cast<Impl*>(lhs) = std::move(*static_cast<Impl*>(rhs));
+                };
+        }
+        std::get<tuple_first_v<_poly_operation_destroy, ops_t>>(ops).value =
+            [](void* ptr) noexcept(std::is_nothrow_destructible_v<Impl>) {
+                static_cast<Impl*>(ptr)->~Impl();
+            };
+        return ops;
+    }
+
 public:
+    using interface = typename Object::template interface<polymorphic_base<polymorphic>>;
+
+    /**
+     * @brief Constructs a polymorphic object with an empty interface.
+     * @warning This constructor initializes the polymorphic object with an empty interface. You
+     * should construct the polymorphic object with a valid implementation before using it.
+     */
     constexpr polymorphic() noexcept
-        : vtable_(make_vtable_tuple<Object, interface_t<_poly_empty_impl>>()), any_() {}
+        : ptr_(nullptr), vtable_(_vtable_value<_empty_interface>()), storage_(), operations_() {}
 
     template <_poly_impl<Object> Impl>
     constexpr polymorphic(Impl&& impl)
-        : vtable_(_vtable_value<Impl>()), any_(std::forward<Impl>(impl)) {}
+        : ptr_(_init_ptr<Impl>()), vtable_(_vtable_value<Impl>()), storage_(),
+          operations_(_operations<Impl>()) {
+        construct(std::forward<Impl>(impl));
+    }
 
-    constexpr inline interface* operator->() noexcept { return this; }
-    constexpr inline const interface* operator->() const noexcept { return this; }
+    polymorphic(const polymorphic& that)
+    requires has_type_v<poly_op_copy_construct, ops_t>
+    {}
+
+    polymorphic(polymorphic&& that)
+    requires has_type_v<poly_op_move_construct, ops_t>
+    {}
+
+    polymorphic& operator=(const polymorphic& that)
+    requires has_type_v<poly_op_copy_assign, ops_t>
+    {}
+
+    polymorphic& operator=(polymorphic&& that)
+    requires has_type_v<poly_op_move_assign, ops_t>
+    {}
+
+    constexpr ~polymorphic() {
+        if (ptr_) [[likely]] {
+            destroy();
+            ptr_ = nullptr;
+        }
+    }
+
+    [[nodiscard]] constexpr inline interface* operator->() noexcept { return this; }
+    [[nodiscard]] constexpr inline const interface* operator->() const noexcept { return this; }
+
+    [[nodiscard]] constexpr inline operator bool() const noexcept { return ptr_; }
+
+    [[nodiscard]] constexpr inline void* data() noexcept { return ptr_; }
+    [[nodiscard]] constexpr inline const void* data() const noexcept { return ptr_; }
 };
 
 template <
-    _poly_object Object, _poly_impl<Object> Impl, size_t Size = k_default_any_storege_size,
-    size_t Align = k_default_any_storege_size, typename Ops = std::tuple<>, typename... Args>
+    _poly_object Object, _poly_impl<Object> Impl, size_t Size = k_default_poly_storage_size,
+    size_t Align = k_default_poly_storage_align, typename Ops = std::tuple<>, typename... Args>
 requires std::constructible_from<Impl, Args...>
 constexpr inline polymorphic<Object, Size, Align, Ops> make_polymorphic(Args&&... args) {
     // TODO:
@@ -268,22 +428,22 @@ public:
     template <size_t Index, typename... Args>
     constexpr inline decltype(auto) invoke(Args&&... args) {
         auto* const ptr = static_cast<polymorphic_type*>(this);
-        if constexpr (ptr->_store_vtable_as_pointer) {
-            return std::get<Index>(*(ptr->vtable_))(ptr->any_.get(), std::forward<Args>(args)...);
+        if constexpr (polymorphic_type::_store_vtable_as_pointer) {
+            return std::get<Index>(*(ptr->vtable_))(ptr->ptr_, std::forward<Args>(args)...);
         }
         else {
-            return std::get<Index>(ptr->vtable_)(ptr->any_.get(), std::forward<Args>(args)...);
+            return std::get<Index>(ptr->vtable_)(ptr->ptr_, std::forward<Args>(args)...);
         }
     }
 
     template <size_t Index, typename... Args>
     constexpr inline decltype(auto) invoke(Args&&... args) const {
         auto* const ptr = static_cast<const polymorphic_type*>(this);
-        if constexpr (ptr->_store_vtable_as_pointer) {
-            return std::get<Index>(*(ptr->vtable_))(ptr->any_.get(), std::forward<Args>(args)...);
+        if constexpr (polymorphic_type::_store_vtable_as_pointer) {
+            return std::get<Index>(*(ptr->vtable_))(ptr->ptr_, std::forward<Args>(args)...);
         }
         else {
-            return std::get<Index>(ptr->vtable_)(ptr->any_.get(), std::forward<Args>(args)...);
+            return std::get<Index>(ptr->vtable_)(ptr->ptr_, std::forward<Args>(args)...);
         }
     }
 };
