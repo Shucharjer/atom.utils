@@ -4,7 +4,6 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include "memory/allocator.hpp"
 #include "memory/pool.hpp"
 #include "memory/storage.hpp"
 #include "misc/timer.hpp"
@@ -16,44 +15,44 @@ using namespace atom::utils;
 int main() {
     // standard_allocator
     {
-        auto allocator = utils::standard_allocator<int>{};
+        // auto allocator = utils::standard_allocator<int>{};
 
-        // unique_storage
-        {
-            utils::unique_storage<int, decltype(allocator)> storage{ allocator };
-            storage = 114514;
-            print(*storage.get());
-            newline();
-        }
+        // // unique_storage
+        // {
+        //     utils::unique_storage<int, decltype(allocator)> storage{ allocator };
+        //     storage = 114514;
+        //     print(*storage.get());
+        //     newline();
+        // }
 
-        // shared_storage
-        {
-            utils::shared_storage<int, decltype(allocator)> storage{ allocator };
-            print("has value:");
-            print(static_cast<bool>(storage));
-            newline();
-            storage = 114514;
-            print("has value:");
-            print(static_cast<bool>(storage));
-            newline();
-        }
+        // // shared_storage
+        // {
+        //     utils::shared_storage<int, decltype(allocator)> storage{ allocator };
+        //     print("has value:");
+        //     print(static_cast<bool>(storage));
+        //     newline();
+        //     storage = 114514;
+        //     print("has value:");
+        //     print(static_cast<bool>(storage));
+        //     newline();
+        // }
 
-        // vector
-        { std::vector<int, decltype(allocator)> storage{ allocator }; }
+        // // vector
+        // { std::vector<int, decltype(allocator)> storage{ allocator }; }
     }
 
     // allocator
     {
-        auto pool      = utils::synchronized_pool{};
-        auto allocator = utils::allocator<int, utils::synchronized_pool>{ pool };
+        // auto pool      = utils::synchronized_pool{};
+        // auto allocator = utils::allocator<int, utils::synchronized_pool>{ pool };
 
-        // in std::unordered_map
-        {
-            using allocator_t =
-                utils::allocator<std::pair<const int, int>, utils::synchronized_pool>;
-            std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, allocator_t> map(
-                allocator_t{ allocator });
-        }
+        // // in std::unordered_map
+        // {
+        //     using allocator_t =
+        //         utils::allocator<std::pair<const int, int>, utils::synchronized_pool>;
+        //     std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, allocator_t> map(
+        //         allocator_t{ allocator });
+        // }
     }
 
     // builtin_allocator

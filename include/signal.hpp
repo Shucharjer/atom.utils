@@ -1,7 +1,6 @@
 #pragma once
 #include "concepts/allocator.hpp"
 #include "core.hpp"
-#include "memory/allocator.hpp"
 
 namespace atom::utils {
 
@@ -10,13 +9,14 @@ class delegate;
 
 class basic_sink;
 
-template <
-    typename EventType,
-    typename = standard_allocator<std::pair<const default_id_t, delegate<void(EventType&)>>>>
-class sink;
+// template <
+//     typename EventType,
+//     typename = standard_allocator<std::pair<const default_id_t, delegate<void(EventType&)>>>>
+// class sink;
 
-template <
-    concepts::rebindable_allocator = standard_allocator<std::pair<const default_id_t, basic_sink*>>>
-class dispatcher;
+// template <
+//     concepts::rebindable_allocator = standard_allocator<std::pair<const default_id_t,
+//     basic_sink*>>>
+// class dispatcher;
 
 } // namespace atom::utils

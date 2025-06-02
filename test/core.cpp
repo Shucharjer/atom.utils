@@ -29,33 +29,10 @@ struct empty_fn {
 
 constexpr inline empty_fn empty;
 
-// struct basic_object : invoke_list<void() const, void(), void(int)> {
-//     template <typename Base>
-//     struct interface : Base {
-//         void foo() const { return poly_call<0>(*this); }
-//         void foo2() { return poly_call<1>(*this); }
-//         void foo3(int i) { return poly_call<2>(*this, i); }
-//     };
-
-//     template <typename Impl>
-//     using implementation = value_list<&Impl::foo, &Impl::foo2, &Impl::foo3>;
-// };
-
-// struct advanced_object
-//     : append_invoke_list_t<decltype(as_invoke_list(std::declval<basic_object>())), void()> {
-//     template <typename Base>
-//     struct interface : basic_object::interface<Base> {
-//         void foo4() { return poly_call<3>(*this); }
-//     };
-
-//     template <typename Impl>
-//     using implementation = append_value_list_t<basic_object::implementation<Impl>, &Impl::foo4>;
-// };
-
 struct Object {
     template <typename Base>
     struct interface : Base {
-        void foo() const { call_polymorphic<0>(this); }
+        void foo() const { this->template invoke<0>(); }
     };
 
     template <typename Impl>
