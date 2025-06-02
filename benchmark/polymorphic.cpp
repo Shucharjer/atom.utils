@@ -33,7 +33,7 @@ static void BM_derive(benchmark::State& state) {
 struct Object {
     template <typename Base>
     struct interface : public Base {
-        void foo() const { call_polymorphic<0>(this); }
+        void foo() const { this->template invoke<0>(); }
     };
     template <typename Impl>
     using impl = value_list<&Impl::foo>;
@@ -48,19 +48,18 @@ struct Impl {
 };
 
 static void BM_vtable(benchmark::State& state) {
-    auto* _vtable          = new vtable<Object>();
-    vtable<Object>& vtable = *_vtable;
-    vtable.value           = _vtable_tuple_value<Object, Impl, void*>();
+    auto* _vtable = new vtable_t<Object>();
+    auto& vtable  = *_vtable;
+    vtable        = make_vtable_tuple<Object, Impl>();
     for (auto _ : state) {
-        vtable.invoke<0>(nullptr);
-        std::any a;
+        std::get<0>(vtable)(nullptr);
     }
     delete _vtable;
 }
 
 static void BM_polymorphic(benchmark::State& state) {
-    auto* _poly               = new polymorphic<Object>(Impl{});
-    polymorphic<Object>& poly = *_poly;
+    auto* _poly = new polymorphic<Object, 8, 8>(Impl{});
+    auto& poly  = *_poly;
     for (auto _ : state) {
         poly->foo();
     }
