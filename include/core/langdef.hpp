@@ -1,13 +1,5 @@
 #pragma once
 
-#ifndef CPP23
-    #if _HAS_CXX23 && __cplusplus >= 202302L
-        #define CPP23
-    #endif
-#else
-    #error "Macro 'CPP23' has been defined for unknown use."
-#endif
-
 #ifdef _MSC_VER
     #define ATOM_FUNCNAME __FUNCSIG__
 #else
@@ -45,84 +37,84 @@
     #define ATOM_VECTORIZABLE false
 #endif
 
-#ifndef _HAS_CXX17
+#ifndef HAS_CXX17
     #if __cplusplus > 201402L
-        #define _HAS_CXX17 1
+        #define HAS_CXX17 1
     #else
-        #define _HAS_CXX17 0
+        #define HAS_CXX17 0
     #endif
 #endif
 
-#ifndef _HAS_CXX20
-    #if _HAS_CXX17 && __cplusplus > 201703L
-        #define _HAS_CXX20 1
+#ifndef HAS_CXX20
+    #if HAS_CXX17 && __cplusplus > 201703L
+        #define HAS_CXX20 1
     #else
-        #define _HAS_CXX20 0
+        #define HAS_CXX20 0
     #endif
 #endif
 
-#ifndef _HAS_CXX23
-    #if _HAS_CXX20 && __cplusplus > 202002L
-        #define _HAS_CXX23 1
+#ifndef HAS_CXX23
+    #if HAS_CXX20 && __cplusplus > 202002L
+        #define HAS_CXX23 1
     #else
-        #define _HAS_CXX23 0
+        #define HAS_CXX23 0
     #endif
 #endif
 
-#ifndef _HAS_CXX26
-    #if _HAS_CXX23 && __cplusplus > 202302L
-        #define _HAS_CXX26 1
+#ifndef HAS_CXX26
+    #if HAS_CXX23 && __cplusplus > 202302L
+        #define HAS_CXX26 1
     #else
-        #define _HAS_CXX26 0
+        #define HAS_CXX26 0
     #endif
 #endif
 
-#ifndef _CONSTEXPR17
-    #if _HAS_CXX17
-        #define _CONSTEXPR17 constexpr
+#ifndef CONSTEXPR17
+    #if HAS_CXX17
+        #define CONSTEXPR17 constexpr
     #else
-        #define _CONSTEXPR17 inline
+        #define CONSTEXPR17 inline
     #endif
 #endif
 
-#ifndef _CONSTEXPR20
-    #if _HAS_CXX20
-        #define _CONSTEXPR20 constexpr
+#ifndef CONSTEXPR20
+    #if HAS_CXX20
+        #define CONSTEXPR20 constexpr
     #else
-        #define _CONSTEXPR20 inline
+        #define CONSTEXPR20 inline
     #endif
 #endif
 
-#ifndef _CONSTEXPR26
-    #if _HAS_CXX26
-        #define _CONSTEXPR26 constexpr
+#ifndef CONSTEXPR26
+    #if HAS_CXX26
+        #define CONSTEXPR26 constexpr
     #else
-        #define _CONSTEXPR26 inline
+        #define CONSTEXPR26 inline
     #endif
 #endif
 
-#ifndef _STATIC23
-    #if _HAS_CXX23
-        #define _STATIC23 static
+#ifndef STATIC23
+    #if HAS_CXX23
+        #define STATIC23 static
     #else
-        #define _STATIC23
+        #define STATIC23
     #endif
 #endif
 
-#ifndef _HAS_NODISCARD
+#ifndef HAS_NODISCARD
     #ifndef __has_cpp_attribute
         #define _HAS_NODISCARD 0
     #elif __has_cpp_attribute(nodiscard) >= 201603L // TRANSITION, VSO#939899 (need toolset update)
-        #define _HAS_NODISCARD 1
+        #define HAS_NODISCARD 1
     #else
-        #define _HAS_NODISCARD 0
+        #define HAS_NODISCARD 0
     #endif
 #endif
 
-#if _HAS_NODISCARD
-    #define _NODISCARD [[nodiscard]]
+#if HAS_NODISCARD
+    #define NODISCARD [[nodiscard]]
 #else // ^^^ CAN HAZ [[nodiscard]] / NO CAN HAZ [[nodiscard]] vvv
-    #define _NODISCARD
+    #define NODISCARD
 #endif
 
 constexpr auto magic_2               = 0x2;
