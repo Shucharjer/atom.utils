@@ -314,7 +314,10 @@ set(ATOM_Utils_BENCHMARK_DIR "${Utils_SOURCE_DIR}/benchmark")
 option(ATOM_UTILS_BUILD_BENCHMARK OFF)
 
 function(BUILD_BENCHMARK_FOR BENCHMARK_NAME)
-    add_executable(benchmark-${BENCHMARK_NAME} ${ATOM_Utils_BENCHMARK_DIR}/${BENCHMARK_NAME}.cpp)
+    file(GLOB BENCHMARK_SRCS
+        "${ATOM_Utils_BENCHMARK_DIR}/${BENCHMARK_NAME}.cpp"
+        "${ATOM_Utils_BENCHMARK_DIR}/${BENCHMARK_NAME}.s")
+    add_executable(benchmark-${BENCHMARK_NAME} ${BENCHMARK_SRCS})
     target_link_libraries(benchmark-${BENCHMARK_NAME} PRIVATE Utils benchmark::benchmark)
 endfunction()
 
@@ -329,5 +332,5 @@ if (ATOM_UTILS_BUILD_BENCHMARK)
   FetchContent_MakeAvailable(googlebenchmark)
 
   BUILD_BENCHMARK_FOR(delegate)
-  BUILD_BENCHMARK_FOR(polymorphic)
+  BUILD_BENCHMARK_FOR(memory)
 endif()
