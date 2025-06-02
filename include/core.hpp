@@ -118,6 +118,9 @@ constexpr auto _not_any_v = _not_any<Ty>::value;
  */
 template <size_t Size, size_t Align, typename Ops>
 class basic_any {
+    /// @brief Pointer to the object stored in the any.
+    void* ptr_;
+
     bool is_builtin_;
 
     // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
@@ -129,9 +132,6 @@ class basic_any {
 
     // NOLINTEND(modernize-avoid-c-arrays)
     // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
-
-    /// @brief Pointer to the object stored in the any.
-    void* ptr_;
 
     struct _any_operation_destroy {
         void (*value)(void* ptr) = nullptr;
@@ -293,6 +293,9 @@ public:
     }
 
     [[nodiscard]] constexpr operator bool() const noexcept { return ptr_; }
+
+    [[nodiscard]] constexpr void* get() noexcept { return ptr_; }
+    [[nodiscard]] constexpr const void* get() const noexcept { return ptr_; }
 
     template <pointer Ty>
     constexpr Ty _cast() noexcept {
