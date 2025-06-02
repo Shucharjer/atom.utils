@@ -9,7 +9,7 @@ struct default_destroyer;
 namespace internal {
 
 template <typename Ty>
-ATOM_FORCE_INLINE _CONSTEXPR20 void destroy(Ty* ptr) noexcept(noexcept(std::destroy_at(ptr))) {
+ATOM_FORCE_INLINE CONSTEXPR20 void destroy(Ty* ptr) noexcept(noexcept(std::destroy_at(ptr))) {
     std::destroy_at(ptr);
 }
 

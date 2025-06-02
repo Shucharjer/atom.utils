@@ -195,7 +195,7 @@ public:
         }
     }
 
-#if !_HAS_CXX23
+#if !HAS_CXX23
     constexpr auto cbegin() const noexcept {
         return element_iterator<Vw, Index, true>(std::ranges::cbegin(range_));
     }

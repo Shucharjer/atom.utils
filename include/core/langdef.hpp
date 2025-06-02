@@ -73,7 +73,7 @@
     #if HAS_CXX17
         #define CONSTEXPR17 constexpr
     #else
-        #define CONSTEXPR17 inline
+        #define CONSTEXPR17
     #endif
 #endif
 
@@ -81,7 +81,15 @@
     #if HAS_CXX20
         #define CONSTEXPR20 constexpr
     #else
-        #define CONSTEXPR20 inline
+        #define CONSTEXPR20
+    #endif
+#endif
+
+#ifndef CONSTEXPR23
+    #if HAS_CXX23
+        #define CONSTEXPR23 constexpr
+    #else
+        #define CONSTEXPR23
     #endif
 #endif
 
@@ -89,7 +97,7 @@
     #if HAS_CXX26
         #define CONSTEXPR26 constexpr
     #else
-        #define CONSTEXPR26 inline
+        #define CONSTEXPR26
     #endif
 #endif
 

@@ -17,7 +17,7 @@ namespace atom::utils::ranges {
 template <typename Container, std::ranges::input_range Rng, typename... Args>
 requires(!std::ranges::view<Container>)
 [[nodiscard]] constexpr Container to(Rng&& range, Args&&... args) {
-#if _HAS_CXX23
+#if HAS_CXX23
     return std::ranges::to<Container>(std::forward<Rng>(range), std::forward<Args>(args)...);
 #else
     static_assert(!std::is_const_v<Container>, "Container must not be const.");
@@ -94,7 +94,7 @@ requires(!std::ranges::view<Container>)
             "convertible to the elements of the destination container, or be ranges themselves "
             "for ranges::to to be applied recursively.");
     }
-#endif // _HAS_CXX23
+#endif // HAS_CXX23
 }
 
 // NOLINTEND(cppcoreguidelines-require-return-statement)
@@ -123,7 +123,7 @@ struct to_class_fn {
  */
 template <typename Container, typename... Args>
 [[nodiscard]] constexpr auto to(Args&&... args) {
-#if _HAS_CXX23
+#if HAS_CXX23
     return std::ranges::to<Container>(std::forward<Args>(args)...);
 #else
     return make_closure<URANGES internal::to_class_fn<Container>>(std::forward<Args>(args)...);
@@ -186,7 +186,7 @@ template <
     typename Deduced = std::remove_pointer_t<
         decltype(::atom::utils::ranges::internal::to_helper<Container, Rng, Args...>())>>
 [[nodiscard]] constexpr auto to(Rng&& range, Args&&... args) -> Deduced {
-#if _HAS_CXX23
+#if HAS_CXX23
     return std::ranges::to<Container>(std::forward<Rng>(range), std::forward<Args>(args)...);
 #else
     return URANGES to<Deduced>(std::forward<Rng>(range), std::forward<Args>(args)...);
@@ -214,7 +214,7 @@ struct to_template_fn {
 // so, changed the function name
 template <template <typename...> typename Container, typename... Args>
 [[nodiscard]] constexpr auto to(Args&&... args) {
-#if _HAS_CXX23
+#if HAS_CXX23
     return std::ranges::to<Container>(std::forward<Args>(args)...);
 #else
     return make_closure<internal::to_template_fn<Container>>(std::forward<Args>(args)...);

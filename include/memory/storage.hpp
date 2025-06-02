@@ -9,7 +9,6 @@
 #include "core/langdef.hpp"
 #include "core/pair.hpp"
 #include "memory.hpp"
-#include "memory/allocator.hpp"
 #include "memory/destroyer.hpp"
 
 namespace atom::utils {
@@ -100,13 +99,12 @@ public:
      * @param al
      * @param destroyer
      * @param args
-     * @return _CONSTEXPR20
      */
     template <
         typename Al, typename Destroyer, typename... Args,
         typename =
             std::void_t<decltype(internal::wrap_destroyer<Ty>(std::declval<Destroyer>()), true)>>
-    _CONSTEXPR20 unique_storage(
+    CONSTEXPR20 unique_storage(
         std::allocator_arg_t, const Al& al, construct_at_once_t, with_destroyer_t,
         Destroyer& destroyer, Args&&... args)
         : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {
@@ -118,7 +116,7 @@ public:
     //     typename =
     //         std::void_t<decltype(internal::wrap_destroyer<Ty>(std::declval<Destroyer>()), true)>,
     //     typename = std::enable_if_t<std::is_constructible_v<Ty, Args...>>>
-    // _CONSTEXPR20 unique_storage(
+    // CONSTEXPR20 unique_storage(
     //     std::allocator_arg_t, const Al& al, construct_at_once_t, Destroyer& destroyer,
     //     Args&&... args)
     //     : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {
@@ -132,18 +130,17 @@ public:
      * @tparam Args
      * @param al
      * @param args
-     * @return _CONSTEXPR20
      */
     template <
         typename Al, typename... Args,
         typename = std::enable_if_t<std::is_constructible_v<value_type, Args...>>>
-    _CONSTEXPR20 unique_storage(
+    CONSTEXPR20 unique_storage(
         std::allocator_arg_t, const Al& al, construct_at_once_t, Args&&... args)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), al), val_(nullptr) {
         allocate_and_construct(std::forward<Args>(args)...);
     }
 
-    _CONSTEXPR20 unique_storage(construct_at_once_t)
+    CONSTEXPR20 unique_storage(construct_at_once_t)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), {}), val_(nullptr) {
         auto& alloc     = pair_.second();
         auto* const ptr = alloc.allocate(1);
@@ -152,13 +149,13 @@ public:
     }
 
     template <typename... Args>
-    _CONSTEXPR20 unique_storage(construct_at_once_t, Args&&... args)
+    CONSTEXPR20 unique_storage(construct_at_once_t, Args&&... args)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), {}), val_(nullptr) {
         allocate_and_construct(std::forward<Args>(args)...);
     }
 
     template <typename... Args, typename = std::enable_if_t<std::is_constructible_v<Ty, Args...>>>
-    _CONSTEXPR20 explicit unique_storage(Args&&... args)
+    CONSTEXPR20 explicit unique_storage(Args&&... args)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), allocator_type{}),
           val_(nullptr) {
         allocate_and_construct(std::forward<Args>(args)...);
@@ -175,25 +172,24 @@ public:
      * @tparam Destroyer
      * @param al
      * @param destroyer
-     * @return _CONSTEXPR20
      */
     template <typename Al, typename Destroyer>
-    _CONSTEXPR20 unique_storage(
+    CONSTEXPR20 unique_storage(
         std::allocator_arg_t, const Al& al, with_destroyer_t,
         Destroyer& destroyer) noexcept(std::is_nothrow_constructible_v<allocator_type, Al>)
         : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {}
 
     template <typename Al, typename Destroyer>
-    _CONSTEXPR20 unique_storage(std::allocator_arg_t, const Al& al, Destroyer& destroyer) noexcept(
+    CONSTEXPR20 unique_storage(std::allocator_arg_t, const Al& al, Destroyer& destroyer) noexcept(
         std::is_nothrow_constructible_v<allocator_type, Al>)
         : pair_(internal::wrap_destroyer<Ty>(destroyer), al), val_(nullptr) {}
 
     template <typename Al>
-    _CONSTEXPR20 unique_storage(std::allocator_arg_t, const Al& al)
+    CONSTEXPR20 unique_storage(std::allocator_arg_t, const Al& al)
         : pair_(internal::wrap_destroyer<Ty>(default_destroyer<Ty>{}), al), val_(nullptr) {}
 
     template <typename Al>
-    _CONSTEXPR20 unique_storage(Al& al) : unique_storage(std::allocator_arg, al) {}
+    CONSTEXPR20 unique_storage(Al& al) : unique_storage(std::allocator_arg, al) {}
 
     constexpr unique_storage(const unique_storage& that) = delete;
 
@@ -245,7 +241,7 @@ public:
     template <
         typename... Args,
         typename = std::enable_if_t<sizeof...(Args) != 1 && std::is_constructible_v<Ty, Args...>>>
-    _CONSTEXPR20 unique_storage& operator=(Args&&... args) {
+    CONSTEXPR20 unique_storage& operator=(Args&&... args) {
         if (val_) {
             *val_ = Ty(std::forward<Args>(args)...);
         }
@@ -278,7 +274,7 @@ public:
 
 private:
     template <typename... Args>
-    _CONSTEXPR20 void allocate_and_construct(Args&&... args) {
+    CONSTEXPR20 void allocate_and_construct(Args&&... args) {
         auto& alloc     = pair_.second();
         auto* const ptr = alloc.allocate(1);
         alty_traits::construct(alloc, ptr, std::forward<Args>(args)...);

@@ -13,7 +13,6 @@
 #include "core.hpp"
 #include "core/langdef.hpp"
 #include "core/pair.hpp"
-#include "memory/allocator.hpp"
 #include "memory/storage.hpp"
 #include "structures.hpp"
 #include "thread.hpp"
@@ -21,9 +20,9 @@
 
 namespace atom::utils {
 
-#if _HAS_CXX20
+#if HAS_CXX20
 template <std::unsigned_integral Key, typename Val, typename Alloc, std::size_t PageSize>
-#elif _HAS_CXX17
+#elif HAS_CXX17
 template <typename Kty, typename Ty, typename Alloc, std::size_t PageSize, typename>
 #endif
 class dense_map {
@@ -71,17 +70,17 @@ public:
      * @brief Default constructor.
      *
      */
-    _CONSTEXPR20 dense_map() : dense_(), sparse_() {}
+    CONSTEXPR20 dense_map() : dense_(), sparse_() {}
 
     /**
      * @brief Construct with allocator.
      *
      */
     template <typename Al>
-    _CONSTEXPR20 dense_map(const Al& allocator) : dense_(allocator), sparse_(allocator) {}
+    CONSTEXPR20 dense_map(const Al& allocator) : dense_(allocator), sparse_(allocator) {}
 
     template <typename Al>
-    _CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al) : dense_(al), sparse_(al) {}
+    CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al) : dense_(al), sparse_(al) {}
 
     /**
      * @brief Construct by iterators and allocator.
@@ -89,7 +88,7 @@ public:
      */
     template <typename IFirst, typename ILast, typename Al>
     requires concepts::constructible_from_iterator<IFirst, value_type>
-    _CONSTEXPR20 dense_map(IFirst first, ILast last, const Al& al) noexcept(
+    CONSTEXPR20 dense_map(IFirst first, ILast last, const Al& al) noexcept(
         noexcept(dense_map(std::allocator_arg, al, first, last)))
         : dense_(first, last, al), sparse_(al) {
         for (const auto& [key, val] : dense_) {
@@ -106,7 +105,7 @@ public:
      */
     template <typename IFirst, typename ILast, typename Al>
     requires concepts::constructible_from_iterator<IFirst, value_type>
-    _CONSTEXPR20 explicit dense_map(std::allocator_arg_t, const Al& al, IFirst first, ILast last)
+    CONSTEXPR20 explicit dense_map(std::allocator_arg_t, const Al& al, IFirst first, ILast last)
         : dense_map(first, last, al) {}
 
     /**
@@ -115,7 +114,7 @@ public:
      */
     template <typename IFirst, typename ILast>
     requires concepts::constructible_from_iterator<IFirst, value_type>
-    _CONSTEXPR20 dense_map(IFirst first, ILast last) : dense_map(first, last, alty{}) {}
+    CONSTEXPR20 dense_map(IFirst first, ILast last) : dense_map(first, last, alty{}) {}
 
     /**
      * @brief Construct by initializer list and allocator.
@@ -126,7 +125,7 @@ public:
         typename Pair::first_type;
         typename Pair::second_type;
     } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
-    _CONSTEXPR20 dense_map(std::initializer_list<Pair> il, const Al& allocator = Alloc{})
+    CONSTEXPR20 dense_map(std::initializer_list<Pair> il, const Al& allocator = Alloc{})
         : dense_(il.begin(), il.end(), allocator), sparse_(allocator) {
         for (auto i = 0; i < il.size(); ++i) {
             const auto& [key, val] = dense_[i];
@@ -142,10 +141,10 @@ public:
         typename Pair::first_type;
         typename Pair::second_type;
     } && std::is_constructible_v<value_type, typename Pair::first_type, typename Pair::second_type>
-    _CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al, std::initializer_list<Pair> il)
+    CONSTEXPR20 dense_map(std::allocator_arg_t, const Al& al, std::initializer_list<Pair> il)
         : dense_map(il, al) {}
 
-    _CONSTEXPR20 dense_map(dense_map&& that) noexcept
+    CONSTEXPR20 dense_map(dense_map&& that) noexcept
         : dense_(std::move(that.dense_)), sparse_(std::move(that.sparse_)) {}
 
     dense_map& operator=(dense_map&& that) noexcept {
@@ -204,7 +203,7 @@ public:
     // std::pair<iterator, bool> try_emplace(const key_type keyval, Mappedty&&... mapval) {}
 
     template <typename ValTy>
-    _CONSTEXPR26 void emplace(const key_type& key, ValTy&& val) {
+    CONSTEXPR26 void emplace(const key_type& key, ValTy&& val) {
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
@@ -228,7 +227,7 @@ public:
 
     template <typename... Tys>
     requires std::is_constructible_v<value_type, Tys...>
-    _CONSTEXPR26 std::pair<iterator, bool> emplace(Tys&&... vals) {
+    CONSTEXPR26 std::pair<iterator, bool> emplace(Tys&&... vals) {
         // TODO: finish this function
     }
 
@@ -287,9 +286,9 @@ public:
         }
     }
 
-    _NODISCARD _CONSTEXPR20 bool empty() const noexcept { return dense_.empty(); }
+    _NODISCARD CONSTEXPR20 bool empty() const noexcept { return dense_.empty(); }
 
-    _NODISCARD _CONSTEXPR20 size_type size() const noexcept { return dense_.size(); }
+    _NODISCARD CONSTEXPR20 size_type size() const noexcept { return dense_.size(); }
 
     void clear() noexcept {
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
@@ -297,39 +296,39 @@ public:
         dense_.clear();
     }
 
-    _NODISCARD _CONSTEXPR20 auto front() -> value_type& { return dense_.front(); }
-    _NODISCARD _CONSTEXPR20 auto front() const -> const value_type& { return dense_.front(); }
+    _NODISCARD CONSTEXPR20 auto front() -> value_type& { return dense_.front(); }
+    _NODISCARD CONSTEXPR20 auto front() const -> const value_type& { return dense_.front(); }
 
-    _NODISCARD _CONSTEXPR20 auto back() -> value_type& { return dense_.back(); }
-    _NODISCARD _CONSTEXPR20 auto back() const -> const value_type& { return dense_.back(); }
+    _NODISCARD CONSTEXPR20 auto back() -> value_type& { return dense_.back(); }
+    _NODISCARD CONSTEXPR20 auto back() const -> const value_type& { return dense_.back(); }
 
-    _NODISCARD _CONSTEXPR20 auto begin() noexcept -> iterator { return dense_.begin(); }
-    _NODISCARD _CONSTEXPR20 auto begin() const noexcept -> const_iterator { return dense_.begin(); }
-    _NODISCARD _CONSTEXPR20 auto cbegin() const noexcept -> const_iterator {
+    _NODISCARD CONSTEXPR20 auto begin() noexcept -> iterator { return dense_.begin(); }
+    _NODISCARD CONSTEXPR20 auto begin() const noexcept -> const_iterator { return dense_.begin(); }
+    _NODISCARD CONSTEXPR20 auto cbegin() const noexcept -> const_iterator {
         return dense_.cbegin();
     }
 
-    _NODISCARD _CONSTEXPR20 auto end() noexcept -> iterator { return dense_.end(); }
-    _NODISCARD _CONSTEXPR20 auto end() const noexcept -> const_iterator { return dense_.end(); }
-    _NODISCARD _CONSTEXPR20 auto cend() const noexcept -> const_iterator { return dense_.cend(); }
+    _NODISCARD CONSTEXPR20 auto end() noexcept -> iterator { return dense_.end(); }
+    _NODISCARD CONSTEXPR20 auto end() const noexcept -> const_iterator { return dense_.end(); }
+    _NODISCARD CONSTEXPR20 auto cend() const noexcept -> const_iterator { return dense_.cend(); }
 
-    _NODISCARD _CONSTEXPR20 auto rbegin() noexcept -> reverse_iterator { return dense_.rbegin(); }
-    _NODISCARD _CONSTEXPR20 auto rbegin() const noexcept -> const_reverse_iterator {
+    _NODISCARD CONSTEXPR20 auto rbegin() noexcept -> reverse_iterator { return dense_.rbegin(); }
+    _NODISCARD CONSTEXPR20 auto rbegin() const noexcept -> const_reverse_iterator {
         return dense_.rbegin();
     }
-    _NODISCARD _CONSTEXPR20 auto crbegin() const noexcept -> const_reverse_iterator {
+    _NODISCARD CONSTEXPR20 auto crbegin() const noexcept -> const_reverse_iterator {
         return dense_.crbegin();
     }
 
-    _NODISCARD _CONSTEXPR20 auto rend() noexcept -> reverse_iterator { return dense_.rend(); }
-    _NODISCARD _CONSTEXPR20 auto rend() const noexcept -> const_reverse_iterator {
+    _NODISCARD CONSTEXPR20 auto rend() noexcept -> reverse_iterator { return dense_.rend(); }
+    _NODISCARD CONSTEXPR20 auto rend() const noexcept -> const_reverse_iterator {
         return dense_.rend();
     }
-    _NODISCARD _CONSTEXPR20 auto crend() const noexcept -> const_reverse_iterator {
+    _NODISCARD CONSTEXPR20 auto crend() const noexcept -> const_reverse_iterator {
         return dense_.crend();
     }
 
-    _NODISCARD _CONSTEXPR20 auto get_allocator() const noexcept { return dense_.get_allocator(); }
+    _NODISCARD CONSTEXPR20 auto get_allocator() const noexcept { return dense_.get_allocator(); }
 
 private:
     static size_type page_of(const key_type key) noexcept { return key / PageSize; }
@@ -387,7 +386,7 @@ private:
     std::shared_mutex sparse_mutex_;
 };
 
-#if _HAS_CXX17
+#if HAS_CXX17
 template <
     typename Kty, typename Ty, typename Alloc = std::allocator<std::pair<Kty, Ty>>,
     size_t PageSize = k_default_page_size, typename = std::enable_if_t<std::is_unsigned_v<Kty>>>
