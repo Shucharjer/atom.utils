@@ -28,7 +28,7 @@ constexpr void rtmemcpy(Ty& dst, T&& src) noexcept {
         dst = std::forward<T>(src);
     }
     else [[likely]] {
-        if constexpr (sizeof(Ty) > num_sixteen) {
+        if constexpr (sizeof(Ty) > magic_16) {
             std::memcpy(std::addressof(dst), std::addressof(src), sizeof(Ty));
         }
         else {
