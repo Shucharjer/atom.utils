@@ -5,10 +5,10 @@
 namespace atom::utils {
 
 template <typename Ty>
-struct lambda_traits;
+struct _lambda_traits;
 
 template <typename Class, typename Ret, typename... Args>
-struct lambda_traits<Ret (Class::*)(Args...) const> {
+struct _lambda_traits<Ret (Class::*)(Args...) const> {
     using return_type                       = Ret;
     using function_type                     = Ret (*)(Args...);
     using args_type                         = std::tuple<Args...>;
@@ -18,7 +18,7 @@ struct lambda_traits<Ret (Class::*)(Args...) const> {
 template <auto Lambda>
 class lambda_wrapper {
 public:
-    using traits      = lambda_traits<decltype(&decltype(Lambda)::operator())>;
+    using traits      = _lambda_traits<decltype(&decltype(Lambda)::operator())>;
     using return_type = typename traits::return_type;
 
     template <typename>
@@ -35,8 +35,8 @@ public:
 };
 
 template <
-    auto Lambda, typename LambdaTraits = lambda_traits<decltype(&decltype(Lambda)::operator())>>
-constexpr inline auto make_function_ptr() noexcept -> typename LambdaTraits::function_type {
+    auto Lambda, typename LambdaTraits = _lambda_traits<decltype(&decltype(Lambda)::operator())>>
+consteval inline auto addressof() noexcept -> typename LambdaTraits::function_type {
     return &lambda_wrapper<Lambda>::template invoker<integer_seq_t<LambdaTraits::num_args>>::invoke;
 }
 

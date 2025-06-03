@@ -11,8 +11,6 @@
     #include "concepts/type.hpp"
 #endif
 #include "core.hpp"
-#include "core/langdef.hpp"
-#include "core/pair.hpp"
 #include "memory/storage.hpp"
 #include "structures.hpp"
 #include "thread.hpp"

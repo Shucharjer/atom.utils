@@ -4,7 +4,6 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include "memory/pool.hpp"
 #include "memory/storage.hpp"
 #include "misc/timer.hpp"
 #include "output.hpp"

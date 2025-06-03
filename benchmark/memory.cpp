@@ -1,9 +1,7 @@
-#include <cstdint>
 #include <memory_resource>
 #include <benchmark/benchmark.h>
-#include <core/langdef.hpp>
+#include <core.hpp>
 #include <memory.hpp>
-#include "core/polymorphic.hpp"
 
 #if __cplusplus > 202002L
 // Copyright (c) Microsoft Corporation.
@@ -2702,7 +2700,7 @@ private:
 
 using namespace atom::utils;
 
-struct NOVTABLE allocator_base {
+struct ATOM_NOVTABLE allocator_base {
     allocator_base()                                 = default;
     allocator_base(const allocator_base&)            = default;
     allocator_base(allocator_base&&)                 = default;
@@ -2738,7 +2736,11 @@ struct pmrallocator : allocator_base, private std::pmr::polymorphic_allocator<Ty
     }
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+
 static inline std::pmr::polymorphic_allocator<void> alloc;
+
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
 static void BM_allocator_base(benchmark::State& state) {
     allocator_base* allocator = new pmrallocator<int>(alloc);
@@ -2771,16 +2773,6 @@ static void BM_common_tiny_allocator(benchmark::State& state) {
 
 BENCHMARK(BM_common_tiny_allocator);
 
-struct AllocatorObject {
-    template <typename Base>
-    struct interface : Base {
-        void* allocate() { return this->template invoke<0>(); }
-        void deallocate(void* ptr) { this->template invoke<1>(ptr); }
-    };
-    template <typename Impl>
-    using impl = value_list<&Impl::allocate, &Impl::deallocate>;
-};
-
 template <typename Ty, typename Alloc>
 struct Allocator : private Alloc {
     using Alloc::Alloc;
@@ -2789,7 +2781,7 @@ struct Allocator : private Alloc {
 };
 
 static void BM_polymorphic_allocator(benchmark::State& state) {
-    polymorphic<AllocatorObject> allocator{ Allocator<int, std::pmr::polymorphic_allocator<int>>{
+    poly<allocator_object> allocator{ Allocator<int, std::pmr::polymorphic_allocator<int>>{
         alloc } };
     for (auto _ : state) {
         auto* ptr = allocator->allocate();
@@ -2828,4 +2820,12 @@ BENCHMARK(BM_proxy_allocator);
 
 #endif
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+// NOLINTBEGIN(modernize-avoid-c-arrays)
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+
 BENCHMARK_MAIN();
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+// NOLINTEND(modernize-avoid-c-arrays)
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays)

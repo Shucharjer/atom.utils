@@ -1,6 +1,7 @@
 #pragma once
+#include <ranges>
 #include <type_traits>
-#include "core/pair.hpp"
+#include "core.hpp"
 
 // It is mainly used as a substitute when STL does not provide sufficient pipeline support, of
 // course this refers to C++20.

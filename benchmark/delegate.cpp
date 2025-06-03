@@ -1,7 +1,6 @@
 #include <functional>
 #include <benchmark/benchmark.h>
 #include <signal/delegate.hpp>
-#include "core/type.hpp"
 #include "signal.hpp"
 
 using namespace atom::utils;

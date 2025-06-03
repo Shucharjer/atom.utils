@@ -1,8 +1,7 @@
 #pragma once
 #include <memory>
 #include <type_traits>
-#include "core/langdef.hpp"
-#include "core/polymorphic.hpp"
+#include "core.hpp"
 
 namespace atom::utils {
 
@@ -17,7 +16,17 @@ struct allocator_object {
     using impl = value_list<&Impl::allocate, &Impl::deallocate>;
 };
 
-template <typename Ty, typename Alloc>
+template <typename Alloc>
+concept _count_allocator = requires(Alloc& alloc) {
+    { alloc.allocate(std::declval<size_t>()) } -> std::convertible_to<void*>;
+};
+
+template <typename Alloc>
+concept _allocator = requires(Alloc& alloc) {
+    { alloc.allocate() } -> std::convertible_to<void*>;
+};
+
+template <typename Ty, _count_allocator Alloc>
 struct allocator : private Alloc {
     constexpr allocator() noexcept(std::is_nothrow_default_constructible_v<Alloc>) = default;
 
@@ -39,17 +48,19 @@ struct allocator : private Alloc {
  * `common_tiny_allocator`, so when the address of `ptr_` is on the cache, it will be faster.
  */
 class common_allocator {
-    using vtable = vtable_t<allocator_object>;
+    using vtable = vtable<allocator_object>;
     vtable vtable_;
     void* ptr_;
     void (*destroy_)(void* ptr);
 
 public:
+    using poly_tag = void;
+
     void* allocate() { return std::get<0>(vtable_)(ptr_); }
     void deallocate(void* ptr) { std::get<1>(vtable_)(ptr_, ptr); }
 
     common_allocator(vtable vtable, void* allocator, void (*destroy)(void*)) noexcept
-        : vtable_(vtable), ptr_(allocator), destroy_(destroy) {}
+        : vtable_(std::move(vtable)), ptr_(allocator), destroy_(destroy) {}
 
     common_allocator(const common_allocator&)            = delete;
     common_allocator(common_allocator&&)                 = delete;
@@ -65,11 +76,11 @@ public:
  * which is useful for ECS (Entity Component System) or other systems that requires highly flexible
  * memory management.
  */
-template <typename Ty, typename Alloc>
+template <typename Ty, _count_allocator Alloc>
 requires _poly_impl<allocator<Ty, Alloc>, allocator_object>
 CONSTEXPR23 inline common_allocator make_common_allocator() {
     using allocator = allocator<Ty, Alloc>;
-    return common_allocator{ make_vtable_tuple<allocator_object, allocator>(), new allocator(),
+    return common_allocator{ make_vtable<allocator_object, allocator>(), new allocator(),
                              [](void* ptr) { delete static_cast<allocator*>(ptr); } };
 }
 
@@ -79,12 +90,37 @@ CONSTEXPR23 inline common_allocator make_common_allocator() {
  * which is useful for ECS (Entity Component System) or other systems that requires highly flexible
  * memory management.
  */
-template <typename Ty, typename Alloc, typename Al>
+template <typename Ty, _allocator Alloc>
+CONSTEXPR23 inline common_allocator make_common_allocator() {
+    return common_allocator{ make_vtable<allocator_object, Alloc>(), new Alloc(),
+                             [](void* ptr) { delete static_cast<Alloc*>(ptr); } };
+}
+
+/**
+ * @brief Creates a common allocator object.
+ * Now you could use a container such as `std::vector` store all kinds of allocators,
+ * which is useful for ECS (Entity Component System) or other systems that requires highly flexible
+ * memory management.
+ */
+template <typename Ty, _count_allocator Alloc, typename Al>
 requires _poly_impl<allocator<Ty, Alloc>, allocator_object>
 CONSTEXPR23 inline common_allocator make_common_allocator(const Al& alloc) {
     using allocator = allocator<Ty, Alloc>;
-    return common_allocator{ make_vtable_tuple<allocator_object, allocator>(), new allocator(alloc),
+    return common_allocator{ make_vtable<allocator_object, allocator>(), new allocator(alloc),
                              [](void* ptr) { delete static_cast<allocator*>(ptr); } };
+}
+
+/**
+ * @brief Creates a common allocator object.
+ * Now you could use a container such as `std::vector` store all kinds of allocators,
+ * which is useful for ECS (Entity Component System) or other systems that requires highly flexible
+ * memory management.
+ */
+template <typename Ty, template <typename> typename Alloc>
+requires _poly_impl<Alloc<Ty>, allocator_object> && _allocator<Alloc<Ty>>
+CONSTEXPR23 inline common_allocator make_common_allocator() {
+    return common_allocator{ make_vtable<allocator_object, Alloc<Ty>>(), new Alloc(),
+                             [](void* ptr) { delete static_cast<Alloc<Ty>*>(ptr); } };
 }
 
 /**
@@ -94,10 +130,10 @@ CONSTEXPR23 inline common_allocator make_common_allocator(const Al& alloc) {
  * memory management.
  */
 template <typename Ty, template <typename> typename Alloc = std::allocator>
-requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object>
+requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object> && _count_allocator<Alloc<Ty>>
 CONSTEXPR23 inline common_allocator make_common_allocator() {
     using allocator = allocator<Ty, Alloc<Ty>>;
-    return common_allocator{ make_vtable_tuple<allocator_object, allocator>(), new allocator(),
+    return common_allocator{ make_vtable<allocator_object, allocator>(), new allocator(),
                              [](void* ptr) { delete static_cast<allocator*>(ptr); } };
 }
 
@@ -108,10 +144,10 @@ CONSTEXPR23 inline common_allocator make_common_allocator() {
  * memory management.
  */
 template <typename Ty, template <typename> typename Alloc = std::allocator, typename Al>
-requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object>
+requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object> && _count_allocator<Alloc<Ty>>
 CONSTEXPR23 inline common_allocator make_common_allocator(const Al& alloc) {
     using allocator = allocator<Ty, Alloc<Ty>>;
-    return common_allocator{ make_vtable_tuple<allocator_object, allocator>(), new allocator(alloc),
+    return common_allocator{ make_vtable<allocator_object, allocator>(), new allocator(alloc),
                              [](void* ptr) { delete static_cast<allocator*>(ptr); } };
 }
 
@@ -127,19 +163,28 @@ constexpr inline size_t _tiny_allocator_size = 8;
  * causing a performance loss. So, ballencing the calling frequency.
  */
 class common_tiny_allocator {
-    using vtable = vtable_t<allocator_object>;
+    using vtable = vtable<allocator_object>;
     vtable vtable_;
 
     void (*destroy_)(void* ptr);
-    std::byte bytes_[_tiny_allocator_size];
+
+    // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+    // NOLINTBEGIN(modernize-avoid-c-arrays)
+
+    std::byte bytes_[_tiny_allocator_size]{};
+
+    // NOLINTEND(modernize-avoid-c-arrays)
+    // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
 
 public:
-    void* allocate() { return std::get<0>(vtable_)(bytes_); }
-    void deallocate(void* ptr) { std::get<1>(vtable_)(bytes_, ptr); }
+    using poly_tag = void;
 
-    template <typename Ty>
+    void* allocate() { return std::get<0>(vtable_)(static_cast<void*>(bytes_)); }
+    void deallocate(void* ptr) { std::get<1>(vtable_)(static_cast<void*>(bytes_), ptr); }
+
+    template <_not<common_allocator, common_tiny_allocator> Ty>
     common_tiny_allocator(vtable vtable, const Ty& alloc, void (*destroy)(void*)) noexcept
-        : vtable_(vtable), bytes_(), destroy_(destroy) {
+        : vtable_(std::move(vtable)), destroy_(destroy) {
         ::new (static_cast<void*>(bytes_)) Ty(alloc);
     }
 
@@ -151,48 +196,48 @@ public:
     ~common_tiny_allocator() { destroy_(static_cast<void*>(bytes_)); }
 };
 
-template <typename Ty, typename Alloc>
+template <typename Ty, _count_allocator Alloc>
 requires _poly_impl<allocator<Ty, Alloc>, allocator_object>
 CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator() {
     using allocator = allocator<Ty, Alloc>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
     return common_tiny_allocator(
-        make_vtable_tuple<allocator_object, allocator>(), allocator{},
+        make_vtable<allocator_object, allocator>(), allocator{},
         [](void* ptr) { static_cast<allocator*>(ptr)->~allocator(); });
 }
 
-template <typename Ty, typename Alloc, typename Al>
+template <typename Ty, _count_allocator Alloc, typename Al>
 requires _poly_impl<allocator<Ty, Alloc>, allocator_object>
 CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator(const Al& alloc) {
     using allocator = allocator<Ty, Alloc>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
-    return common_tiny_allocator(
-        make_vtable_tuple<allocator_object, allocator>(), alloc,
-        [](void* ptr) { static_cast<allocator*>(ptr)->~allocator(); });
+    return common_tiny_allocator(make_vtable<allocator_object, allocator>(), alloc, [](void* ptr) {
+        static_cast<allocator*>(ptr)->~allocator();
+    });
 }
 
 template <typename Ty, template <typename> typename Alloc = std::allocator>
-requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object>
+requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object> && _count_allocator<Alloc<Ty>>
 CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator() {
     using allocator = allocator<Ty, Alloc<Ty>>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
     return common_tiny_allocator(
-        make_vtable_tuple<allocator_object, allocator>(), allocator{},
+        make_vtable<allocator_object, allocator>(), allocator{},
         [](void* ptr) { static_cast<allocator*>(ptr)->~allocator(); });
 }
 
 template <typename Ty, template <typename> typename Alloc = std::allocator, typename Al>
-requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object>
+requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object> && _count_allocator<Alloc<Ty>>
 CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator(const Al& alloc) {
     using allocator = allocator<Ty, Alloc<Ty>>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
-    return common_tiny_allocator(
-        make_vtable_tuple<allocator_object, allocator>(), alloc,
-        [](void* ptr) { static_cast<allocator*>(ptr)->~allocator(); });
+    return common_tiny_allocator(make_vtable<allocator_object, allocator>(), alloc, [](void* ptr) {
+        static_cast<allocator*>(ptr)->~allocator();
+    });
 }
 
 template <typename>
@@ -231,16 +276,6 @@ struct rebind_allocator<Allocator<Ty, Args...>> {
 
     template <typename Other>
     using to_t = typename to<Other>::type;
-};
-
-template <typename Alloc>
-concept _count_allocator = requires(Alloc& alloc) {
-    { alloc.allocate(std::declval<size_t>()) } -> std::convertible_to<void*>;
-};
-
-template <typename Alloc>
-concept _allocator = requires(Alloc& alloc) {
-    { alloc.allocate() } -> std::convertible_to<void*>;
 };
 
 } // namespace atom::utils

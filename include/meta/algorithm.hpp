@@ -49,8 +49,8 @@ struct filter_impl<Sequence<Elem, vals...>, Pr, Previous> {
     using sequence                = Sequence<Elem, vals...>;
     constexpr static auto current = front_v<sequence>;
     using result =
-        operate_if_t<Pr<current>::value, Previous, Sequence<Elem, current>, concat_sequence>;
-    using type = typename filter_impl<pop_front_t<sequence>, Pr, result>::type;
+        operate_if_t<Pr<current>::value, Previous, Sequence<Elem, current>, sequence_concat>;
+    using type = typename filter_impl<sequence_pop_front_t<sequence>, Pr, result>::type;
 };
 
 } // namespace internal
@@ -99,7 +99,7 @@ template <
 requires(sizeof...(vals) > 1)
 struct quick_sort<Sequence<Elem, vals...>, Compare> {
 private:
-    using sequence              = pop_front_t<Sequence<Elem, vals...>>;
+    using sequence              = sequence_pop_front_t<Sequence<Elem, vals...>>;
     constexpr static auto pivot = front_v<Sequence<Elem, vals...>>;
 
     template <auto val>
@@ -111,9 +111,9 @@ private:
     using right = filt_not_t<sequence, compare>;
 
 public:
-    using type = concat_sequence_t<
+    using type = sequence_concat_t<
         quick_sort_t<left, Compare>,
-        concat_sequence_t<Sequence<Elem, pivot>, quick_sort_t<right, Compare>>>;
+        sequence_concat_t<Sequence<Elem, pivot>, quick_sort_t<right, Compare>>>;
 };
 
 template <

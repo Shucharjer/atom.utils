@@ -4,7 +4,6 @@
 #include <type_traits>
 #include "concepts/allocator.hpp"
 #include "core.hpp"
-#include "core/type.hpp"
 #include "signal.hpp"
 
 namespace atom::utils {

@@ -1,7 +1,6 @@
 #pragma once
 #include <type_traits>
 #include "core.hpp"
-#include "core/type_traits.hpp"
 #include "signal.hpp"
 
 namespace atom::utils {
@@ -17,7 +16,7 @@ public:
     constexpr delegate() noexcept : context_(nullptr), function_(nullptr) {}
     constexpr delegate(const delegate& other) noexcept = default;
     constexpr delegate(delegate&& other) noexcept      = default;
-    constexpr virtual ~delegate()                      = default;
+    constexpr ~delegate()                              = default;
 
     /**
      * @brief Construct a new delegate object for a non-member function.
@@ -87,7 +86,7 @@ public:
         context_  = &instance;
         function_ = [](void const* payload, Args... args) -> Ret {
             Type* type_instance =
-                static_cast<Type*>(const_cast<utils::same_constness_t<void, Type>*>(payload));
+                static_cast<Type*>(const_cast<same_constness_t<void, Type>*>(payload));
             return Ret(std::invoke(Candidate, *type_instance, std::forward<Args>(args)...));
         };
     }

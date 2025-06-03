@@ -1,7 +1,6 @@
 #pragma once
 #include <memory>
 #include "core.hpp"
-#include "core/pair.hpp"
 #include "signal.hpp"
 #include "signal/delegate.hpp"
 #include "thread.hpp"

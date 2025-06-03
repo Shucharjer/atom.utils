@@ -1,9 +1,8 @@
 #pragma once
 #include <concepts>
-#include "concepts/allocator.hpp"
-#include "core/pair.hpp"
+#include <memory_resource>
+#include "core.hpp"
 #include "memory.hpp"
-#include "memory/pool.hpp"
 
 namespace atom::utils {
 
@@ -33,23 +32,5 @@ using dense_map = dense_map<Key, Val, std::pmr::polymorphic_allocator<std::pair<
 }
 
 #endif
-
-template <typename Ty>
-using sync_allocator = allocator<Ty, synchronized_pool>;
-
-template <typename First, typename Second>
-using sync_comperessed_allocator = sync_allocator<compressed_pair<First, Second>>;
-
-template <typename First, typename Second>
-using sync_pair_allocator = sync_allocator<std::pair<const First, Second>>;
-
-template <typename Ty>
-using unsync_allocator = allocator<Ty, unsynchronized_pool>;
-
-template <typename First, typename Second>
-using unsync_compressed_allocator = unsync_allocator<compressed_pair<First, Second>>;
-
-template <typename First, typename Second>
-using unsync_pair_allocator = sync_allocator<std::pair<const First, Second>>;
 
 } // namespace atom::utils

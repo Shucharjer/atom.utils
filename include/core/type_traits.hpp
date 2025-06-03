@@ -6,7 +6,6 @@
 #include <utility>
 #include "core.hpp"
 #include "core/type_traits/half.hpp"
-#include "core/type_traits/same.hpp"
 
 namespace atom::utils {
 

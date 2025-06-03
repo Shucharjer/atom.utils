@@ -2,7 +2,6 @@
 #include "concepts/ranges.hpp"
 #include "core.hpp"
 #include "core/closure.hpp"
-#include "core/langdef.hpp"
 #include "ranges.hpp"
 #include "ranges/iterator.hpp"
 
@@ -24,7 +23,7 @@ requires(!std::ranges::view<Container>)
     static_assert(!std::is_volatile_v<Container>, "Container must not be volatile.");
     static_assert(std::is_class_v<Container>, "Container must be a class type.");
 
-    if constexpr (UCONCEPTS ref_convertible<Rng, Container>) {
+    if constexpr (concepts::ref_convertible<Rng, Container>) {
         if constexpr (std::constructible_from<Container, Rng, Args...>) {
             return Container(std::forward<Rng>(range), std::forward<Args>(args)...);
         }
@@ -38,11 +37,11 @@ requires(!std::ranges::view<Container>)
                 std::from_range, std::forward<Rng>(range), std::forward<Args>(args)...
             );
         } */
-        else if constexpr (UCONCEPTS common_constructible<Rng, Container, Args...>) {
+        else if constexpr (concepts::common_constructible<Rng, Container, Args...>) {
             return Container(
                 std::ranges::begin(range), std::ranges::end(range), std::forward<Args>(args)...);
         }
-        else if constexpr (UCONCEPTS constructible_appendable<Rng, Container, Args...>) {
+        else if constexpr (concepts::constructible_appendable<Rng, Container, Args...>) {
             Container cnt(std::forward<Args>(args)...);
             if constexpr (
                 std::ranges::sized_range<Rng> && std::ranges::sized_range<Container> &&
@@ -56,13 +55,13 @@ requires(!std::ranges::view<Container>)
             }
             for (auto&& elem : range) {
                 using element_type = decltype(elem);
-                if constexpr (UCONCEPTS can_emplace_back<Container, element_type>) {
+                if constexpr (concepts::can_emplace_back<Container, element_type>) {
                     cnt.emplace_back(std::forward<element_type>(elem));
                 }
-                else if constexpr (UCONCEPTS can_push_back<Container, element_type>) {
+                else if constexpr (concepts::can_push_back<Container, element_type>) {
                     cnt.push_back(std::forward<element_type>(elem));
                 }
-                else if constexpr (UCONCEPTS can_emplace_end<Container, element_type>) {
+                else if constexpr (concepts::can_emplace_end<Container, element_type>) {
                     cnt.emplace(cnt.end(), std::forward<element_type>(elem));
                 }
                 else {

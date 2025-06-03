@@ -1,7 +1,6 @@
 #include "signal.hpp"
 #include <cassert>
 #include "core.hpp"
-#include "core/type.hpp"
 #include "signal/delegate.hpp"
 #include "signal/dispatcher.hpp"
 

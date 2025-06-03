@@ -1,12 +1,11 @@
 #include "core.hpp"
 #include <algorithm>
 #include <cassert>
-#include <format>
 #include <initializer_list>
 #include <ranges>
+#include <vector>
 #include "core/closure.hpp"
 #include "core/pipeline.hpp"
-#include "core/polymorphic.hpp"
 #include "output.hpp"
 
 using namespace atom::utils;
@@ -39,42 +38,46 @@ struct Object {
     using impl = value_list<&Impl::foo>;
 };
 
+// struct ObjectEx {
+//     template <typename Base>
+//     struct extends : Base {
+//         using from = Object;
+//         void foo2() const { this->template invoke<1>(); }
+//     };
+
+//     template <typename Impl>
+//     using impl = value_list<&Impl::foo2>;
+// };
+
 int main() {
-    // polymorphic
+    // poly
     {
         struct _impl {
             void foo() const { println("called foo() in _impl"); }
         };
+        poly<Object> p{ _impl{} };
+        p->foo();
 
-        polymorphic<Object> poly{ _impl{} };
-        poly->foo();
+        struct _ex_impl : _impl {
+            void foo() const { println("called foo() in _ex_impl"); }
+        };
+        poly<Object> ep{ _ex_impl{} };
+        ep->foo();
+
+        // struct _implex {
+        //     void foo() const { println("called foo() in _implex"); }
+        //     void foo2() const { println("called foo2() in _implex"); }
+        // };
+        // poly<ObjectEx> pe{ _implex{} };
+        // pe->foo2();
+
+        // struct _ex_implex : _implex {
+        //     void foo() const { println("called foo() in _ex_implex"); }
+        // };
+        // poly<ObjectEx> epe{ _ex_implex{} };
+        // epe->foo();
+        // epe->foo2();
     }
-    // poly
-    // {
-    //     struct basic_impl {
-    //         void foo() const { println("called foo() in basic_impl"); }
-    //         void foo2() { println("called foo2() in basic_impl"); }
-    //         void foo3(int i) { println(std::format("called foo3() in basic_impl, i: {}", i)); }
-    //     };
-
-    //     struct advanced_impl : basic_impl {
-    //         void foo2() { println("called foo2() in advanced_impl"); }
-    //         void foo4() { println(std::format("called foo4() in avanced_impl")); }
-    //     };
-
-    //     poly<basic_object> basic_poly = basic_impl{};
-    //     println("basic_impl:");
-    //     basic_poly->foo();
-    //     basic_poly->foo2();
-    //     newline();
-
-    //     poly<advanced_object> advanced_poly = advanced_impl{};
-    //     println("advanced_impl:");
-    //     advanced_poly->foo();
-    //     advanced_poly->foo2();
-    //     advanced_poly->foo4();
-    //     newline();
-    // }
     // pair
     {
         auto cpair   = compressed_pair<int, int>{};

@@ -57,7 +57,7 @@ struct phony_input_iterator {
 
 } // namespace ranges
 
-}
+} // namespace atom::utils
 
 // NOTE: iterator tags
 // input_iterator_tag

@@ -1,17 +1,131 @@
 #pragma once
 #include <atomic>
+#include <cstddef>
 #include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
-#include "concepts/allocator.hpp"
 #include "core.hpp"
-#include "core/langdef.hpp"
-#include "core/pair.hpp"
 #include "memory.hpp"
 #include "memory/destroyer.hpp"
 
 namespace atom::utils {
+
+struct storage_object {
+    template <typename Base>
+    struct interface : Base {
+        NODISCARD void* raw() noexcept { return this->template invoke<0>(); }
+        NODISCARD void* const_raw() const noexcept { return this->template invoke<1>(); }
+    };
+
+    template <typename Impl>
+    using impl = value_list<&Impl::raw, &Impl::const_raw>;
+};
+
+template <size_t Size, size_t Align>
+class common_shared_storage;
+template <size_t Size, size_t Align>
+class common_unique_storage;
+
+namespace internal {
+template <typename>
+struct not_common_storage : std::true_type {};
+template <size_t Size, size_t Align>
+struct not_common_storage<common_shared_storage<Size, Align>> : std::false_type {};
+template <size_t Size, size_t Align>
+struct not_common_storage<common_unique_storage<Size, Align>> : std::false_type {};
+template <typename Ty>
+constexpr auto not_common_storage_v = not_common_storage<Ty>::value;
+} // namespace internal
+
+template <size_t Size, size_t Align>
+class common_shared_storage {
+    vtable<storage_object> vtable_;
+    alignas(Align) std::byte bytes_[Size]{};
+
+public:
+    using poly_tag = void;
+
+    void* raw() noexcept { return std::get<0>(vtable_)(static_cast<void*>(bytes_)); }
+    void* const_raw() const noexcept {
+        return std::get<1>(vtable_)(static_cast<const void*>(bytes_));
+    }
+};
+
+template <_poly_impl<storage_object> Storage>
+constexpr inline auto make_storage() -> common_shared_storage<sizeof(Storage), alignof(Storage)> {
+    //
+}
+
+template <size_t Size, size_t Align>
+class common_unique_storage {
+    vtable<storage_object> vtable_; /// vtable
+
+    // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+    // NOLINTBEGIN(modernize-avoid-c-arrays)
+
+    ///
+    alignas(Align) std::byte bytes_[Size]{};
+
+    // NOLINTEND(modernize-avoid-c-arrays)
+    // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
+
+    ///
+    void (*destroy)(void*);
+
+public:
+    using poly_tag = void;
+
+    constexpr common_unique_storage() noexcept : vtable_(), destroy() {}
+
+    template <_poly_impl<storage_object> Ty>
+    requires internal::not_common_storage_v<Ty>
+    constexpr common_unique_storage(Ty&& val) noexcept(std::is_nothrow_move_constructible_v<Ty>)
+        : vtable_(make_vtable<storage_object, Ty>),
+          destroy([](void* ptr) { static_cast<Ty*>(ptr)->~Ty(); }) {
+        ::new (static_cast<void*>(bytes_)) Ty(std::forward<Ty>(val));
+    }
+
+    template <_poly_impl<storage_object> Ty>
+    requires internal::not_common_storage_v<Ty>
+    constexpr common_unique_storage(auto&&... args) noexcept(
+        std::is_nothrow_constructible_v<Ty, decltype(args)...>)
+        : vtable_(make_vtable<storage_object, Ty>),
+          destroy([](void* ptr) { static_cast<Ty*>(ptr)->~Ty(); }) {
+        ::new (static_cast<void*>(bytes_)) Ty(std::forward<decltype(args)>(args)...);
+    }
+
+    common_unique_storage(const common_unique_storage&)            = delete;
+    common_unique_storage& operator=(const common_unique_storage&) = delete;
+
+    void* raw() noexcept {}
+    void* const_raw() const noexcept {}
+};
+
+template <_poly_impl<storage_object> Storage>
+constexpr inline auto make_storage() -> common_unique_storage<sizeof(Storage), alignof(Storage)> {
+    //
+}
+
+namespace v2 {
+
+template <typename Ty>
+class shared_storage {
+public:
+    NODISCARD void* raw() noexcept {}
+    NODISCARD void* const_raw() const noexcept {}
+};
+
+template <typename Ty>
+class unique_storage {
+public:
+    NODISCARD void* raw() noexcept {}
+    NODISCARD void* const_raw() const noexcept {}
+};
+
+} // namespace v2
+
+inline namespace v1 {
 
 class basic_storage {
 public:
@@ -646,5 +760,7 @@ private:
     compressed_pair<Ty*, allocator_type> pair_;
     compressed_pair<count_type*, destroyer_type> control_pair_;
 };
+
+} // namespace v1
 
 } // namespace atom::utils

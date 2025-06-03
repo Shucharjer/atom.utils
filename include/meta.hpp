@@ -14,19 +14,19 @@ template <typename Seq>
 struct sequence_size;
 
 template <typename, typename>
-struct concat_sequence;
+struct sequence_concat;
 
 template <typename, auto>
-struct append_sequence;
+struct sequence_append;
 
 template <typename, typename>
-struct merge_sequence;
+struct sequence_merge;
 
 template <std::size_t N, typename Ty = std::size_t>
 struct integer_seq;
 
 template <typename, typename>
-struct remake_sequence;
+struct sequence_remake;
 
 template <typename Seq>
 struct empty_sequence;
@@ -55,14 +55,5 @@ struct quick_sort;
 
 template <typename Seq, template <typename...> typename Cnt = std::initializer_list>
 struct as_container;
-
-/**
- * @brief Return whether a expression is const evaluated.
- * @note If you want to know whether the function could run at compile-time, please call
- * std::is_const_evaluated()
- * @bug Could not verify whether a callable is a constexpr.
- */
-template <auto expr>
-consteval bool is_constexpr();
 
 } // namespace atom::utils

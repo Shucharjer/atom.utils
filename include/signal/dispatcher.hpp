@@ -3,7 +3,6 @@
 #include <list>
 #include "concepts/allocator.hpp"
 #include "core.hpp"
-#include "core/pair.hpp"
 #include "memory.hpp"
 #include "signal.hpp"
 #include "signal/sink.hpp"

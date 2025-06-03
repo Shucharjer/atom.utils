@@ -1,6 +1,6 @@
 #pragma once
 #include <memory>
-#include "core/langdef.hpp"
+#include "core.hpp"
 
 namespace atom::utils {
 template <typename Ty>
