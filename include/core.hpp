@@ -1577,7 +1577,7 @@ struct _mem_func_traits<Ret (Class::*)(Args...) const> {
 };
 template <typename Ret, typename Class, typename... Args>
 struct _mem_func_traits<Ret (Class::*)(Args...) noexcept> {
-    using type                        = Ret (*)(Class&, Args...);
+    using type                        = Ret (*)(Class&, Args...) noexcept;
     using return_type                 = Ret;
     using class_type                  = Class;
     using args_type                   = std::tuple<Args...>;
@@ -1586,7 +1586,7 @@ struct _mem_func_traits<Ret (Class::*)(Args...) noexcept> {
 };
 template <typename Ret, typename Class, typename... Args>
 struct _mem_func_traits<Ret (Class::*)(Args...) const noexcept> {
-    using type                        = Ret (*)(const Class&, Args...);
+    using type                        = Ret (*)(const Class&, Args...) noexcept;
     using return_type                 = Ret;
     using class_type                  = Class;
     using args_type                   = std::tuple<Args...>;
