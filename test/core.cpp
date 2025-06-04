@@ -31,23 +31,59 @@ constexpr inline empty_fn empty;
 struct Object {
     template <typename Base>
     struct interface : Base {
-        void foo() const { this->template invoke<0>(); }
+        void foo() const { this->template invoke<0, Object>(); }
     };
 
     template <typename Impl>
     using impl = value_list<&Impl::foo>;
 };
 
-// struct ObjectEx {
-//     template <typename Base>
-//     struct extends : Base {
-//         using from = Object;
-//         void foo2() const { this->template invoke<1>(); }
-//     };
+struct ObjectEx1 {
+    template <typename Base>
+    struct extends : Base {
+        using from = type_list<Object>;
+        void foo2() const { this->template invoke<0, ObjectEx1>(); }
+    };
 
-//     template <typename Impl>
-//     using impl = value_list<&Impl::foo2>;
-// };
+    template <typename Impl>
+    using impl = value_list<&Impl::foo2>;
+};
+
+struct ObjectEx2 {
+    template <typename Base>
+    struct extends : Base {
+        using from = type_list<Object>;
+        void foo3() const { this->template invoke<0, ObjectEx2>(); }
+    };
+
+    template <typename Impl>
+    using impl = value_list<&Impl::foo3>;
+};
+
+struct ObjectExEx {
+    template <typename Base>
+    struct extends : Base {
+        using from = type_list<ObjectEx1, ObjectEx2>;
+        void foo4() const { this->template invoke<0, ObjectExEx>(); }
+    };
+
+    template <typename Impl>
+    using impl = value_list<&Impl::foo4>;
+};
+
+static_assert(_poly_object<ObjectEx1>);
+static_assert(_poly_extend_object<ObjectEx1>);
+static_assert(!_poly_object<type_list<ObjectEx1>>);
+
+using object_ex1_rec_extend_list   = _poly_recursive_extend_list<ObjectEx1>::type;
+using object_ex1_extend_list       = _poly_extend_list<ObjectEx1>::type;
+using object_ex2_rec_extend_list   = _poly_recursive_extend_list<ObjectEx2>::type;
+using object_ex2_extend_list       = _poly_extend_list<ObjectEx2>::type;
+using object_ex_ex_rec_extend_list = _poly_recursive_extend_list<ObjectExEx>::type;
+using object_ex_ex_extend_list     = _poly_extend_list<ObjectExEx>::type;
+using object_ex1_vtable            = vtable<ObjectEx1>;
+using object_ex2_vtable            = vtable<ObjectEx2>;
+using object_ex_ex_vtable          = vtable<ObjectExEx>;
 
 int main() {
     // poly
@@ -64,19 +100,14 @@ int main() {
         poly<Object> ep{ _ex_impl{} };
         ep->foo();
 
-        // struct _implex {
-        //     void foo() const { println("called foo() in _implex"); }
-        //     void foo2() const { println("called foo2() in _implex"); }
-        // };
-        // poly<ObjectEx> pe{ _implex{} };
-        // pe->foo2();
+        struct _implex {
+            void foo() const { println("called foo() in _implex"); }
+            void foo2() const { println("called foo2() in _implex"); }
+        };
 
-        // struct _ex_implex : _implex {
-        //     void foo() const { println("called foo() in _ex_implex"); }
-        // };
-        // poly<ObjectEx> epe{ _ex_implex{} };
-        // epe->foo();
-        // epe->foo2();
+        // TODO: generate the vtable with base invocations
+        // poly<ObjectEx1> pe{ _implex{} };
+        // pe->foo2();
     }
     // pair
     {
