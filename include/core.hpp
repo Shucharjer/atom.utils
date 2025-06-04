@@ -33,6 +33,7 @@
 #include <new>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 // Compiler-specific function name macros
 
@@ -1227,6 +1228,15 @@ struct type_list_element<Index, type_list<Ty, Args...>> {
 template <std::size_t Index, typename TypeList>
 using type_list_element_t = typename type_list_element<Index, TypeList>::type;
 
+template <typename Ty>
+struct is_type_list : std::false_type {};
+template <typename... Tys>
+struct is_type_list<type_list<Tys...>> : std::true_type {};
+template <typename Ty>
+constexpr auto is_type_list_v = is_type_list<Ty>::value;
+
+namespace internal {
+
 template <auto expr, typename Expr = decltype(expr)>
 struct _expression_traits;
 
@@ -1278,9 +1288,11 @@ struct _expression_traits {
     constexpr static bool is_constexpr      = helper_t::is_constexpr;
 };
 
+}
+
 template <auto expr>
 consteval bool is_constexpr() {
-    return _expression_traits<expr>::is_constexpr;
+    return internal::_expression_traits<expr>::is_constexpr;
 }
 
 template <typename, typename>
@@ -1422,19 +1434,53 @@ template <typename Ty>
 concept _poly_basic_object = requires {
     // Ty should declared a class template called interface.
     typename Ty::template interface<_poly_empty_impl>;
-    std::is_base_of_v<_poly_empty_impl, typename Ty::template interface<_poly_empty_impl>>;
+    requires std::is_base_of_v<_poly_empty_impl, typename Ty::template interface<_poly_empty_impl>>;
 
     // Ty should declared a alias which is a value_list called interface.
     typename Ty::template impl<typename Ty::template interface<_poly_empty_impl>>;
-    _is_value_list_v<typename Ty::template impl<typename Ty::template interface<_poly_empty_impl>>>;
+    requires _is_value_list_v<typename Ty::template impl<typename Ty::template interface<_poly_empty_impl>>>;
 };
+
+namespace internal {
+template <typename Ty>
+concept _poly_has_extend = requires {
+    typename Ty::template extends<_poly_empty_impl>;
+    requires std::is_base_of_v<_poly_empty_impl, typename Ty::template extends<_poly_empty_impl>>;
+
+    typename Ty::template impl<typename Ty::template extends<_poly_empty_impl>>;
+};
+}
+
+namespace internal {
+template <typename>
+struct poly_assert;
+template <typename... Tys>
+struct poly_assert<type_list<Tys...>> {
+    constexpr static bool value = (poly_assert<Tys>::value && ...);
+};
+template <typename Ty>
+struct poly_assert {
+    constexpr static bool value = [](){
+        if constexpr (_poly_basic_object<Ty>) {
+            return true;
+        }
+        else if constexpr (internal::_poly_has_extend<Ty>) {
+            return poly_assert<Ty>::value;
+        }
+        else {
+            return false;
+        }
+    };
+};
+}
 
 template <typename Ty>
 concept _poly_extend_object = requires {
     typename Ty::template extends<_poly_empty_impl>;
-    std::is_base_of_v<_poly_empty_impl, typename Ty::template extends<_poly_empty_impl>>;
+    requires std::is_base_of_v<_poly_empty_impl, typename Ty::template extends<_poly_empty_impl>>;
     typename Ty::template extends<_poly_empty_impl>::from;
-} && _poly_basic_object<typename Ty::template extends<_poly_empty_impl>::from>;
+    requires internal::poly_assert<typename Ty::template extends<_poly_empty_impl>::from>::value;
+};
 
 template <typename Ty>
 concept _poly_object = _poly_basic_object<Ty> || _poly_extend_object<Ty>;
@@ -1442,7 +1488,7 @@ concept _poly_object = _poly_basic_object<Ty> || _poly_extend_object<Ty>;
 template <typename Ty, typename Object>
 concept _poly_impl = requires {
     // The template argument `Object` should satisfy _poly_object
-    _poly_object<Object>;
+    requires _poly_object<Object>;
 
     // `Ty` should has functions required in Object impl
     typename Object::template impl<std::remove_cvref_t<Ty>>;
@@ -1493,8 +1539,31 @@ struct _mem_func_traits<Ret (Class::*)(Args...) const noexcept> {
 };
 
 template <_poly_object Object>
-struct _vtable {
+struct _vtable;
+
+template <_poly_object Object>
+requires _poly_basic_object<Object>
+struct _vtable<Object> {
     using _empty_interface     = typename Object::template interface<_poly_empty_impl>;
+    using _empty_impl          = typename Object::template impl<_empty_interface>;
+    constexpr static auto size = value_list_size_v<_empty_impl>;
+
+    template <typename MemFunc>
+    using static_type_t = typename _mem_func_traits<MemFunc>::static_type;
+
+    template <auto... Vals>
+    constexpr static auto _deduce(value_list<Vals...>) noexcept {
+        return static_cast<std::tuple<static_type_t<decltype(Vals)>...>*>(nullptr);
+    }
+    constexpr static auto _deduce() noexcept { return _deduce(_empty_impl{}); }
+
+    using type = std::remove_pointer_t<decltype(_deduce())>;
+};
+
+template <_poly_object Object>
+requires _poly_extend_object<Object>
+struct _vtable<Object> {
+    using _empty_interface     = typename Object::template extends<_poly_empty_impl>;
     using _empty_impl          = typename Object::template impl<_empty_interface>;
     constexpr static auto size = value_list_size_v<_empty_impl>;
 
@@ -1593,7 +1662,12 @@ class poly_base;
 template <
     _poly_object Object, size_t Size = k_default_poly_storage_size,
     size_t Align = k_default_poly_storage_align, typename Ops = std::tuple<>>
-class poly : private Object::template interface<poly_base<poly<Object, Size, Align, Ops>>> {
+class poly;
+
+template <
+    _poly_object Object, size_t Size, size_t Align, typename Ops>
+requires _poly_basic_object<Object>
+class poly<Object, Size, Align, Ops> : private Object::template interface<poly_base<poly<Object, Size, Align, Ops>>> {
 
     // Friend declaration for CRTP
 
@@ -1606,12 +1680,12 @@ class poly : private Object::template interface<poly_base<poly<Object, Size, Ali
     };
 
     using _empty_interface = typename Object::template interface<_poly_empty_impl>;
-    using vtable           = vtable<Object>;
+    using vtable_t           = vtable<Object>;
     using ops_t            = decltype(std::tuple_cat(Ops{}, std::tuple<_poly_operation_destroy>{}));
 
     // Storage management
 
-    constexpr static size_t _store_vtable_as_pointer = sizeof(vtable) > sizeof(void*) * 2;
+    constexpr static size_t _store_vtable_as_pointer = sizeof(vtable_t) > sizeof(void*) * 2;
 
     ///< Pointer to stored object
     void* ptr_;
@@ -1619,7 +1693,7 @@ class poly : private Object::template interface<poly_base<poly<Object, Size, Ali
     ops_t operations_;
 
     /// The vtable for the polymorphic object.
-    std::conditional_t<_store_vtable_as_pointer, const vtable*, vtable> vtable_;
+    std::conditional_t<_store_vtable_as_pointer, const vtable_t*, vtable_t> vtable_;
 
     // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
     // NOLINTBEGIN(modernize-avoid-c-arrays)
@@ -1701,6 +1775,173 @@ class poly : private Object::template interface<poly_base<poly<Object, Size, Ali
 
 public:
     using interface = typename Object::template interface<poly_base<poly>>;
+
+    /**
+     * @brief Constructs a polymorphic object with an empty interface.
+     * @warning This constructor initializes the polymorphic object with an empty interface. You
+     * should construct the polymorphic object with a valid implementation before using it.
+     */
+    constexpr poly() noexcept
+        : ptr_(nullptr), vtable_(_vtable_value<_empty_interface>()), storage_(), operations_() {}
+
+    template <_poly_impl<Object> Impl>
+    constexpr poly(Impl&& impl)
+        : ptr_(_init_ptr<Impl>()), vtable_(_vtable_value<Impl>()), storage_(),
+          operations_(_operations<Impl>()) {
+        construct(std::forward<Impl>(impl));
+    }
+
+    poly(const poly& that)
+    requires has_type_v<poly_op_copy_construct, ops_t>
+    {
+        // TODO:
+    }
+
+    poly(poly&& that)
+    requires has_type_v<poly_op_move_construct, ops_t>
+    {
+        // TODO:
+    }
+
+    poly& operator=(const poly& that)
+    requires has_type_v<poly_op_copy_assign, ops_t>
+    {
+        // TODO:
+    }
+
+    poly& operator=(poly&& that)
+    requires has_type_v<poly_op_move_assign, ops_t>
+    {
+        // TODO:
+    }
+
+    constexpr ~poly() {
+        if (ptr_) [[likely]] {
+            destroy();
+            ptr_ = nullptr;
+        }
+    }
+
+    [[nodiscard]] constexpr inline interface* operator->() noexcept { return this; }
+    [[nodiscard]] constexpr inline const interface* operator->() const noexcept { return this; }
+
+    [[nodiscard]] constexpr inline operator bool() const noexcept { return ptr_; }
+
+    [[nodiscard]] constexpr inline void* data() noexcept { return ptr_; }
+    [[nodiscard]] constexpr inline const void* data() const noexcept { return ptr_; }
+};
+
+template <
+    _poly_object Object, size_t Size, size_t Align, typename Ops>
+requires _poly_extend_object<Object>
+class poly<Object, Size, Align, Ops> : private Object::template extends<poly_base<poly<Object, Size, Align, Ops>>> {
+
+    // Friend declaration for CRTP
+
+    friend class poly_base<poly>;
+
+    // Internal type aliases
+
+    struct _poly_operation_destroy {
+        void (*value)(void* ptr) = nullptr;
+    };
+
+    using _empty_interface = typename Object::template extends<_poly_empty_impl>;
+    using vtable_t           = vtable<Object>;
+    using ops_t            = decltype(std::tuple_cat(Ops{}, std::tuple<_poly_operation_destroy>{}));
+
+    // Storage management
+
+    constexpr static size_t _store_vtable_as_pointer = sizeof(vtable_t) > sizeof(void*) * 2;
+
+    ///< Pointer to stored object
+    void* ptr_;
+    ///< Custom operations
+    ops_t operations_;
+
+    /// The vtable for the polymorphic object.
+    std::conditional_t<_store_vtable_as_pointer, const vtable_t*, vtable_t> vtable_;
+
+    // NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+    // NOLINTBEGIN(modernize-avoid-c-arrays)
+
+    /// Internal storage buffer
+    alignas(Align) std::byte storage_[Size];
+
+    // NOLINTEND(modernize-avoid-c-arrays)
+    // NOLINTEND(cppcoreguidelines-avoid-c-arrays)
+
+    /// @brief return compile-time virtual table value.
+    template <_poly_impl<Object> Impl>
+    consteval static auto _vtable_value() noexcept {
+        if constexpr (_store_vtable_as_pointer) {
+            return &static_vtable<Object, Impl>;
+        }
+        else {
+            return make_vtable<Object, Impl>();
+        }
+    }
+
+    template <_poly_impl<Object> Impl>
+    constexpr static bool builtin_storable = sizeof(Impl) <= Size && alignof(Impl) <= Align;
+
+    template <_poly_impl<Object> Impl>
+    constexpr void* _init_ptr() {
+        if constexpr (builtin_storable<Impl>) {
+            return static_cast<void*>(storage_);
+        }
+        else {
+            return operator new(sizeof(Impl), std::align_val_t(Align));
+        }
+    }
+
+    template <_poly_impl<Object> Impl>
+    constexpr void construct(Impl&& impl) {
+        ::new (ptr_) Impl(std::forward<Impl>(impl));
+        ptr_ = std::launder(static_cast<Impl*>(ptr_));
+    }
+
+    constexpr void destroy() {
+        std::get<tuple_first_v<_poly_operation_destroy, ops_t>>(operations_).value(ptr_);
+    }
+
+    template <_poly_impl<Object> Impl>
+    constexpr static inline ops_t _operations() noexcept {
+        ops_t ops;
+        if constexpr (has_type_v<poly_op_copy_construct, ops_t>) {
+            std::get<tuple_first_v<poly_op_copy_construct, ops_t>>(ops).value =
+                [](void* lhs,
+                   const void* rhs) noexcept(std::is_nothrow_copy_constructible_v<Impl>) {
+                    ::new (lhs) Impl(*static_cast<const Impl*>(rhs));
+                };
+        }
+        if constexpr (has_type_v<poly_op_move_construct, ops_t>) {
+            std::get<tuple_first_v<poly_op_move_construct, ops_t>>(ops).value =
+                [](void* lhs, void* rhs) noexcept(std::is_nothrow_move_constructible_v<Impl>) {
+                    ::new (lhs) Impl(std::move(*static_cast<Impl*>(rhs)));
+                };
+        }
+        if constexpr (has_type_v<poly_op_copy_assign, ops_t>) {
+            std::get<tuple_first_v<poly_op_copy_assign, ops_t>>(ops).value =
+                [](void* lhs, const void* rhs) noexcept(std::is_nothrow_copy_assignable_v<Impl>) {
+                    *static_cast<Impl*>(lhs) = *static_cast<const Impl*>(rhs);
+                };
+        }
+        if constexpr (has_type_v<poly_op_move_assign, ops_t>) {
+            std::get<tuple_first_v<poly_op_move_assign, ops_t>>(ops).value =
+                [](void* lhs, void* rhs) noexcept(std::is_nothrow_move_assignable_v<Impl>) {
+                    *static_cast<Impl*>(lhs) = std::move(*static_cast<Impl*>(rhs));
+                };
+        }
+        std::get<tuple_first_v<_poly_operation_destroy, ops_t>>(ops).value =
+            [](void* ptr) noexcept(std::is_nothrow_destructible_v<Impl>) {
+                static_cast<Impl*>(ptr)->~Impl();
+            };
+        return ops;
+    }
+
+public:
+    using interface = typename Object::template extends<poly_base<poly>>;
 
     /**
      * @brief Constructs a polymorphic object with an empty interface.
