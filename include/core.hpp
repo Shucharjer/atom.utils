@@ -173,19 +173,6 @@
     #define NODISCARD               ///< Empty when not supported
 #endif
 
-constexpr auto magic_2               = 0x2;
-constexpr auto magic_4               = 0x4;
-constexpr auto magic_8               = 0x8;
-constexpr auto magic_16              = 0x10;
-constexpr auto magic_32              = 0x20;
-constexpr auto magic_64              = 0x40;
-constexpr auto magic_128             = 0x80;
-constexpr auto magic_256             = 0x100;
-constexpr auto magic_512             = 0x200;
-constexpr auto magic_1024            = 0x400;
-constexpr auto magic_one_half        = 0.5F;
-constexpr auto magic_double_one_half = 0.5;
-
 namespace atom {
 
 namespace utils {
