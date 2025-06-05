@@ -1401,6 +1401,10 @@ constexpr inline auto value_list_element_v = value_list_element<Index, Ty>::valu
 
 template <typename...>
 struct value_list_cat;
+template <>
+struct value_list_cat<> {
+    using type = value_list<>;
+};
 template <auto... Vals>
 struct value_list_cat<value_list<Vals...>> {
     using type = value_list<Vals...>;
@@ -1655,12 +1659,19 @@ struct _poly_recursive_extend_list {
 template <_poly_extend_object Object>
 using _poly_recursive_extend_list_t = typename _poly_recursive_extend_list<Object>::type;
 
+template <_poly_object Object>
+struct _poly_extend_list;
+template <_poly_basic_object Object>
+struct _poly_extend_list<Object> {
+    using recursive_extend_list = type_list<>;
+    using type                  = type_list<>;
+};
 template <_poly_extend_object Object>
-struct _poly_extend_list {
+struct _poly_extend_list<Object> {
     using recursive_extend_list = _poly_recursive_extend_list_t<Object>;
     using type                  = unique_type_list_t<recursive_extend_list>;
 };
-template <_poly_extend_object Object>
+template <_poly_object Object>
 using _poly_extend_list_t = typename _poly_extend_list<Object>::type;
 
 template <_poly_object Object>
@@ -1746,7 +1757,16 @@ struct _vtable_value_list {
         using type = value_list<_element_v<Vals, decltype(Vals)>...>;
     };
 
-    using type = typename _static_list<typename Object::template impl<Impl>>::type;
+    template <typename>
+    struct exlist;
+    template <typename... Tys>
+    struct exlist<type_list<Tys...>> {
+        using type = value_list_cat_t<typename Tys::template impl<Impl>...>;
+    };
+    using exlist_t = typename exlist<_poly_extend_list_t<Object>>::type;
+
+    using type = typename _static_list<
+        value_list_cat_t<exlist_t, typename Object::template impl<Impl>>>::type;
 };
 
 template <_poly_object Object, _poly_impl<Object> Impl>
