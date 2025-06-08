@@ -1,15 +1,9 @@
 #pragma once
-#include "concepts/ranges.hpp"
-#if defined(__cpp_concepts)
-    #include <concepts>
-#endif
 #include <initializer_list>
 #include <memory>
 #include <type_traits>
 #include <vector>
-#if defined(__cpp_concepts)
-    #include "concepts/type.hpp"
-#endif
+#include "concepts/ranges.hpp"
 #include "core.hpp"
 #include "memory/storage.hpp"
 #include "structures.hpp"
@@ -25,7 +19,7 @@ template <typename Kty, typename Ty, typename Alloc, std::size_t PageSize, typen
 #endif
 class dense_map {
     template <typename Target>
-    using allocator_t = typename rebind_allocator<Alloc>::template to<Target>::type;
+    using allocator_t = typename std::allocator_traits<Alloc>::template rebind_alloc<Target>;
 
     using alty        = allocator_t<std::pair<Key, Val>>;
     using alty_traits = std::allocator_traits<alty>;
