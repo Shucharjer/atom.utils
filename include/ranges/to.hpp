@@ -1,7 +1,6 @@
 #pragma once
 #include "concepts/ranges.hpp"
 #include "core.hpp"
-#include "core/closure.hpp"
 #include "ranges.hpp"
 #include "ranges/iterator.hpp"
 

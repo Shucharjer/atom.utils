@@ -18,6 +18,7 @@
  * 4. Compressed Pairs: Memory-efficient pair implementations using EBCO
  * 5. Polymorphic Objects: Lightweight polymorphism without vtable overhead
  * 6. Metaprogramming Utilities: Type lists, value lists, and expression traits
+ * 7. Pipeline support: Overloading of pipeline operator for classes has pipeline_tag alias
  *
  * @date 2025-06
  * @copyright Copyright (c) 2025
@@ -34,6 +35,11 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+/**
+ * NOTICE: The pipeline support only works if you have included <ranges> which privides _RANGES_
+ * macro since we consider you might include STL headers at first.
+ */
 
 // Compiler-specific function name macros
 
@@ -115,13 +121,6 @@
 #endif
 
 // Constexpr macros per C++ standard
-#ifndef CONSTEXPR17
-    #if HAS_CXX17
-        #define CONSTEXPR17 constexpr ///< C++17 constexpr
-    #else
-        #define CONSTEXPR17           ///< Empty for older standards
-    #endif
-#endif
 
 #ifndef CONSTEXPR20
     #if HAS_CXX20
@@ -433,9 +432,9 @@ concept _not = !(std::same_as<Ty, Tys> || ...);
  * Requires first/second members and first_type/second_type typedefs
  */
 template <typename Ty>
-concept _public_pair = requires(const std::remove_cvref_t<Ty>& val) {
-    typename std::remove_cvref_t<Ty>::first_type;
-    typename std::remove_cvref_t<Ty>::second_type;
+concept _public_pair = requires(const Ty& val) {
+    typename Ty::first_type;
+    typename Ty::second_type;
     val.first;
     val.second;
 };
@@ -446,9 +445,9 @@ concept _public_pair = requires(const std::remove_cvref_t<Ty>& val) {
  * Requires first()/second() methods and first_type/second_type typedefs
  */
 template <typename Ty>
-concept _private_pair = requires(const std::remove_cvref_t<Ty>& val) {
-    typename std::remove_cvref_t<Ty>::first_type;
-    typename std::remove_cvref_t<Ty>::second_type;
+concept _private_pair = requires(const Ty& val) {
+    typename Ty::first_type;
+    typename Ty::second_type;
     val.first();
     val.second();
 };
@@ -1157,38 +1156,62 @@ constexpr inline decltype(auto) reverse(Pair& pair) noexcept {
     // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
-template <size_t Index, _pair Pair>
-constexpr inline decltype(auto) get(Pair& pair) noexcept {
+template <size_t Index, typename First, typename Second>
+constexpr inline decltype(auto) get(compressed_pair<First, Second>& pair) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
-    if constexpr (_public_pair<Pair>) {
-        if constexpr (Index == 0U)
-            return pair.first;
-        else
-            return pair.second;
-    }
-    else {
-        if constexpr (Index == 0U)
-            return pair.first();
-        else
-            return pair.second();
-    }
+    if constexpr (Index == 0U)
+        return pair.first();
+    else
+        return pair.second();
 }
 
-template <size_t Index, _pair Pair>
-constexpr inline decltype(auto) get(const Pair& pair) noexcept {
+template <size_t Index, typename First, typename Second>
+constexpr inline decltype(auto) get(const compressed_pair<First, Second>& pair) noexcept {
     static_assert(Index < 2, "Pair doesn't contains so many elements.");
-    if constexpr (_public_pair<Pair>) {
-        if constexpr (Index == 0U)
-            return pair.first;
-        else
-            return pair.second;
-    }
-    else {
-        if constexpr (Index == 0U)
-            return pair.first();
-        else
-            return pair.second();
-    }
+    if constexpr (Index == 0U)
+        return pair.first();
+    else
+        return pair.second();
+}
+
+template <size_t Index, typename First, typename Second>
+constexpr inline decltype(auto) get(reversed_compressed_pair<First, Second>& pair) noexcept {
+    static_assert(Index < 2, "Pair doesn't contains so many elements.");
+    if constexpr (Index == 0U)
+        return pair.first();
+    else
+        return pair.second();
+}
+
+template <size_t Index, typename First, typename Second>
+constexpr inline decltype(auto) get(const reversed_compressed_pair<First, Second>& pair) noexcept {
+    static_assert(Index < 2, "Pair doesn't contains so many elements.");
+    if constexpr (Index == 0U)
+        return pair.first();
+    else
+        return pair.second();
+}
+
+template <
+    size_t Index, typename First, typename Second,
+    template <typename, typename> typename Pair = compressed_pair>
+constexpr inline decltype(auto) get(pair<First, Second, Pair>& pair) noexcept {
+    static_assert(Index < 2, "Pair doesn't contains so many elements.");
+    if constexpr (Index == 0U)
+        return pair.first();
+    else
+        return pair.second();
+}
+
+template <
+    size_t Index, typename First, typename Second,
+    template <typename, typename> typename Pair = compressed_pair>
+constexpr inline decltype(auto) get(const pair<First, Second, Pair>& pair) noexcept {
+    static_assert(Index < 2, "Pair doesn't contains so many elements.");
+    if constexpr (Index == 0U)
+        return pair.first();
+    else
+        return pair.second();
 }
 
 template <typename...>
@@ -1926,25 +1949,25 @@ public:
         construct(std::forward<Impl>(impl));
     }
 
-    poly(const poly& that)
+    constexpr poly(const poly& that)
     requires has_type_v<poly_op_copy_construct, ops_t>
     {
         // TODO:
     }
 
-    poly(poly&& that)
+    constexpr poly(poly&& that)
     requires has_type_v<poly_op_move_construct, ops_t>
     {
         // TODO:
     }
 
-    poly& operator=(const poly& that)
+    constexpr poly& operator=(const poly& that)
     requires has_type_v<poly_op_copy_assign, ops_t>
     {
         // TODO:
     }
 
-    poly& operator=(poly&& that)
+    constexpr poly& operator=(poly&& that)
     requires has_type_v<poly_op_move_assign, ops_t>
     {
         // TODO:
@@ -2007,61 +2030,259 @@ public:
     }
 };
 
+/**
+ * @brief The custom result of pipeline operator between two closures. It's a special closure.
+ *
+ * @tparam First The type of the first range closure.
+ * @tparam Second The type of the second range closure.
+ */
+template <typename First, typename Second>
+struct pipeline_result {
+    using pipeline_tag = void;
+
+    template <typename Left, typename Right>
+    constexpr pipeline_result(Left&& left, Right&& right) noexcept(
+        std::is_nothrow_constructible_v<compressed_pair<First, Second>, Left, Right>)
+        : closures_(std::forward<Left>(left), std::forward<Right>(right)) {}
+
+    constexpr ~pipeline_result() noexcept(
+        std::is_nothrow_destructible_v<compressed_pair<First, Second>>) = default;
+
+    constexpr pipeline_result(const pipeline_result&) noexcept(
+        std::is_nothrow_copy_constructible_v<compressed_pair<First, Second>>) = default;
+
+    constexpr pipeline_result(pipeline_result&& that) noexcept(
+        std::is_nothrow_move_constructible_v<compressed_pair<First, Second>>)
+        : closures_(std::move(that.closures_)) {}
+
+    constexpr pipeline_result& operator=(const pipeline_result&) noexcept(
+        std::is_nothrow_copy_assignable_v<compressed_pair<First, Second>>) = default;
+
+    constexpr pipeline_result& operator=(pipeline_result&& that) noexcept(
+        std::is_nothrow_move_assignable_v<compressed_pair<First, Second>>) {
+        closures_ = std::move(that.closures_);
+    }
+
+    /**
+     * @brief Get out of the pipeline.
+     *
+     * Usually, the tparam will be a range, but not only.
+     * It depends on the closure.
+     * @tparam Arg This tparam could be deduced.
+     */
+    template <typename Arg>
+    requires requires {
+        std::forward<First>(std::declval<First>())(std::declval<Arg>());
+        std::forward<Second>(std::declval<Second>())(
+            std::forward<First>(std::declval<First>())(std::declval<Arg>()));
+    }
+    [[nodiscard]] constexpr auto operator()(Arg&& arg) noexcept(noexcept(std::forward<Second>(
+        closures_.second())(std::forward<First>(closures_.first())(std::forward<Arg>(arg))))) {
+        return std::forward<Second>(closures_.second())(
+            std::forward<First>(closures_.first())(std::forward<Arg>(arg)));
+    }
+
+    /**
+     * @brief Get out of the pipeline.
+     *
+     * Usually, the tparam will be a range, but not only.
+     * It depends on the closure.
+     * @tparam Arg This tparam could be deduced.
+     */
+    template <typename Arg>
+    requires requires {
+        std::forward<First>(std::declval<First>())(std::declval<Arg>());
+        std::forward<Second>(std::declval<Second>())(
+            std::forward<First>(std::declval<First>())(std::declval<Arg>()));
+    }
+    [[nodiscard]] constexpr auto operator()(Arg&& arg) const noexcept(noexcept(std::forward<Second>(
+        closures_.second())(std::forward<First>(closures_.first())(std::forward<Arg>(arg))))) {
+        return std::forward<Second>(closures_.second())(
+            std::forward<First>(closures_.first())(std::forward<Arg>(arg)));
+    }
+
+private:
+    compressed_pair<First, Second> closures_;
+};
+
+/**
+ * @brief A type has type alias named pipeline_tag
+ */
+template <typename Ty>
+concept _has_pipeline_tag = requires { typename Ty::pipeline_tag; };
+
+/**
+ * @brief Closure.
+ *
+ * It could be used as range adaptor closure.
+ * @tparam Fn Function called in operator()
+ * @tparam Args Arguments that
+ */
+template <typename Fn, typename... Args>
+class closure {
+    using index_sequence = std::index_sequence_for<Args...>;
+    using self_type      = closure;
+
+public:
+    using pipeline_tag = void;
+
+    static_assert((std::same_as<std::decay_t<Args>, Args> && ...));
+    static_assert(std::is_empty_v<Fn> || std::is_default_constructible_v<Fn>);
+
+    explicit constexpr closure(auto&&... args) noexcept(
+        std::conjunction_v<std::is_nothrow_constructible<std::tuple<Args...>, decltype(args)...>>)
+    requires std::is_constructible_v<std::tuple<Args...>, decltype(args)...>
+        : args_(std::make_tuple(std::forward<decltype(args)>(args)...)) {}
+
+    constexpr decltype(auto) operator()(auto&& arg) & noexcept(
+        noexcept(call(*this, std::forward<decltype(arg)>(arg), index_sequence{})))
+    requires std::invocable<Fn, decltype(arg), Args&...>
+    {
+        return call(*this, std::forward<decltype(arg)>(arg), index_sequence{});
+    }
+
+    constexpr decltype(auto) operator()(auto&& arg) const& noexcept(
+        noexcept(call(*this, std::forward<decltype(arg)>(arg), index_sequence{})))
+    requires std::invocable<Fn, decltype(arg), const Args&...>
+    {
+        return call(*this, std::forward<decltype(arg)>(arg), index_sequence{});
+    }
+
+    template <typename Ty>
+    requires std::invocable<Fn, Ty, Args...>
+    constexpr decltype(auto) operator()(Ty&& arg) && noexcept(
+        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
+        return call(*this, std::forward<Ty>(arg), index_sequence{});
+    }
+
+    template <typename Ty>
+    requires std::invocable<Fn, Ty, const Args...>
+    constexpr decltype(auto) operator()(Ty&& arg) const&& noexcept(
+        noexcept(call(*this, std::forward<Ty>(arg), index_sequence{}))) {
+        return call(*this, std::forward<Ty>(arg), index_sequence{});
+    }
+
+private:
+    template <typename SelfTy, typename Ty, size_t... Is>
+    constexpr static decltype(auto)
+        call(SelfTy&& self, Ty&& arg, std::index_sequence<Is...>) noexcept(noexcept(
+            Fn{}(std::forward<Ty>(arg), std::get<Is>(std::forward<SelfTy>(self).args_)...))) {
+        static_assert(std::same_as<std::index_sequence<Is...>, index_sequence>);
+        return Fn{}(std::forward<Ty>(arg), std::get<Is>(std::forward<SelfTy>(self).args_)...);
+    }
+
+    std::tuple<Args...> args_;
+};
+
+/**
+ * @brief Making a closure without caring about the parameter types.
+ *
+ * @tparam Fn Closure function type.
+ * @tparam Args Arguments types would be called in the closure. They could be deduced.
+ * @param args Arguments.
+ * @return closure<Fn, std::decay_t<Args>...> Closure.
+ */
+template <typename Fn, typename... Args>
+constexpr inline auto make_closure(Args&&... args) -> closure<Fn, std::decay_t<Args>...> {
+    return closure<Fn, std::decay_t<Args>...>(std::forward<Args>(args)...);
+}
+
 } // namespace utils
 
 using default_id_t = utils::default_id_t;
 
 } // namespace atom
 
+#ifdef _RANGES_
+
+/**
+ * @brief Construct an object by pipeline operator.
+ *
+ * @tparam Arg This tparam could be deduced automatically.
+ * @tparam Closure This tparam could be deduced automatically.
+ * @param[in] arg A closure object or arg could be pass to the closure.
+ * @param[in] closure A closure object.
+ */
+template <typename Arg, typename Closure>
+requires(atom::utils::_has_pipeline_tag<std::remove_cvref_t<Closure>>)
+[[nodiscard]] constexpr inline auto operator|(Arg&& arg, Closure&& closure) noexcept(
+    ((std::ranges::range<Arg> ||
+      requires { std::forward<Closure>(closure)(std::forward<Arg>(arg)); }) &&
+     noexcept((std::forward<Closure>(closure))(std::forward<Arg>(arg)))) ||
+    noexcept(atom::utils::pipeline_result<Arg, Closure>(
+        std::forward<Arg>(arg), std::forward<Closure>(closure)))) {
+    if constexpr (std::ranges::range<Arg>) {
+        return (std::forward<Closure>(closure))(std::forward<Arg>(arg));
+    }
+    else if constexpr (requires { closure(arg); }) {
+        return (std::forward<Closure>(closure))(std::forward<Arg>(arg));
+    }
+    else {
+        return ::atom::utils::pipeline_result<Arg, Closure>(
+            std::forward<Arg>(arg), std::forward<Closure>(closure));
+    }
+}
+
+/**
+ * @brief Construct a pipeline result.
+ *
+ * @tparam Closure A closure with pipeline_tag. Could be deduced.
+ * @tparam WildClosure A type maybe has pipeline_tag. Could be deduced.
+ * @param[in] closure
+ * @param[in] wild
+ * @warning Whether the tparam WildClosure is a closure, this function would return a
+ * pipeline_result object.
+ */
+template <typename Closure, typename WildClosure>
+requires atom::utils::_has_pipeline_tag<std::remove_cvref_t<Closure>>
+[[nodiscard]] constexpr inline auto operator|(Closure&& closure, WildClosure&& wild) noexcept(
+    noexcept(atom::utils::pipeline_result<Closure, WildClosure>(
+        std::forward<Closure>(closure), std::forward<WildClosure>(wild)))) {
+    return atom::utils::pipeline_result<Closure, WildClosure>(
+        std::forward<Closure>(closure), std::forward<WildClosure>(wild));
+}
+
+#endif
+
 /*! @cond TURN_OFF_DOXYGEN */
 
 namespace std {
 
-template <typename Pair>
-requires ::atom::utils::_pair<Pair>
-struct tuple_size<Pair> : std::integral_constant<size_t, 2> {};
-
-template <size_t Index, typename Pair>
-requires ::atom::utils::_pair<Pair>
-struct tuple_element<Index, Pair> {
-    static_assert(Index < 2);
-    using type =
-        std::conditional_t<(Index == 0), typename Pair::first_type, typename Pair::second_type>;
+template <typename First, typename Second>
+struct tuple_size<atom::utils::compressed_pair<First, Second>> : std::integral_constant<size_t, 2> {
 };
 
-template <size_t Index, ::atom::utils::_pair Pair>
-constexpr inline decltype(auto) get(Pair& pair) noexcept {
-    static_assert(Index < 2, "Pair doesn't contains so many elements.");
-    if constexpr (::atom::utils::_public_pair<Pair>) {
-        if constexpr (Index == 0U)
-            return pair.first;
-        else
-            return pair.second;
-    }
-    else {
-        if constexpr (Index == 0U)
-            return pair.first();
-        else
-            return pair.second();
-    }
-}
+template <typename First, typename Second>
+struct tuple_size<atom::utils::reversed_compressed_pair<First, Second>>
+    : std::integral_constant<size_t, 2> {};
 
-template <size_t Index, ::atom::utils::_pair Pair>
-constexpr inline decltype(auto) get(const Pair& pair) noexcept {
-    static_assert(Index < 2, "Pair doesn't contains so many elements.");
-    if constexpr (::atom::utils::_public_pair<Pair>) {
-        if constexpr (Index == 0U)
-            return pair.first;
-        else
-            return pair.second;
-    }
-    else {
-        if constexpr (Index == 0U)
-            return pair.first();
-        else
-            return pair.second();
-    }
-}
+template <typename First, typename Second, template <typename, typename> typename Pair>
+struct tuple_size<atom::utils::pair<First, Second, Pair>> : std::integral_constant<size_t, 2> {};
+
+template <size_t Index, typename First, typename Second>
+struct tuple_element<Index, atom::utils::compressed_pair<First, Second>> {
+    static_assert(Index < 2);
+    using pair = atom::utils::compressed_pair<First, Second>;
+    using type =
+        std::conditional_t<(Index == 0), typename pair::first_type, typename pair::second_type>;
+};
+
+template <size_t Index, typename First, typename Second>
+struct tuple_element<Index, atom::utils::reversed_compressed_pair<First, Second>> {
+    static_assert(Index < 2);
+    using pair = atom::utils::reversed_compressed_pair<First, Second>;
+    using type =
+        std::conditional_t<(Index == 0), typename pair::first_type, typename pair::second_type>;
+};
+
+template <
+    size_t Index, typename First, typename Second, template <typename, typename> typename Pair>
+struct tuple_element<Index, atom::utils::pair<First, Second, Pair>> {
+    static_assert(Index < 2);
+    using pair = atom::utils::pair<First, Second, Pair>;
+    using type =
+        std::conditional_t<(Index == 0), typename pair::first_type, typename pair::second_type>;
+};
 
 } // namespace std
 

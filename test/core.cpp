@@ -1,11 +1,10 @@
-#include "core.hpp"
+#include <ranges>
+
 #include <algorithm>
 #include <cassert>
 #include <initializer_list>
-#include <ranges>
 #include <vector>
-#include "core/closure.hpp"
-#include "core/pipeline.hpp"
+#include "core.hpp"
 #include "output.hpp"
 
 using namespace atom::utils;
@@ -18,7 +17,7 @@ struct get_vector_fn {
 };
 
 struct empty_fn {
-    using pipeline_tag = atom::utils::pipeline_tag;
+    using pipeline_tag = void;
 
     template <std::ranges::range Rng>
     Rng operator()(const Rng& range) const {

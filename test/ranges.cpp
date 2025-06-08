@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 #include "core.hpp"
-#include "core/pipeline.hpp"
 #include "output.hpp"
 #include "ranges/element_view.hpp"
 #include "ranges/to.hpp"
