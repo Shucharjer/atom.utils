@@ -59,8 +59,7 @@ target_include_directories(
 
 set_target_properties(
   Utils
-  PROPERTIES EXPORT_NAME "atom.utils"
-             INTERFACE_COMPILE_DEFINITIONS "ATOM_NAMESPACE=Atom"
+  PROPERTIES EXPORT_NAME "utils"
              LINKER_LANGUAGE CXX)
 
 include(CheckCXXSourceCompiles)
@@ -137,11 +136,7 @@ if(ATOM_Utils_INSTALL)
   install(
     TARGETS Utils
     EXPORT UtilsTargets
-    LIBRARY DESTINATION ${INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${INSTALL_LIBDIR}
-    INCLUDES
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    ARCHIVE DESTINATION ${INSTALL_LIBDIR})
 
   configure_package_config_file(
     ${Utils_SOURCE_DIR}/cmake/in/UtilsConfig.cmake.in UtilsConfig.cmake
@@ -150,12 +145,12 @@ if(ATOM_Utils_INSTALL)
   export(
     EXPORT UtilsTargets
     FILE ${CMAKE_CURRENT_BINARY_DIR}/UtilsTargets.cmake
-    NAMESPACE Atom::)
+    NAMESPACE atom::)
 
   install(
     EXPORT UtilsTargets
     FILE UtilsTargets.cmake
-    NAMESPACE Atom::
+    NAMESPACE atom::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/Utils/cmake)
 
   install(FILES ${PROJECT_BINARY_DIR}/UtilsConfig.cmake
@@ -163,7 +158,7 @@ if(ATOM_Utils_INSTALL)
 
   install(
     DIRECTORY include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/atom.utils
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/atom/utils
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.hpp")
