@@ -31,6 +31,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstdlib>
 #include <new>
 #include <tuple>
 #include <type_traits>
@@ -1466,25 +1467,12 @@ constexpr auto make_tuple(Ty) noexcept {
 
 struct _poly_empty_impl {
     struct _universal {
-#ifdef __GNUC__
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wreturn-type"
-#elif defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wreturn-type"
-#elif defined(_MSC_VER)
-    #pragma warning(push)
-    #pragma warning(disable : 4715)
-#endif
         template <typename Ty>
-        [[noreturn]] constexpr operator Ty&&() {}
-#ifdef __GNUC__
-    #pragma GCC diagnostic pop
-#elif defined(__clang__)
-    #pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-    #pragma warning(pop)
-#endif
+        [[noreturn]] constexpr operator Ty&&() {
+            // If you meet error here, you must called function in static vtable without
+            // initializing it by an polymorphic object.
+            std::abort();
+        }
     };
 
     template <size_t Index, typename Object = void, typename... Args>
