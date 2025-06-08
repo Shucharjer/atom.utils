@@ -3,11 +3,20 @@
 #include <ranges>
 #include <tuple>
 #include <type_traits>
+#include <core.hpp>
 #include "concepts/type.hpp"
-#include "core/pipeline.hpp"
 #include "ranges.hpp"
 
 namespace atom::utils {
+
+namespace internal {
+/**
+ * @brief Fake copy init, just for compile-time deduce & check.
+ * @note No difination.
+ */
+template <typename Ty>
+[[nodiscard]] Ty fake_copy_init(Ty) noexcept;
+} // namespace internal
 
 namespace concepts {
 
@@ -23,7 +32,7 @@ concept member_gettible = requires(Ty& t) {
 
 template <std::size_t Index, typename Ty>
 concept adl_gettible = requires(Ty& t) {
-    { fake_copy_init(get<Index>(t)) } -> std::same_as<std::tuple_element_t<Index, Ty>>;
+    { internal::fake_copy_init(get<Index>(t)) } -> std::same_as<std::tuple_element_t<Index, Ty>>;
 };
 
 template <std::size_t Index, typename Ty>
@@ -241,7 +250,7 @@ private:
 
 template <size_t Index>
 struct element_fn {
-    using pipeline_tag = utils::pipeline_tag;
+    using pipeline_tag = void;
 
     template <std::ranges::viewable_range Rng>
     requires concepts::gettible<Index, std::ranges::range_value_t<Rng>>

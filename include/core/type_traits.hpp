@@ -9,13 +9,6 @@
 
 namespace atom::utils {
 
-/**
- * @brief Fake copy init, just for compile-time deduce & check.
- * @note No difination.
- */
-template <typename Ty>
-[[nodiscard]] Ty fake_copy_init(Ty) noexcept;
-
 template <std::integral auto Integral>
 struct is_zero : std::false_type {};
 
