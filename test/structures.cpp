@@ -1,7 +1,8 @@
-#include "structures.hpp"
-#include <memory_resource>
 #include <ranges>
+
+#include <memory_resource>
 #include <ranges/element_view.hpp>
+#include "structures.hpp"
 #include "structures/dense_map.hpp"
 
 using namespace atom::utils;
