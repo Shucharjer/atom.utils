@@ -372,19 +372,17 @@ template <typename Ty>
 template <typename Ty>
 struct alias_name {};
 
-namespace internal {
 template <typename Ty>
-concept has_alias_name = requires { alias_name<Ty>::value; };
-} // namespace internal
+concept _has_alias_name = requires { alias_name<Ty>::value; };
 
 template <concepts::pure Ty>
-requires(!internal::has_alias_name<Ty>)
+requires(!_has_alias_name<Ty>)
 [[nodiscard]] consteval inline std::string_view alias_name_of() noexcept {
     return name_of<Ty>();
 }
 
 template <concepts::pure Ty>
-requires internal::has_alias_name<Ty>
+requires _has_alias_name<Ty>
 [[nodiscard]] consteval inline std::string_view alias_name_of() noexcept {
     return alias_name<Ty>::value;
 }
