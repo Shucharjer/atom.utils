@@ -5,7 +5,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "core",
-            "program": "${workspaceFolder}/build/core.exe",
+            "program": "${workspaceFolder}/build/test/test_core",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "stopOnEntry": false
@@ -14,7 +14,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "memory",
-            "program": "${workspaceFolder}/build/memory.exe",
+            "program": "${workspaceFolder}/build/test/test_memory",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "stopOnEntry": false
@@ -23,7 +23,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "ranges",
-            "program": "${workspaceFolder}/build/ranges.exe",
+            "program": "${workspaceFolder}/build/test/test_ranges",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "stopOnEntry": false
@@ -32,7 +32,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "reflection",
-            "program": "${workspaceFolder}/build/reflection.exe",
+            "program": "${workspaceFolder}/build/test/test_reflection",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "stopOnEntry": false
@@ -41,7 +41,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "signal",
-            "program": "${workspaceFolder}/build/signal.exe",
+            "program": "${workspaceFolder}/build/test/test_signal",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "stopOnEntry": false
@@ -50,7 +50,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "structures",
-            "program": "${workspaceFolder}/build/structures.exe",
+            "program": "${workspaceFolder}/build/test/test_structures",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "stopOnEntry": false
@@ -59,7 +59,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "thread",
-            "program": "${workspaceFolder}/build/thread.exe",
+            "program": "${workspaceFolder}/build/test/test_thread",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "stopOnEntry": false
