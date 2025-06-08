@@ -1,76 +1,32 @@
-cmake_minimum_required(VERSION 3.05)
-set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/build)
+cmake_minimum_required(VERSION 3.15)
 
-if (NOT CMAKE_CXX_STANDARD)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(CMAKE_CXX_STANDARD 20)
-endif()
-
-if(NOT CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/install" CACHE PATH "..." FORCE)
-endif()
-
-add_compile_options(-O2)
-
-set(CMAKE_NAMESPACE "Atom::")
 
 project(Utils
     DESCRIPTION "A headers-only util library in C++20, including reflection, structures, and some magic."
     HOMEPAGE_URL "https://github.com/Shucharjer/atom.utils"
-    LANGUAGES C CXX
+    LANGUAGES CXX
 )
 
-include(CheckCXXSourceCompiles)
-include(CMakePushCheckState)
-
-cmake_push_check_state()
-set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mavx")
-check_cxx_source_compiles("
-#include <immintrin.h>
-int main() {
-    __m256i a = _mm256_set_ps(8, 7, 6, 5, 4, 3, 2, 1);
-    __m256i b = _mm256_set_ps(1, 2, 3, 4, 5, 6, 7, 8);
-    __m256i c = _mm256_add_ps(a, b);
-    return 0;
-}
-" ATOM_AVX_AVAILABLE)
-cmake_pop_check_state()
-if(ATOM_AVX_AVAILABLE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-cmake_push_check_state()
-set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mavx2")
-check_cxx_source_compiles("
-#include <immintrin.h>
-int main() {
-    __m256i a = _mm256_set_epi32(-3, -2, -1, 0, 1, 2, 3, 4);
-    __m256i b = _mm256_abs_epi32(a);
-    return 0;
-}
-" ATOM_AVX2_AVAILABLE)
-cmake_pop_check_state()
-if(ATOM_AVX2_AVAILABLE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-endif()
+# CMake
 
-cmake_push_check_state()
-set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mfma")
-check_cxx_source_compiles("
-#include <immintrin.h>
-int main() {
-    __m256i a = _mm256_set_ps(8, 7, 6, 5, 4, 3, 2, 1);
-    __m256i b = _mm256_set_ps(1, 2, 3, 4, 5, 6, 7, 8);
-    __m256i c = _mm256_set_ps(2, 2, 3, 3, 4, 4, 5, 5);
-    __m256i d = _mm256_fmadd_ps(a, b, c);
-    return 0;
-}
-" ATOM_FMA_AVAILABLE)
-cmake_pop_check_state()
-if(ATOM_FMA_AVAILABLE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfma")
-endif()
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
 option(ATOM_USE_LIBCPP OFF)
+option(ATOM_Utils_INCLUDE_HEADERS OFF)
+option(ATOM_Utils_INSTALL ON)
+option(ATOM_UTILS_BUILD_DOCS "Build documentation for atom.utils" OFF)
+option(ATOM_UTILS_BUILD_TEST "Build test for atom.utils" OFF)
+option(ATOM_UTILS_BUILD_BENCHMARK OFF)
+
 if (ATOM_USE_LIBCPP)
     if (NOT WIN32)
 
@@ -89,25 +45,24 @@ if (ATOM_USE_LIBCPP)
     add_compile_options(-stdlib=libc++)
 endif()
 
-if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
-endif()
-
-# CMake
-
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
+include(GNUInstallDirs)
 
 add_library(Utils INTERFACE)
 add_library(Atom::Utils ALIAS Utils)
-
-set_target_properties(Utils PROPERTIES LINKER_LANGUAGE CXX)
 
 target_include_directories(Utils INTERFACE
     $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-option(ATOM_Utils_INCLUDE_HEADERS OFF)
+set_target_properties(Utils PROPERTIES
+    EXPORT_NAME "atom.utils"
+    INTERFACE_COMPILE_DEFINITIONS "ATOM_NAMESPACE=Atom"
+    LINKER_LANGUAGE CXX
+)
+
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
 
 if (ATOM_Utils_INCLUDE_HEADERS)
     target_sources(Utils INTERFACE
@@ -158,8 +113,6 @@ if (ATOM_Utils_INCLUDE_HEADERS)
         $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/thread_pool.hpp>
     )
 endif()
-
-option(ATOM_Utils_INSTALL OFF)
 
 if (ATOM_Utils_INSTALL)
 
@@ -243,8 +196,6 @@ if (ATOM_Utils_INSTALL)
 
 endif()
 
-option(ATOM_UTILS_BUILD_DOCS OFF)
-
 if(ATOM_UTILS_BUILD_DOCS)
     find_package(Doxygen REQUIRED dot)
     if (DOXYGEN_FOUND)
@@ -282,55 +233,56 @@ if(ATOM_UTILS_BUILD_DOCS)
     endif()
 endif()
 
-function(BUILD_EXECUTABLE_FOR TEST_EXECUTABLE_NAME TEST_SOURCES)
-    add_executable(${TEST_EXECUTABLE_NAME} ${TEST_SOURCES})
-    target_link_libraries(${TEST_EXECUTABLE_NAME} PRIVATE Atom::Utils)
-    add_test(NAME ${TEST_EXECUTABLE_NAME} COMMAND ${TEST_EXECUTABLE_NAME})
-    if (SEE_ALL_TEMPLATE_BACKTRACE)
-        target_compile_options(${TEST_EXECUTABLE_NAME} PRIVATE -ftemplate-backtrace-limit=0)
-    endif()
-endfunction()
-
-option(ATOM_UTILS_BUILD_TEST OFF)
-
 if(ATOM_UTILS_BUILD_TEST)
+    include(CTest)
+    enable_testing()
+    option(SEE_ALL_TEMPLATE_BACKTRACE OFF)
 
-option(SEE_ALL_TEMPLATE_BACKTRACE OFF)
+    function(add_utils_test test_name)
+        set(ATOM_UTILS_TEST_DIR "${Utils_SOURCE_DIR}/test")
+        set(ATOM_UTILS_TEST_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/test)
+        add_executable(test_${test_name} ${ATOM_UTILS_TEST_DIR}/${test_name}.cpp)
+        target_link_libraries(test_${test_name} PRIVATE Atom::Utils)
+        set_target_properties(test_${test_name} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${ATOM_UTILS_TEST_OUTPUT_DIR}
+            RUNTIME_OUTPUT_DIRECTORY_DEBUG ${ATOM_UTILS_TEST_OUTPUT_DIR}
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE ${ATOM_UTILS_TEST_OUTPUT_DIR}
+        )
+        add_test(NAME ${test_name} COMMAND test_${test_name})
 
-set(ATOM_UTILS_TEST_DIR "${Utils_SOURCE_DIR}/test")
+        if (SEE_ALL_TEMPLATE_BACKTRACE)
+            target_compile_options(${TEST_EXECUTABLE_NAME} PRIVATE -ftemplate-backtrace-limit=0)
+        endif()
+    endfunction()
 
-BUILD_EXECUTABLE_FOR(core ${ATOM_UTILS_TEST_DIR}/core.cpp)
-BUILD_EXECUTABLE_FOR(memory ${ATOM_UTILS_TEST_DIR}/memory.cpp)
-BUILD_EXECUTABLE_FOR(meta ${ATOM_UTILS_TEST_DIR}/meta.cpp)
-BUILD_EXECUTABLE_FOR(ranges ${ATOM_UTILS_TEST_DIR}/ranges.cpp)
-BUILD_EXECUTABLE_FOR(reflection ${ATOM_UTILS_TEST_DIR}/reflection.cpp)
-BUILD_EXECUTABLE_FOR(signal ${ATOM_UTILS_TEST_DIR}/signal.cpp)
-BUILD_EXECUTABLE_FOR(structures ${ATOM_UTILS_TEST_DIR}/structures.cpp)
-BUILD_EXECUTABLE_FOR(thread ${ATOM_UTILS_TEST_DIR}/thread.cpp)
+    set(ATOM_UTILS_TESTS core memory meta ranges reflection signal structures thread)
+
+    foreach(test IN LISTS ATOM_UTILS_TESTS)
+        add_utils_test(${test})
+    endforeach()
 
 endif()
 
-set(ATOM_Utils_BENCHMARK_DIR "${Utils_SOURCE_DIR}/benchmark")
-option(ATOM_UTILS_BUILD_BENCHMARK OFF)
-
-function(BUILD_BENCHMARK_FOR BENCHMARK_NAME)
-    file(GLOB BENCHMARK_SRCS
-        "${ATOM_Utils_BENCHMARK_DIR}/${BENCHMARK_NAME}.cpp"
-        "${ATOM_Utils_BENCHMARK_DIR}/${BENCHMARK_NAME}.s")
-    add_executable(benchmark-${BENCHMARK_NAME} ${BENCHMARK_SRCS})
-    target_link_libraries(benchmark-${BENCHMARK_NAME} PRIVATE Utils benchmark::benchmark)
-endfunction()
-
 if (ATOM_UTILS_BUILD_BENCHMARK)
-  include(FetchContent)
-  FetchContent_Declare(
-    googlebenchmark
-    GIT_REPOSITORY https://github.com/google/benchmark.git
-    GIT_TAG main
-    GIT_SHALLOW 1)
-  set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
-  FetchContent_MakeAvailable(googlebenchmark)
+    set(ATOM_Utils_BENCHMARK_DIR "${Utils_SOURCE_DIR}/benchmark")
 
-  BUILD_BENCHMARK_FOR(delegate)
-  BUILD_BENCHMARK_FOR(memory)
+    include(FetchContent)
+    FetchContent_Declare(
+      googlebenchmark
+      GIT_REPOSITORY https://github.com/google/benchmark.git
+      GIT_TAG main
+      GIT_SHALLOW 1)
+    set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
+    FetchContent_MakeAvailable(googlebenchmark)
+
+    function(add_utils_benchmark benchmark_name)
+        file(GLOB BENCHMARK_SRCS
+            "${ATOM_Utils_BENCHMARK_DIR}/${benchmark_name}.cpp"
+            "${ATOM_Utils_BENCHMARK_DIR}/${benchmark_name}.s")
+        add_executable(benchmark-${benchmark_name} ${BENCHMARK_SRCS})
+        target_link_libraries(benchmark-${benchmark_name} PRIVATE Utils benchmark::benchmark)
+    endfunction()
+
+    add_utils_benchmark(delegate)
+    add_utils_benchmark(memory)
 endif()
