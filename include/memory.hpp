@@ -179,11 +179,11 @@ class common_tiny_allocator {
 public:
     using poly_tag = void;
 
-    void* allocate() { return std::get<0>(vtable_)(static_cast<void*>(bytes_)); }
-    void deallocate(void* ptr) { std::get<1>(vtable_)(static_cast<void*>(bytes_), ptr); }
+    constexpr void* allocate() { return std::get<0>(vtable_)(static_cast<void*>(bytes_)); }
+    constexpr void deallocate(void* ptr) { std::get<1>(vtable_)(static_cast<void*>(bytes_), ptr); }
 
     template <_not<common_allocator, common_tiny_allocator> Ty>
-    common_tiny_allocator(vtable vtable, const Ty& alloc, void (*destroy)(void*)) noexcept
+    constexpr common_tiny_allocator(vtable vtable, const Ty& alloc, void (*destroy)(void*)) noexcept
         : vtable_(std::move(vtable)), destroy_(destroy) {
         ::new (static_cast<void*>(bytes_)) Ty(alloc);
     }
@@ -193,12 +193,12 @@ public:
     common_tiny_allocator& operator=(const common_tiny_allocator&) = delete;
     common_tiny_allocator& operator=(common_tiny_allocator&&)      = delete;
 
-    ~common_tiny_allocator() { destroy_(static_cast<void*>(bytes_)); }
+    constexpr ~common_tiny_allocator() { destroy_(static_cast<void*>(bytes_)); }
 };
 
 template <typename Ty, _count_allocator Alloc>
 requires _poly_impl<allocator<Ty, Alloc>, allocator_object>
-CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator() {
+constexpr inline common_tiny_allocator make_common_tiny_allocator() {
     using allocator = allocator<Ty, Alloc>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
@@ -209,7 +209,7 @@ CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator() {
 
 template <typename Ty, _count_allocator Alloc, typename Al>
 requires _poly_impl<allocator<Ty, Alloc>, allocator_object>
-CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator(const Al& alloc) {
+constexpr inline common_tiny_allocator make_common_tiny_allocator(const Al& alloc) {
     using allocator = allocator<Ty, Alloc>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
@@ -220,7 +220,7 @@ CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator(const Al& al
 
 template <typename Ty, template <typename> typename Alloc = std::allocator>
 requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object> && _count_allocator<Alloc<Ty>>
-CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator() {
+constexpr inline common_tiny_allocator make_common_tiny_allocator() {
     using allocator = allocator<Ty, Alloc<Ty>>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
@@ -231,7 +231,7 @@ CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator() {
 
 template <typename Ty, template <typename> typename Alloc = std::allocator, typename Al>
 requires _poly_impl<allocator<Ty, Alloc<Ty>>, allocator_object> && _count_allocator<Alloc<Ty>>
-CONSTEXPR23 inline common_tiny_allocator make_common_tiny_allocator(const Al& alloc) {
+constexpr inline common_tiny_allocator make_common_tiny_allocator(const Al& alloc) {
     using allocator = allocator<Ty, Alloc<Ty>>;
     static_assert(
         sizeof(allocator) <= _tiny_allocator_size, "Allocator too large for tiny allocator");
