@@ -13,7 +13,7 @@
  *
  * Key Components:
  * 1. Compiler Feature Macros: Defines compiler-specific attributes (inlining, noinline, etc.)
- * 2. C++ Standard Detection: Macros for detecting C++17/20/23/26 features
+ * 2. C++ Standard Detection: Macros for detecting C++20/23/26 features
  * 3. Type Identification: Safe runtime type ID generation
  * 4. Compressed Pairs: Memory-efficient pair implementations using EBCO
  * 5. Polymorphic Objects: Lightweight polymorphism without vtable overhead
@@ -1477,7 +1477,7 @@ struct _poly_empty_impl {
     #pragma warning(disable : 4715)
 #endif
         template <typename Ty>
-        constexpr operator Ty&&() {}
+        [[noreturn]] constexpr operator Ty&&() {}
 #ifdef __GNUC__
     #pragma GCC diagnostic pop
 #elif defined(__clang__)
@@ -1635,89 +1635,6 @@ public:
     using type = std::remove_pointer_t<decltype(_deduce())>;
 };
 
-template <_poly_extend_object Object>
-struct _poly_recursive_extend_list {
-    template <typename>
-    struct calculate_extend_list;
-    template <typename Ty>
-    requires _poly_basic_object<Ty>
-    struct calculate_extend_list<Ty> {
-        using type = type_list<Ty>;
-    };
-    template <>
-    struct calculate_extend_list<type_list<>> {
-        using type = type_list<>;
-    };
-    template <typename Ty, typename... Others>
-    struct calculate_extend_list<type_list<Ty, Others...>> {
-        using type = type_list_cat_t<
-            typename calculate_extend_list<Ty>::type,
-            typename calculate_extend_list<type_list<Others...>>::type>;
-    };
-    template <typename Ty>
-    requires _poly_extend_object<Ty>
-    struct calculate_extend_list<Ty> {
-        using type = type_list_cat_t<
-            typename calculate_extend_list<
-                typename Ty::template extends<_poly_empty_impl>::from>::type,
-            type_list<Ty>>;
-    };
-
-    using type = typename calculate_extend_list<
-        typename Object::template extends<_poly_empty_impl>::from>::type;
-};
-template <_poly_extend_object Object>
-using _poly_recursive_extend_list_t = typename _poly_recursive_extend_list<Object>::type;
-
-template <_poly_object Object>
-struct _poly_extend_list;
-template <_poly_basic_object Object>
-struct _poly_extend_list<Object> {
-    using recursive_extend_list = type_list<>;
-    using type                  = type_list<>;
-};
-template <_poly_extend_object Object>
-struct _poly_extend_list<Object> {
-    using recursive_extend_list = _poly_recursive_extend_list_t<Object>;
-    using type                  = unique_type_list_t<recursive_extend_list>;
-};
-template <_poly_object Object>
-using _poly_extend_list_t = typename _poly_extend_list<Object>::type;
-
-template <_poly_object Object>
-requires _poly_extend_object<Object>
-struct _vtable<Object> {
-    using exlist               = _poly_extend_list_t<Object>;
-    using interface            = typename Object::template extends<_poly_empty_impl>;
-    using vals                 = typename Object::template impl<interface>;
-    constexpr static auto size = value_list_size_v<vals>;
-
-private:
-    template <typename>
-    struct _exvalues;
-    template <typename... Tys>
-    struct _exvalues<type_list<Tys...>> {
-        using type = value_list_cat_t<typename _vtable<Tys>::vals...>;
-    };
-
-    template <typename MemFunc>
-    using static_type_t = typename _mem_func_traits<MemFunc>::static_type;
-
-public:
-    using exvalues = typename _exvalues<exlist>::type;
-    using values   = value_list_cat_t<exvalues, vals>;
-
-private:
-    template <auto... Vals>
-    constexpr static auto _deduce(value_list<Vals...>) noexcept {
-        return static_cast<std::tuple<static_type_t<decltype(Vals)>...>*>(nullptr);
-    }
-    constexpr static auto _deduce() noexcept { return _deduce(values{}); }
-
-public:
-    using type = std::remove_pointer_t<decltype(_deduce())>;
-};
-
 /*! @cond TURN_OFF_DOXYGEN */
 
 template <_poly_object Object>
@@ -1767,16 +1684,7 @@ struct _vtable_value_list {
         using type = value_list<_element_v<Vals, decltype(Vals)>...>;
     };
 
-    template <typename>
-    struct exlist;
-    template <typename... Tys>
-    struct exlist<type_list<Tys...>> {
-        using type = value_list_cat_t<typename Tys::template impl<Impl>...>;
-    };
-    using exlist_t = typename exlist<_poly_extend_list_t<Object>>::type;
-
-    using type = typename _static_list<
-        value_list_cat_t<exlist_t, typename Object::template impl<Impl>>>::type;
+    using type = _static_list<typename Object::template impl<Impl>>::type;
 };
 
 template <_poly_object Object, _poly_impl<Object> Impl>
@@ -1802,10 +1710,6 @@ struct _poly_object_extract;
 template <_poly_basic_object Object, typename Arg>
 struct _poly_object_extract<Object, Arg> {
     using type = Object::template interface<Arg>;
-};
-template <_poly_extend_object Object, typename Arg>
-struct _poly_object_extract<Object, Arg> {
-    using type = Object::template extends<Arg>;
 };
 template <_poly_object Object, typename Arg>
 using _poly_object_extract_t = typename _poly_object_extract<Object, Arg>::type;
@@ -2193,7 +2097,7 @@ using default_id_t = utils::default_id_t;
 
 } // namespace atom
 
-#ifdef _RANGES_
+#if defined(_RANGES_) || defined(_GLIBCXX_RANGES)
 
 /**
  * @brief Construct an object by pipeline operator.

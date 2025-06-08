@@ -170,14 +170,14 @@ public:
 
     ~dense_map() noexcept = default;
 
-    _NODISCARD auto at(const key_type key) -> Val& {
+    NODISCARD auto at(const key_type key) -> Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
         return dense_[sparse_[page]->at(offset)].second;
     }
 
-    _NODISCARD auto at(const key_type key) const -> const Val& {
+    NODISCARD auto at(const key_type key) const -> const Val& {
         auto page   = page_of(key);
         auto offset = offset_of(key);
         shared_lock_keeper lock{ dense_mutex_, sparse_mutex_ };
@@ -252,7 +252,7 @@ public:
         return contains_impl(key, page, offset);
     }
 
-    [[nodiscard]] auto find(const key_type key) noexcept -> iterator {
+    NODISCARD auto find(const key_type key) noexcept -> iterator {
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
@@ -265,7 +265,7 @@ public:
         }
     }
 
-    [[nodiscard]] auto find(const key_type key) const noexcept -> const_iterator {
+    NODISCARD auto find(const key_type key) const noexcept -> const_iterator {
         auto page   = page_of(key);
         auto offset = offset_of(key);
 
@@ -278,9 +278,9 @@ public:
         }
     }
 
-    _NODISCARD CONSTEXPR20 bool empty() const noexcept { return dense_.empty(); }
+    NODISCARD CONSTEXPR20 bool empty() const noexcept { return dense_.empty(); }
 
-    _NODISCARD CONSTEXPR20 size_type size() const noexcept { return dense_.size(); }
+    NODISCARD CONSTEXPR20 size_type size() const noexcept { return dense_.size(); }
 
     void clear() noexcept {
         unique_lock_keeper keeper{ dense_mutex_, sparse_mutex_ };
@@ -288,39 +288,37 @@ public:
         dense_.clear();
     }
 
-    _NODISCARD CONSTEXPR20 auto front() -> value_type& { return dense_.front(); }
-    _NODISCARD CONSTEXPR20 auto front() const -> const value_type& { return dense_.front(); }
+    NODISCARD CONSTEXPR20 auto front() -> value_type& { return dense_.front(); }
+    NODISCARD CONSTEXPR20 auto front() const -> const value_type& { return dense_.front(); }
 
-    _NODISCARD CONSTEXPR20 auto back() -> value_type& { return dense_.back(); }
-    _NODISCARD CONSTEXPR20 auto back() const -> const value_type& { return dense_.back(); }
+    NODISCARD CONSTEXPR20 auto back() -> value_type& { return dense_.back(); }
+    NODISCARD CONSTEXPR20 auto back() const -> const value_type& { return dense_.back(); }
 
-    _NODISCARD CONSTEXPR20 auto begin() noexcept -> iterator { return dense_.begin(); }
-    _NODISCARD CONSTEXPR20 auto begin() const noexcept -> const_iterator { return dense_.begin(); }
-    _NODISCARD CONSTEXPR20 auto cbegin() const noexcept -> const_iterator {
-        return dense_.cbegin();
-    }
+    NODISCARD CONSTEXPR20 auto begin() noexcept -> iterator { return dense_.begin(); }
+    NODISCARD CONSTEXPR20 auto begin() const noexcept -> const_iterator { return dense_.begin(); }
+    NODISCARD CONSTEXPR20 auto cbegin() const noexcept -> const_iterator { return dense_.cbegin(); }
 
-    _NODISCARD CONSTEXPR20 auto end() noexcept -> iterator { return dense_.end(); }
-    _NODISCARD CONSTEXPR20 auto end() const noexcept -> const_iterator { return dense_.end(); }
-    _NODISCARD CONSTEXPR20 auto cend() const noexcept -> const_iterator { return dense_.cend(); }
+    NODISCARD CONSTEXPR20 auto end() noexcept -> iterator { return dense_.end(); }
+    NODISCARD CONSTEXPR20 auto end() const noexcept -> const_iterator { return dense_.end(); }
+    NODISCARD CONSTEXPR20 auto cend() const noexcept -> const_iterator { return dense_.cend(); }
 
-    _NODISCARD CONSTEXPR20 auto rbegin() noexcept -> reverse_iterator { return dense_.rbegin(); }
-    _NODISCARD CONSTEXPR20 auto rbegin() const noexcept -> const_reverse_iterator {
+    NODISCARD CONSTEXPR20 auto rbegin() noexcept -> reverse_iterator { return dense_.rbegin(); }
+    NODISCARD CONSTEXPR20 auto rbegin() const noexcept -> const_reverse_iterator {
         return dense_.rbegin();
     }
-    _NODISCARD CONSTEXPR20 auto crbegin() const noexcept -> const_reverse_iterator {
+    NODISCARD CONSTEXPR20 auto crbegin() const noexcept -> const_reverse_iterator {
         return dense_.crbegin();
     }
 
-    _NODISCARD CONSTEXPR20 auto rend() noexcept -> reverse_iterator { return dense_.rend(); }
-    _NODISCARD CONSTEXPR20 auto rend() const noexcept -> const_reverse_iterator {
+    NODISCARD CONSTEXPR20 auto rend() noexcept -> reverse_iterator { return dense_.rend(); }
+    NODISCARD CONSTEXPR20 auto rend() const noexcept -> const_reverse_iterator {
         return dense_.rend();
     }
-    _NODISCARD CONSTEXPR20 auto crend() const noexcept -> const_reverse_iterator {
+    NODISCARD CONSTEXPR20 auto crend() const noexcept -> const_reverse_iterator {
         return dense_.crend();
     }
 
-    _NODISCARD CONSTEXPR20 auto get_allocator() const noexcept { return dense_.get_allocator(); }
+    NODISCARD CONSTEXPR20 auto get_allocator() const noexcept { return dense_.get_allocator(); }
 
 private:
     static size_type page_of(const key_type key) noexcept { return key / PageSize; }

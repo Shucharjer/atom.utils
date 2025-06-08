@@ -48,8 +48,8 @@ struct allocator : private Alloc {
  * `common_tiny_allocator`, so when the address of `ptr_` is on the cache, it will be faster.
  */
 class common_allocator {
-    using vtable = vtable<allocator_object>;
-    vtable vtable_;
+    using vtable_t = vtable<allocator_object>;
+    vtable_t vtable_;
     void* ptr_;
     void (*destroy_)(void* ptr);
 
@@ -59,7 +59,7 @@ public:
     void* allocate() { return std::get<0>(vtable_)(ptr_); }
     void deallocate(void* ptr) { std::get<1>(vtable_)(ptr_, ptr); }
 
-    common_allocator(vtable vtable, void* allocator, void (*destroy)(void*)) noexcept
+    common_allocator(vtable_t vtable, void* allocator, void (*destroy)(void*)) noexcept
         : vtable_(std::move(vtable)), ptr_(allocator), destroy_(destroy) {}
 
     common_allocator(const common_allocator&)            = delete;
@@ -163,8 +163,8 @@ constexpr inline size_t _tiny_allocator_size = 8;
  * causing a performance loss. So, ballencing the calling frequency.
  */
 class common_tiny_allocator {
-    using vtable = vtable<allocator_object>;
-    vtable vtable_;
+    using vtable_t = vtable<allocator_object>;
+    vtable_t vtable_;
 
     void (*destroy_)(void* ptr);
 
@@ -183,7 +183,8 @@ public:
     constexpr void deallocate(void* ptr) { std::get<1>(vtable_)(static_cast<void*>(bytes_), ptr); }
 
     template <_not<common_allocator, common_tiny_allocator> Ty>
-    constexpr common_tiny_allocator(vtable vtable, const Ty& alloc, void (*destroy)(void*)) noexcept
+    constexpr common_tiny_allocator(
+        vtable_t vtable, const Ty& alloc, void (*destroy)(void*)) noexcept
         : vtable_(std::move(vtable)), destroy_(destroy) {
         ::new (static_cast<void*>(bytes_)) Ty(alloc);
     }

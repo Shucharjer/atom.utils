@@ -98,8 +98,8 @@ public:
     common_unique_storage(const common_unique_storage&)            = delete;
     common_unique_storage& operator=(const common_unique_storage&) = delete;
 
-    void* raw() noexcept {}
-    void* const_raw() const noexcept {}
+    void* raw() noexcept { return nullptr; }
+    void* const_raw() const noexcept { return nullptr; }
 };
 
 template <_poly_impl<storage_object> Storage>
@@ -112,15 +112,15 @@ namespace v2 {
 template <typename Ty>
 class shared_storage {
 public:
-    NODISCARD void* raw() noexcept {}
-    NODISCARD void* const_raw() const noexcept {}
+    NODISCARD void* raw() noexcept { return nullptr; }
+    NODISCARD void* const_raw() const noexcept { return nullptr; }
 };
 
 template <typename Ty>
 class unique_storage {
 public:
-    NODISCARD void* raw() noexcept {}
-    NODISCARD void* const_raw() const noexcept {}
+    NODISCARD void* raw() noexcept { return nullptr; }
+    NODISCARD void* const_raw() const noexcept { return nullptr; }
 };
 
 } // namespace v2

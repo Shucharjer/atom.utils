@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <type_traits>
 #include "core.hpp"
 #include "signal.hpp"
