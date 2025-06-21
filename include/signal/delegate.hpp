@@ -26,7 +26,7 @@ public:
      * @param spreader Spread the non-type argument by `atom::utils::spread_arg<Candidate>`.
      */
     template <auto Candidate>
-    explicit delegate(utils::spreader<Candidate> spreader) noexcept : context_(nullptr) {
+    constexpr explicit delegate(utils::spreader<Candidate> spreader) noexcept : context_(nullptr) {
         bind<Candidate>();
     }
 
@@ -39,7 +39,7 @@ public:
      * @param instance The object whose member function would be called.
      */
     template <auto Candidate, typename Type>
-    explicit delegate(utils::spreader<Candidate> spreader, Type& instance) noexcept
+    constexpr explicit delegate(utils::spreader<Candidate> spreader, Type& instance) noexcept
         : context_(nullptr) {
         bind<Candidate>(instance);
     }
@@ -50,7 +50,7 @@ public:
      * @param function Function address.
      * @param payload The instance. It can be nullptr when the function is non-member function.
      */
-    explicit delegate(function_type* function, void const* payload) : context_(nullptr) {
+    constexpr explicit delegate(function_type* function, void const* payload) : context_(nullptr) {
         bind(function, payload);
     }
 
@@ -60,7 +60,7 @@ public:
      * @tparam Candidate
      */
     template <auto Candidate>
-    void bind() noexcept {
+    constexpr void bind() noexcept {
         static_assert(
             std::is_invocable_r_v<Ret, decltype(Candidate), Args...>,
             "'Candidate' should be a complete function.");
@@ -79,7 +79,7 @@ public:
      * @param instance
      */
     template <auto Candidate, typename Type>
-    void bind(Type& instance) noexcept {
+    constexpr void bind(Type& instance) noexcept {
         static_assert(
             std::is_invocable_r_v<Ret, decltype(Candidate), Type*, Args...>,
             "'Candidate' should be a complete function.");
@@ -98,7 +98,7 @@ public:
      * @param function Pointer to the function
      * @param payload
      */
-    void bind(function_type* function, void const* payload) {
+    constexpr void bind(function_type* function, void const* payload) {
         assert(function);
         function_ = function;
         context_  = payload;
@@ -110,7 +110,9 @@ public:
      * @param args Arguments
      * @return Ret Function's return type
      */
-    Ret operator()(Args... args) const { return function_(context_, std::forward<Args>(args)...); }
+    constexpr Ret operator()(Args... args) const {
+        return function_(context_, std::forward<Args>(args)...);
+    }
 
     /**
      * @brief Get the status of this delegate.
@@ -118,11 +120,11 @@ public:
      * @return true This delegate has already bind.
      * @return false This delegate has not bind yet.
      */
-    operator bool() const noexcept { return function_; }
+    constexpr operator bool() const noexcept { return function_; }
 
-    delegate& operator=(const delegate& other) noexcept = default;
+    constexpr delegate& operator=(const delegate& other) noexcept = default;
 
-    delegate& operator=(delegate&& other) noexcept {
+    constexpr delegate& operator=(delegate&& other) noexcept {
         // copy pointer, no check
         function_ = other.function_;
         context_  = other.context_;
@@ -131,7 +133,7 @@ public:
     }
 
     template <typename Type>
-    bool operator==(delegate<Type>& other) const noexcept {
+    constexpr bool operator==(delegate<Type>& other) const noexcept {
         if constexpr (std::is_same_v<Ret(Args...), Type>) {
             return function_ == other._function && context_ == other._context;
         }
@@ -141,7 +143,7 @@ public:
     }
 
     template <typename Type>
-    bool operator!=(delegate<Type>& other) const noexcept {
+    constexpr bool operator!=(delegate<Type>& other) const noexcept {
         return !(*this == other);
     }
 
@@ -149,7 +151,7 @@ public:
      * @brief Clear bindings
      *
      */
-    void reset() noexcept {
+    constexpr void reset() noexcept {
         context_  = nullptr;
         function_ = nullptr;
     }
@@ -159,14 +161,14 @@ public:
      *
      * @return function_type* Pointer of function
      */
-    [[nodiscard]] function_type* target() const noexcept { return function_; }
+    NODISCARD constexpr function_type* target() const noexcept { return function_; }
 
     /**
      * @brief Get the context
      *
      * @return void const* Pointer to the context
      */
-    [[nodiscard]] void const* context() const noexcept { return context_; }
+    NODISCARD constexpr void const* context() const noexcept { return context_; }
 
 private:
     void const* context_;

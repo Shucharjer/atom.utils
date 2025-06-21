@@ -1561,40 +1561,79 @@ template <typename>
 struct _mem_func_traits;
 template <typename Ret, typename Class, typename... Args>
 struct _mem_func_traits<Ret (Class::*)(Args...)> {
-    using type                        = Ret (*)(Class&, Args...);
+    using type                        = Ret (Class::*)(Args...);
+    using static_type                 = Ret (*)(void*, Args...);
+    using void_type                   = Ret (*)(void*, Args...);
+    using erased_type                 = Ret (*)(Args...);
     using return_type                 = Ret;
     using class_type                  = Class;
-    using args_type                   = std::tuple<Args...>;
-    using static_type                 = Ret (*)(void*, Args...);
+    using args_type                   = type_list<Args...>;
     constexpr static bool is_noexcept = false;
+    constexpr static size_t num_args  = sizeof...(Args);
 };
 template <typename Ret, typename Class, typename... Args>
 struct _mem_func_traits<Ret (Class::*)(Args...) const> {
-    using type                        = Ret (*)(const Class&, Args...);
+    using type                        = Ret (Class::*)(Args...) const;
+    using static_type                 = Ret (*)(const void*, Args...);
+    using void_type                   = Ret (*)(const void*, Args...);
+    using erased_type                 = Ret (*)(Args...);
     using return_type                 = Ret;
     using class_type                  = Class;
-    using args_type                   = std::tuple<Args...>;
-    using static_type                 = Ret (*)(const void*, Args...);
+    using args_type                   = type_list<Args...>;
     constexpr static bool is_noexcept = false;
+    constexpr static size_t num_args  = sizeof...(Args);
 };
 template <typename Ret, typename Class, typename... Args>
 struct _mem_func_traits<Ret (Class::*)(Args...) noexcept> {
-    using type                        = Ret (*)(Class&, Args...) noexcept;
+    using type                        = Ret (Class::*)(Args...) noexcept;
+    using static_type                 = Ret (*)(void*, Args...) noexcept;
+    using void_type                   = Ret (*)(void*, Args...) noexcept;
+    using erased_type                 = Ret (*)(Args...) noexcept;
     using return_type                 = Ret;
     using class_type                  = Class;
-    using args_type                   = std::tuple<Args...>;
-    using static_type                 = Ret (*)(void*, Args...) noexcept;
+    using args_type                   = type_list<Args...>;
     constexpr static bool is_noexcept = true;
+    constexpr static size_t num_args  = sizeof...(Args);
 };
 template <typename Ret, typename Class, typename... Args>
 struct _mem_func_traits<Ret (Class::*)(Args...) const noexcept> {
-    using type                        = Ret (*)(const Class&, Args...) noexcept;
+    using type                        = Ret (Class::*)(Args...) const noexcept;
+    using static_type                 = Ret (*)(const void*, Args...) noexcept;
+    using void_type                   = Ret (*)(const void*, Args...) noexcept;
+    using erased_type                 = Ret (*)(Args...) noexcept;
     using return_type                 = Ret;
     using class_type                  = Class;
-    using args_type                   = std::tuple<Args...>;
-    using static_type                 = Ret (*)(const void*, Args...) noexcept;
+    using args_type                   = type_list<Args...>;
     constexpr static bool is_noexcept = true;
+    constexpr static size_t num_args  = sizeof...(Args);
 };
+
+template <auto Lambda>
+class lambda_wrapper {
+public:
+    using traits      = _mem_func_traits<decltype(&decltype(Lambda)::operator())>;
+    using return_type = typename traits::return_type;
+
+    template <typename>
+    struct invoker;
+
+    template <std::size_t... Is>
+    requires(std::index_sequence<Is...>().size() == traits::num_args)
+    struct invoker<std::index_sequence<Is...>> {
+        constexpr static inline return_type invoke(
+            type_list_element_t<
+                Is, typename traits::args_type>... args) noexcept(traits::is_noexcept) {
+            return Lambda(args...);
+        }
+    };
+};
+
+template <
+    auto Lambda, typename LambdaTraits = _mem_func_traits<decltype(&decltype(Lambda)::operator())>>
+consteval inline auto addressof() noexcept -> typename LambdaTraits::erased_type {
+    return &lambda_wrapper<Lambda>::template invoker<
+        decltype(std::make_index_sequence<LambdaTraits::num_args>())>::invoke;
+}
 
 template <_poly_object Object>
 struct _vtable;
@@ -1611,11 +1650,11 @@ struct _vtable<Object> {
 
 private:
     template <typename MemFunc>
-    using static_type_t = typename _mem_func_traits<MemFunc>::static_type;
+    using void_type_t = typename _mem_func_traits<MemFunc>::void_type;
 
     template <auto... Vals>
     constexpr static auto _deduce(value_list<Vals...>) noexcept {
-        return static_cast<std::tuple<static_type_t<decltype(Vals)>...>*>(nullptr);
+        return static_cast<std::tuple<void_type_t<decltype(Vals)>...>*>(nullptr);
     }
     constexpr static auto _deduce() noexcept { return _deduce(values{}); }
 
