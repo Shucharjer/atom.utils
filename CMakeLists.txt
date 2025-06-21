@@ -66,60 +66,43 @@ include(CheckCXXSourceCompiles)
 include(CMakePushCheckState)
 
 if(ATOM_Utils_INCLUDE_HEADERS)
+  set(inc_dir ${Utils_SOURCE_DIR}/include)
   target_sources(
     Utils
     INTERFACE
       # the fellow line is a template
-      # $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/auxiliary.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/auxiliary/singleton.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concepts/ranges.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/concepts/type.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/core/type_traits.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/memory.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/memory/storage.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/misc/timer.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges/iterator.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/ranges/to.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/reflection.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/delegate.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/sink.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/signal/dispatcher.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/dense_map.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/dense_set.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/structures/tstring.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/coroutine.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/lock_keeper.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/lock.hpp>
-      $<BUILD_INTERFACE:${Utils_SOURCE_DIR}/include/thread/thread_pool.hpp>)
+      # $<BUILD_INTERFACE:${inc_dir}>
+      $<BUILD_INTERFACE:${inc_dir}/auxiliary.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/auxiliary/singleton.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/concepts/ranges.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/concepts/type.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/core.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/core/type_traits.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/memory.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/memory/storage.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/misc/timer.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/ranges.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/ranges/iterator.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/ranges/to.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/reflection.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/signal.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/signal/delegate.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/signal/sink.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/signal/dispatcher.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/structures.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/structures/dense_map.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/structures/dense_set.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/structures/tstring.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/thread.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/thread/coroutine.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/thread/lock_keeper.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/thread/lock.hpp>
+      $<BUILD_INTERFACE:${inc_dir}/thread/thread_pool.hpp>)
 endif()
 
 if(ATOM_Utils_INSTALL)
 
-  if(WIN32)
-    include(JoinPaths)
-  elseif(UNIX)
-    function(join_paths joined_path first_path_segment)
-      set(temp_path "${first_path_segment}")
-      foreach(current_segment IN LISTS ARGN)
-        if(NOT ("${current_segment}" STREQUAL ""))
-          if(IS_ABSOLUTE "${current_segment}")
-            set(temp_path "${current_segment}")
-          else()
-            set(temp_path "${temp_path}/${current_segment}")
-          endif()
-        endif()
-      endforeach()
-      set(${joined_path}
-          "${temp_path}"
-          PARENT_SCOPE)
-    endfunction()
-  endif()
+  include(JoinPaths)
 
   set(Utils_PKGCONFIG ${CMAKE_CURRENT_BINARY_DIR}/utils.pc)
 
@@ -169,75 +152,42 @@ endif()
 
 if(ATOM_UTILS_BUILD_DOCS)
   find_package(Doxygen REQUIRED dot)
-  if(DOXYGEN_FOUND)
-    include(FetchContent)
-
-    FetchContent_Declare(
-      doxygen-awesome-css
-      GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css
-      GIT_TAG main
-      GIT_SHALLOW 1)
-    FetchContent_MakeAvailable(doxygen-awesome-css)
-
-    FetchContent_GetProperties(doxygen-awesome-css)
-
-    if(NOT doxygen-awesome-css_POPULATED)
-      FetchContent_Populate(doxygen-awesome-css)
-      set(doxygen-awesome-css_INCLUDE_DIR ${doxygen-awesome-css_SOURCE_DIR})
-    endif()
-
-    set(DOXY_SOURCE_DIRECTORY ${Utils_SOURCE_DIR}/include)
-    set(DOXY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
-    set(DOXY_CSS_DIRECTORY ${doxygen-awesome-css_INCLUDE_DIR})
-
-    configure_file(doxy.in doxy.cfg @ONLY)
-
-    add_custom_target(
-      documents
-      COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxy.cfg
-      WORKING_DIRECTORY ${Utils_SOURCE_DIR}
-      VERBATIM)
-  else()
+  if(NOT DOXYGEN_FOUND)
     message(FATAL_ERROR "Required to build documents but doxygen is not found!")
   endif()
+  include(FetchContent)
+
+  FetchContent_Declare(
+    doxygen-awesome-css
+    GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css
+    GIT_TAG main
+    GIT_SHALLOW 1)
+  FetchContent_MakeAvailable(doxygen-awesome-css)
+
+  FetchContent_GetProperties(doxygen-awesome-css)
+
+  if(NOT doxygen-awesome-css_POPULATED)
+    FetchContent_Populate(doxygen-awesome-css)
+    set(doxygen-awesome-css_INCLUDE_DIR ${doxygen-awesome-css_SOURCE_DIR})
+  endif()
+
+  set(DOXY_SOURCE_DIRECTORY ${Utils_SOURCE_DIR}/include)
+  set(DOXY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
+  set(DOXY_CSS_DIRECTORY ${doxygen-awesome-css_INCLUDE_DIR})
+
+  configure_file(doxy.in doxy.cfg @ONLY)
+
+  add_custom_target(
+    documents
+    COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxy.cfg
+    WORKING_DIRECTORY ${Utils_SOURCE_DIR}
+    VERBATIM)
 endif()
 
 include(CTest)
 enable_testing()
 
-function(exec_dir dir prefix output_dir as_test)
-  set(libs ${ARGN})
-
-  file(GLOB_RECURSE source RELATIVE ${dir}/src ${dir}/src/*.cpp)
-  foreach(src ${source})
-    get_filename_component(exec_raw ${src} NAME_WE)
-    string(REPLACE ".cpp" "" exec_base ${exec_raw})
-    string(REPLACE "/" "_" exec_name ${exec_base})
-    set(exec_name ${prefix}${exec_name})
-    add_executable(${exec_name} ${dir}/src/${src})
-    target_include_directories(${exec_name} PRIVATE $<BUILD_INTERFACE:${dir}/include>)
-    target_link_libraries(${exec_name} PRIVATE ${libs})
-    set_target_properties(${exec_name} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY ${output_dir}
-      RUNTIME_OUTPUT_DIRECTORY_DEBUG ${output_dir}
-      RUNTIME_OUTPUT_DIRECTORY_RELEASE ${output_dir})
-    if(as_test)
-      add_test(NAME ${exec_name} COMMAND ${exec_name})
-     endif()
-  endforeach()
-endfunction()
-
-function(exec_dir_options dir prefix)
-  set(options ${ARGN})
-  file(GLOB_RECURSE source RELATIVE ${dir}/src ${dir}/src/*.cpp)
-  foreach(src ${source})
-    get_filename_component(exec_raw ${src} NAME_WE)
-    string(REPLACE ".cpp" "" exec_base ${exec_raw})
-    string(REPLACE "/" "_" exec_name ${exec_base})
-    set(exec_name ${prefix}${exec_name})
-    target_compile_options(${exec_name} PRIVATE ${options})
-  endforeach()
-endfunction()
+include(exec)
 
 if(ATOM_UTILS_BUILD_TEST)
   option(ATOM_UTILS_TEST_SEE_ALL_TEMPLATE_BACKTRACE OFF)
