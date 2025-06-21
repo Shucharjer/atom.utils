@@ -202,48 +202,54 @@ if(ATOM_UTILS_BUILD_DOCS)
   endif()
 endif()
 
-if(ATOM_UTILS_BUILD_TEST)
-  include(CTest)
-  enable_testing()
-  option(SEE_ALL_TEMPLATE_BACKTRACE OFF)
+include(CTest)
+enable_testing()
 
-  function(add_utils_test test_name)
-    set(ATOM_UTILS_TEST_DIR "${Utils_SOURCE_DIR}/test")
-    set(ATOM_UTILS_TEST_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/test)
-    add_executable(test_${test_name} ${ATOM_UTILS_TEST_DIR}/${test_name}.cpp)
-    target_link_libraries(test_${test_name} PRIVATE Atom::Utils)
-    set_target_properties(
-      test_${test_name}
-      PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${ATOM_UTILS_TEST_OUTPUT_DIR}
-                 RUNTIME_OUTPUT_DIRECTORY_DEBUG ${ATOM_UTILS_TEST_OUTPUT_DIR}
-                 RUNTIME_OUTPUT_DIRECTORY_RELEASE ${ATOM_UTILS_TEST_OUTPUT_DIR})
-    add_test(NAME ${test_name} COMMAND test_${test_name})
+function(exec_dir dir prefix output_dir as_test)
+  set(libs ${ARGN})
 
-    if(SEE_ALL_TEMPLATE_BACKTRACE)
-      target_compile_options(${TEST_EXECUTABLE_NAME}
-                             PRIVATE -ftemplate-backtrace-limit=0)
-    endif()
-  endfunction()
-
-  set(ATOM_UTILS_TESTS
-      core
-      memory
-      meta
-      ranges
-      reflection
-      signal
-      structures
-      thread)
-
-  foreach(test IN LISTS ATOM_UTILS_TESTS)
-    add_utils_test(${test})
+  file(GLOB_RECURSE source RELATIVE ${dir}/src ${dir}/src/*.cpp)
+  foreach(src ${source})
+    get_filename_component(exec_raw ${src} NAME_WE)
+    string(REPLACE ".cpp" "" exec_base ${exec_raw})
+    string(REPLACE "/" "_" exec_name ${exec_base})
+    set(exec_name ${prefix}${exec_name})
+    add_executable(${exec_name} ${dir}/src/${src})
+    target_include_directories(${exec_name} PRIVATE $<BUILD_INTERFACE:${dir}/include>)
+    target_link_libraries(${exec_name} PRIVATE ${libs})
+    set_target_properties(${exec_name} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY ${output_dir}
+      RUNTIME_OUTPUT_DIRECTORY_DEBUG ${output_dir}
+      RUNTIME_OUTPUT_DIRECTORY_RELEASE ${output_dir})
+    if(as_test)
+      add_test(NAME ${exec_name} COMMAND ${exec_name})
+     endif()
   endforeach()
+endfunction()
 
+function(exec_dir_options dir prefix)
+  set(options ${ARGN})
+  file(GLOB_RECURSE source RELATIVE ${dir}/src ${dir}/src/*.cpp)
+  foreach(src ${source})
+    get_filename_component(exec_raw ${src} NAME_WE)
+    string(REPLACE ".cpp" "" exec_base ${exec_raw})
+    string(REPLACE "/" "_" exec_name ${exec_base})
+    set(exec_name ${prefix}${exec_name})
+    target_compile_options(${exec_name} PRIVATE ${options})
+  endforeach()
+endfunction()
+
+if(ATOM_UTILS_BUILD_TEST)
+  option(ATOM_UTILS_TEST_SEE_ALL_TEMPLATE_BACKTRACE OFF)
+  set(test_dir ${Utils_SOURCE_DIR}/test)
+  set(test_output_dir ${CMAKE_CURRENT_BINARY_DIR}/test)
+  exec_dir(${test_dir} "test-" ${test_output_dir} true Utils)
+  if(ATOM_UTILS_TEST_SEE_ALL_TEMPLATE_BACKTRACE)
+    exec_dir_options(${test_dir} "test-" ftemplate-backtrace-limit=0)
+  endif()
 endif()
 
 if(ATOM_UTILS_BUILD_BENCHMARK)
-  set(ATOM_Utils_BENCHMARK_DIR "${Utils_SOURCE_DIR}/benchmark")
-
   include(FetchContent)
   FetchContent_Declare(
     googlebenchmark
@@ -253,23 +259,7 @@ if(ATOM_UTILS_BUILD_BENCHMARK)
   set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
   FetchContent_MakeAvailable(googlebenchmark)
 
-  function(add_utils_benchmark benchmark_name)
-    set(ATOM_UTILS_BENCHMARK_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/benchmark)
-    file(GLOB BENCHMARK_SRCS
-         "${ATOM_Utils_BENCHMARK_DIR}/${benchmark_name}.cpp"
-         "${ATOM_Utils_BENCHMARK_DIR}/${benchmark_name}.s")
-    add_executable(benchmark-${benchmark_name} ${BENCHMARK_SRCS})
-    target_link_libraries(benchmark-${benchmark_name}
-                          PRIVATE Utils benchmark::benchmark)
-    set_target_properties(
-      benchmark-${benchmark_name}
-      PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${ATOM_UTILS_BENCHMARK_OUTPUT_DIR}
-                 RUNTIME_OUTPUT_DIRECTORY_DEBUG
-                 ${ATOM_UTILS_BENCHMARK_OUTPUT_DIR}
-                 RUNTIME_OUTPUT_DIRECTORY_RELEASE
-                 ${ATOM_UTILS_BENCHMARK_OUTPUT_DIR})
-  endfunction()
-
-  add_utils_benchmark(delegate)
-  add_utils_benchmark(memory)
+  set(benchmark_dir ${Utils_SOURCE_DIR}/benchmark)
+  set(benchmark_output_dir ${CMAKE_CURRENT_BINARY_DIR}/benchmark)
+  exec_dir(${benchmark_dir} "benchmark-" ${benchmark_output_dir} false Utils benchmark::benchmark)
 endif()
